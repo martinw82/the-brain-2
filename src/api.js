@@ -1,131 +1,141 @@
-// src/api.js
-// All API calls in one place.
-// Token is stored in localStorage and sent with every request.
-// Swap BASE_URL in .env to point at any backend.
+// src/api.js — Vercel edition
+// All API calls in one place. Uses /api/auth, /api/projects, /api/data
 
-const BASE = import.meta.env.VITE_API_URL || '/.netlify/functions';
+const BASE = '';  // same domain, no prefix needed
 
-// ── TOKEN MANAGEMENT ─────────────────────────────────────────
 export const token = {
-  get: ()    => localStorage.getItem('brain_token'),
-  set: (t)   => localStorage.setItem('brain_token', t),
-  clear: ()  => localStorage.removeItem('brain_token'),
+  get:   () => localStorage.getItem('brain_token'),
+  set:   (t) => localStorage.setItem('brain_token', t),
+  clear: () => localStorage.removeItem('brain_token'),
 };
 
-function headers(extra = {}) {
+function headers() {
   const t = token.get();
   return {
     'Content-Type': 'application/json',
     ...(t ? { Authorization: `Bearer ${t}` } : {}),
-    ...extra,
   };
 }
 
-async function req(method, path, body) {
-  const res = await fetch(`${BASE}${path}`, {
+async function req(method, url, body) {
+  const res = await fetch(url, {
     method,
     headers: headers(),
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
-
   const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    throw new Error(data.error || `HTTP ${res.status}`);
-  }
-
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
 
-const get    = (path)       => req('GET',    path);
-const post   = (path, body) => req('POST',   path, body);
-const put    = (path, body) => req('PUT',    path, body);
-const del    = (path, body) => req('DELETE', path, body);
+const get  = (url)        => req('GET',    url);
+const post = (url, body)  => req('POST',   url, body);
+const put  = (url, body)  => req('PUT',    url, body);
+const del  = (url, body)  => req('DELETE', url, body);
 
 // ── AUTH ──────────────────────────────────────────────────────
 export const auth = {
   register: (email, password, name) =>
-    post('/auth/register', { email, password, name }),
+    post(`${BASE}/api/auth?action=register`, { email, password, name }),
 
   login: (email, password) =>
-    post('/auth/login', { email, password }),
+    post(`${BASE}/api/auth?action=login`, { email, password }),
 
-  me: () => get('/auth/me'),
+  me: () =>
+    get(`${BASE}/api/auth?action=me`),
 
-  updateProfile: (data) => put('/auth/me', data),
+  updateProfile: (data) =>
+    put(`${BASE}/api/auth?action=me`, data),
 
   logout: () => token.clear(),
 };
 
 // ── PROJECTS ──────────────────────────────────────────────────
 export const projects = {
-  list: () => get('/projects'),
+  list: () =>
+    get(`${BASE}/api/projects?action=list`),
 
-  get: (id) => get(`/projects/${id}`),
+  get: (id) =>
+    get(`${BASE}/api/projects?action=get&id=${id}`),
 
-  create: (project) => post('/projects', project),
+  create: (project) =>
+    post(`${BASE}/api/projects?action=create`, project),
 
-  update: (id, data) => put(`/projects/${id}`, data),
+  update: (id, data) =>
+    put(`${BASE}/api/projects?action=update&id=${id}`, data),
 
-  delete: (id) => del(`/projects/${id}`),
+  delete: (id) =>
+    del(`${BASE}/api/projects?action=delete&id=${id}`),
 
   saveFile: (projectId, path, content) =>
-    put(`/projects/${projectId}/files`, { path, content }),
+    put(`${BASE}/api/projects?action=save-file&id=${projectId}`, { path, content }),
 
   deleteFile: (projectId, path) =>
-    del(`/projects/${projectId}/files`, { path }),
+    del(`${BASE}/api/projects?action=delete-file&id=${projectId}`, { path }),
 
   addFolder: (projectId, folder) =>
-    post(`/projects/${projectId}/folders`, folder),
+    post(`${BASE}/api/projects?action=add-folder&id=${projectId}`, folder),
 
   setActiveFile: (projectId, path) =>
-    put(`/projects/${projectId}/active-file`, { path }),
+    put(`${BASE}/api/projects?action=active-file&id=${projectId}`, { path }),
 };
 
 // ── STAGING ───────────────────────────────────────────────────
 export const staging = {
   list: (projectId) =>
-    get(projectId ? `/staging?project=${projectId}` : '/staging'),
+    get(`${BASE}/api/data?resource=staging${projectId ? `&project_id=${projectId}` : ''}`),
 
-  create: (item) => post('/staging', item),
+  create: (item) =>
+    post(`${BASE}/api/data?resource=staging`, item),
 
-  update: (id, data) => put(`/staging/${id}`, data),
+  update: (id, data) =>
+    put(`${BASE}/api/data?resource=staging&id=${id}`, data),
 
-  delete: (id) => del(`/staging/${id}`),
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=staging&id=${id}`),
 };
 
 // ── IDEAS ─────────────────────────────────────────────────────
 export const ideas = {
-  list: () => get('/ideas'),
+  list: () =>
+    get(`${BASE}/api/data?resource=ideas`),
 
-  create: (idea) => post('/ideas', idea),
+  create: (idea) =>
+    post(`${BASE}/api/data?resource=ideas`, idea),
 
-  update: (id, data) => put(`/ideas/${id}`, data),
+  update: (id, data) =>
+    put(`${BASE}/api/data?resource=ideas&id=${id}`, data),
 
-  delete: (id) => del(`/ideas/${id}`),
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=ideas&id=${id}`),
 };
 
 // ── SESSIONS ──────────────────────────────────────────────────
 export const sessions = {
-  list: (limit = 20) => get(`/sessions?limit=${limit}`),
+  list: (limit = 20) =>
+    get(`${BASE}/api/data?resource=sessions&limit=${limit}`),
 
-  create: (session) => post('/sessions', session),
+  create: (session) =>
+    post(`${BASE}/api/data?resource=sessions`, session),
 };
 
 // ── COMMENTS ─────────────────────────────────────────────────
 export const comments = {
   list: (projectId, filePath) =>
-    get(`/comments?project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`),
+    get(`${BASE}/api/data?resource=comments&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`),
 
   create: (projectId, filePath, text) =>
-    post('/comments', { project_id: projectId, file_path: filePath, text }),
+    post(`${BASE}/api/data?resource=comments`, { project_id: projectId, file_path: filePath, text }),
 
-  resolve: (id, resolved) => put(`/comments/${id}`, { resolved }),
+  resolve: (id, resolved) =>
+    put(`${BASE}/api/data?resource=comments&id=${id}`, { resolved }),
 
-  delete: (id) => del(`/comments/${id}`),
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=comments&id=${id}`),
 };
 
 // ── SEARCH ────────────────────────────────────────────────────
 export const search = {
-  query: (q) => get(`/search?q=${encodeURIComponent(q)}`),
+  query: (q) =>
+    get(`${BASE}/api/data?resource=search&q=${encodeURIComponent(q)}`),
 };
