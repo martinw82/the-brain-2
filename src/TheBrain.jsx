@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, token } from "./api.js";
+import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, token } from "./api.js";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -25,6 +25,7 @@ const S = {
 };
 
 // ── SMALL COMPONENTS ─────────────────────────────────────────
+const AreaPill=({area,active,onClick})=> <button onClick={onClick} style={{...S.btn(active?"primary":"ghost"),background:active?area.color:C.surface,border:active?`1px solid ${area.color}`:`1px solid ${C.border}`,color:active?"#fff":C.text,fontSize:9,display:"flex",alignItems:"center",gap:4}}><span style={{fontSize:12}}>{area.icon}</span> {area.name}</button>;
 const Dots=({n=0,max=5,size=5})=><div style={{display:"flex",gap:3}}>{Array.from({length:max}).map((_,i)=><div key={i} style={{width:size,height:size,borderRadius:"50%",background:i<n?C.blue2:C.border}}/>)}</div>;
 const HealthBar=({score})=>{const col=score>70?C.green:score>40?C.amber:C.red;return <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:60,height:4,background:C.border,borderRadius:2,overflow:"hidden"}}><div style={{width:`${score}%`,height:"100%",background:col,borderRadius:2}}/></div><span style={{fontSize:9,color:col,fontWeight:700}}>{score}</span></div>;};
 const STATUS_MAP={active:{l:"ACTIVE",c:C.green},stalled:{l:"STALLED",c:C.amber},paused:{l:"PAUSED",c:C.purple},done:{l:"DONE",c:C.blue2},idea:{l:"IDEA",c:"#94a3b8"}};
@@ -281,12 +282,13 @@ const buildZipExport=(project)=>{
 // ══════════════════════════════════════════════════════════════
 // MAIN COMPONENT — accepts props from App.jsx (auth gate)
 // ══════════════════════════════════════════════════════════════
-export default function TheBrain({ user, initialProjects=[], initialStaging=[], initialIdeas=[], onLogout }) {
+export default function TheBrain({ user, initialProjects=[], initialStaging=[], initialIdeas=[], initialAreas=[], onLogout }) {
 
   // ── STATE ──────────────────────────────────────────────────
   const [projects,setProjects]       = useState(initialProjects.map(p=>({...p,health:calcHealth(p)})));
   const [staging,setStaging]         = useState(initialStaging);
   const [ideas,setIdeas]             = useState(initialIdeas);
+  const [areas,setAreas]             = useState(initialAreas);
 
   // UI navigation
   const [view,setView]               = useState("brain");
@@ -327,7 +329,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   // Modals
   const [modal,setModal]                     = useState(null);
   const [bootstrapWizardId,setBootstrapWiz]  = useState(null);
-  const [newProjForm,setNewProjForm]         = useState({name:"",emoji:"📁",phase:"BOOTSTRAP",desc:""});
+  const [newProjForm,setNewProjForm]         = useState({name:"",emoji:"📁",phase:"BOOTSTRAP",desc:"",areaId:""});
   const [newFileName,setNewFileName]         = useState("");
   const [newFileFolder,setNewFileFolder]     = useState("staging");
   const [customFolderForm,setCFForm]         = useState({id:"",label:"",icon:"📁",desc:""});
@@ -343,6 +345,22 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
   const showToast = (msg) => setToast({msg});
 
+  // ── SEED DEFAULTS — called if areas are empty ─────────────
+  useEffect(() => {
+    if (areas.length === 0 && user) {
+      const defaults = [
+        { name: "Business / Revenue", color: "#1a4fd6", icon: "💼", description: "Revenue generating projects", sort_order: 1 },
+        { name: "Health / Body", color: "#10b981", icon: "🏋️", description: "Physical health and training", sort_order: 2 },
+        { name: "Relationships", color: "#ec4899", icon: "❤️", description: "Friends, family, and networking", sort_order: 3 },
+        { name: "Creative / Learning", color: "#8b5cf6", icon: "🎨", description: "Skill building and side projects", sort_order: 4 },
+        { name: "Personal / Admin", color: "#64748b", icon: "🏠", description: "Life maintenance and logistics", sort_order: 5 },
+      ];
+      Promise.all(defaults.map(d => areasApi.create(d))).then(() => {
+        areasApi.list().then(data => setAreas(data.areas || []));
+      });
+    }
+  }, [areas.length, user]);
+
   // ── DERIVED ────────────────────────────────────────────────
   const hub          = projects.find(p=>p.id===hubId);
   const focusP       = projects.find(p=>p.id===focusId);
@@ -350,6 +368,16 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const atRisk       = projects.filter(p=>p.health<50).length;
   const inReview     = staging.filter(s=>s.status==="in-review").length;
   const hubAllFolders= hub?[...STANDARD_FOLDERS,...(hub.customFolders||[])]:STANDARD_FOLDERS;
+
+  // Area health logic
+  const areaStats = areas.map(a => {
+    const areaProjects = projects.filter(p => p.areaId === a.id);
+    const health = areaProjects.length ? Math.round(areaProjects.reduce((s,p)=>s+p.health,0)/areaProjects.length) : 100;
+    return { ...a, health, projectCount: areaProjects.length };
+  });
+
+  const [activeAreaFilter, setActiveAreaFilter] = useState(null);
+  const filteredProjects = activeAreaFilter ? projects.filter(p => p.areaId === activeAreaFilter) : projects;
 
   // ── SESSION TIMER ──────────────────────────────────────────
   useEffect(()=>{
@@ -492,6 +520,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const createProject=async(form)=>{
     const id=form.name.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"")+"-"+Date.now().toString(36);
     const proj=makeProject(id,form.name,form.emoji,form.phase,"active",projects.length+1,false,form.desc,"Run Bootstrap Protocol → define scope with agents",[],["new"],3,new Date().toISOString().slice(0,7),0,["dev","strategy"],[]);
+    proj.areaId = form.areaId || null;
     // Optimistic
     setProjects(prev=>[...prev,proj]);
     setFocusId(id);setModal(null);
@@ -781,7 +810,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
           </div>}
 
           <div style={{display:"flex",gap:0,flexWrap:"wrap"}}>
-            {view==="brain"?BRAIN_TABS.map(t=><button key={t.id} style={S.tab(mainTab===t.id)} onClick={()=>setMainTab(t.id)}>{t.label}</button>)
+            {view==="brain"?BRAIN_TABS.map(t=><button key={t.id} style={S.tab(mainTab===t.id)} onClick={()=>{setMainTab(t.id); if(t.id!=="command") setActiveAreaFilter(null);}}>{t.label}</button>)
               :HUB_TABS.map(t=><button key={t.id} style={S.tab(hubTab===t.id,"#10b981")} onClick={()=>setHubTab(t.id)}>{t.label}</button>)}
             {view==="hub"&&hub&&<div style={{marginLeft:"auto",display:"flex",gap:4,paddingBottom:4}}>
               <button style={{...S.btn("ghost"),fontSize:9}} onClick={()=>setModal("new-custom-folder")}>+ Folder</button>
@@ -803,7 +832,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
           <select style={{...S.sel,marginBottom:8}} value={newProjForm.phase} onChange={e=>setNewProjForm(f=>({...f,phase:e.target.value}))}>
             {BUIDL_PHASES.map(p=><option key={p}>{p}</option>)}
           </select>
-          <textarea style={{...S.input,height:60,resize:"vertical",marginBottom:12}} placeholder="One sentence description..." value={newProjForm.desc} onChange={e=>setNewProjForm(f=>({...f,desc:e.target.value}))}/>
+          <textarea style={{...S.input,height:60,resize:"vertical",marginBottom:8}} placeholder="One sentence description..." value={newProjForm.desc} onChange={e=>setNewProjForm(f=>({...f,desc:e.target.value}))}/>
+          <select style={{...S.sel,marginBottom:12}} value={newProjForm.areaId} onChange={e=>setNewProjForm(f=>({...f,areaId:e.target.value}))}>
+            <option value="">Assign to Area (Optional)</option>
+            {areas.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+          </select>
           <div style={{display:"flex",gap:6}}>
             <button style={S.btn("primary")} onClick={()=>newProjForm.name.trim()&&createProject(newProjForm)}>Create + Save to DB</button>
             <button style={S.btn("ghost")} onClick={()=>setModal(null)}>Cancel</button>
@@ -909,6 +942,13 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                         <div style={{fontSize:11}}>{r.v}</div>
                       </div>
                     ))}
+                  </div>
+                  <span style={S.label()}>Area</span>
+                  <div style={{marginBottom:10}}>
+                    <select style={S.sel} value={hub.areaId||""} onChange={e=>updateProject(hubId,{areaId:e.target.value})}>
+                      <option value="">No Area</option>
+                      {areas.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+                    </select>
                   </div>
                   <span style={S.label(C.green)}>Next Action</span>
                   <div style={{fontSize:11,color:C.green,marginBottom:8}}>→ {hub.nextAction}</div>
@@ -1050,6 +1090,19 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
           {mainTab==="command"&&(
             <div>
+              {/* Area summary cards */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10,marginBottom:14}}>
+                {areaStats.map(a=>(
+                  <div key={a.id} style={S.card(activeAreaFilter===a.id, a.color)} onClick={()=>setActiveAreaFilter(activeAreaFilter===a.id?null:a.id)}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                      <span style={{fontSize:14}}>{a.icon} <span style={{fontSize:12,fontWeight:700}}>{a.name}</span></span>
+                      <span style={{fontSize:10,color:C.muted}}>{a.projectCount} projects</span>
+                    </div>
+                    <HealthBar score={a.health}/>
+                  </div>
+                ))}
+              </div>
+
               {projects.filter(p=>p.health<50).length>0&&(
                 <div style={{background:"rgba(239,68,68,0.05)",border:"1px solid #ef444330",borderRadius:6,padding:"10px 14px",marginBottom:10}}>
                   <div style={{fontSize:9,color:C.red,letterSpacing:"0.12em",marginBottom:6}}>🚨 HEALTH ALERTS</div>
@@ -1078,8 +1131,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 </div>}
               </div>
               <div style={S.card(false)}>
-                <div style={{fontSize:10,color:C.blue,letterSpacing:"0.11em",textTransform:"uppercase",marginBottom:10}}>📋 Priority Stack</div>
-                {[...projects].sort((a,b)=>a.priority-b.priority).map((p,i)=>(
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <div style={{fontSize:10,color:C.blue,letterSpacing:"0.11em",textTransform:"uppercase"}}>📋 Priority Stack {activeAreaFilter && "(Filtered)"}</div>
+                    {activeAreaFilter && <button style={{...S.btn("ghost"),fontSize:8}} onClick={()=>setActiveAreaFilter(null)}>Show All</button>}
+                </div>
+                {[...filteredProjects].sort((a,b)=>a.priority-b.priority).map((p,i)=>(
                   <div key={p.id} onClick={()=>openHub(p.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:i<projects.length-1?`1px solid ${C.border}`:"none",cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.background="#ffffff05"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <div style={{width:18,fontSize:10,color:C.dim,fontWeight:700}}>{p.priority}</div>
                     <span style={{fontSize:14}}>{p.emoji}</span>

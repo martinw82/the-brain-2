@@ -28,6 +28,28 @@ const migrations = [
           name VARCHAR(255) NOT NULL,
           applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );`
+    },
+    {
+        version: 3,
+        name: 'create_life_areas_table',
+        sql: `CREATE TABLE IF NOT EXISTS life_areas (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          color VARCHAR(16) DEFAULT '#3b82f6',
+          icon VARCHAR(8) DEFAULT '🌐',
+          description TEXT,
+          target_hours_weekly INT DEFAULT NULL,
+          health_score INT DEFAULT 100,
+          sort_order INT DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        );`
+    },
+    {
+        version: 4,
+        name: 'add_life_area_id_to_projects',
+        sql: 'ALTER TABLE projects ADD COLUMN IF NOT EXISTS life_area_id VARCHAR(36) DEFAULT NULL AFTER user_id;'
     }
 ];
 

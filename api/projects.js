@@ -41,6 +41,7 @@ function safeJson(val, fallback) {
 function mapProject(p, customFolders) {
   return {
     id:           p.id,
+    areaId:       p.life_area_id || null,
     name:         p.name,
     emoji:        p.emoji || '📁',
     phase:        p.phase || 'BOOTSTRAP',
@@ -79,15 +80,33 @@ export default async function handler(req, res) {
 
     // ── GET list (no files — lightweight) ────────────────────
     if (req.method === 'GET' && action === 'list') {
-      const [projects] = await db.execute(
-        `SELECT p.*, 
-          (SELECT JSON_ARRAYAGG(JSON_OBJECT(
-            'folder_id', cf.folder_id, 'label', cf.label,
-            'icon', cf.icon, 'description', cf.description
-          )) FROM project_custom_folders cf WHERE cf.project_id = p.id) as custom_folders
-         FROM projects p WHERE p.user_id = ? ORDER BY p.priority ASC`,
-        [auth.userId]
-      );
+      let projects;
+      try {
+        [projects] = await db.execute(
+          `SELECT p.*,
+            (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+              'folder_id', cf.folder_id, 'label', cf.label,
+              'icon', cf.icon, 'description', cf.description
+            )) FROM project_custom_folders cf WHERE cf.project_id = p.id) as custom_folders
+           FROM projects p WHERE p.user_id = ? ORDER BY p.priority ASC`,
+          [auth.userId]
+        );
+      } catch (e) {
+        // Fallback if life_area_id column is missing
+        if (e.message.includes('Unknown column \'p.life_area_id\'') || e.message.includes('Unknown column \'life_area_id\'')) {
+           [projects] = await db.execute(
+            `SELECT p.id, p.user_id, p.name, p.emoji, p.phase, p.status, p.priority, p.revenue_ready, p.income_target, p.momentum, p.last_touched, p.description, p.next_action, p.blockers, p.tags, p.skills, p.integrations, p.active_file, p.health, p.created_at, p.updated_at,
+              (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+                'folder_id', cf.folder_id, 'label', cf.label,
+                'icon', cf.icon, 'description', cf.description
+              )) FROM project_custom_folders cf WHERE cf.project_id = p.id) as custom_folders
+             FROM projects p WHERE p.user_id = ? ORDER BY p.priority ASC`,
+            [auth.userId]
+          );
+        } else {
+          throw e;
+        }
+      }
 
       const parsed = projects.map(p => {
         const rawFolders = safeJson(p.custom_folders, []);
@@ -102,10 +121,22 @@ export default async function handler(req, res) {
 
     // ── GET single with files ────────────────────────────────
     if (req.method === 'GET' && action === 'get' && projectId) {
-      const [projects] = await db.execute(
-        'SELECT * FROM projects WHERE id = ? AND user_id = ?',
-        [projectId, auth.userId]
-      );
+      let projects;
+      try {
+        [projects] = await db.execute(
+          'SELECT * FROM projects WHERE id = ? AND user_id = ?',
+          [projectId, auth.userId]
+        );
+      } catch (e) {
+        if (e.message.includes('Unknown column \'life_area_id\'')) {
+          [projects] = await db.execute(
+            'SELECT id, user_id, name, emoji, phase, status, priority, revenue_ready, income_target, momentum, last_touched, description, next_action, blockers, tags, skills, integrations, active_file, health, created_at, updated_at FROM projects WHERE id = ? AND user_id = ?',
+            [projectId, auth.userId]
+          );
+        } else {
+          throw e;
+        }
+      }
       if (!projects.length) return err(res, 'Not found', 404);
       const p = projects[0];
 
@@ -143,17 +174,33 @@ export default async function handler(req, res) {
     // ── POST create ──────────────────────────────────────────
     if (req.method === 'POST' && action === 'create') {
       const data = req.body || {};
-      const { id, name, emoji, phase, status, priority, revenueReady, incomeTarget, momentum, lastTouched, desc, nextAction, blockers, tags, skills, integrations, files, customFolders, health, activeFile } = data;
+      const { id, areaId, name, emoji, phase, status, priority, revenueReady, incomeTarget, momentum, lastTouched, desc, nextAction, blockers, tags, skills, integrations, files, customFolders, health, activeFile } = data;
       if (!id || !name) return err(res, 'id and name required');
 
       const [existing] = await db.execute('SELECT id FROM projects WHERE id = ? AND user_id = ?', [id, auth.userId]);
       if (existing.length) return err(res, 'Project ID exists', 409);
 
-      await db.execute(
-        `INSERT INTO projects (id, user_id, name, emoji, phase, status, priority, revenue_ready, income_target, momentum, last_touched, description, next_action, blockers, tags, skills, integrations, active_file, health)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, auth.userId, name, emoji || '📁', phase || 'BOOTSTRAP', status || 'active', priority || 99, revenueReady ? 1 : 0, incomeTarget || 0, momentum || 3, lastTouched || null, desc || '', nextAction || '', JSON.stringify(blockers || []), JSON.stringify(tags || []), JSON.stringify(skills || []), JSON.stringify(integrations || {}), activeFile || 'PROJECT_OVERVIEW.md', health || 100]
-      );
+      // Support for life_area_id if column exists
+      const columns = ['id', 'user_id', 'name', 'emoji', 'phase', 'status', 'priority', 'revenue_ready', 'income_target', 'momentum', 'last_touched', 'description', 'next_action', 'blockers', 'tags', 'skills', 'integrations', 'active_file', 'health'];
+      const values = [id, auth.userId, name, emoji || '📁', phase || 'BOOTSTRAP', status || 'active', priority || 99, revenueReady ? 1 : 0, incomeTarget || 0, momentum || 3, lastTouched || null, desc || '', nextAction || '', JSON.stringify(blockers || []), JSON.stringify(tags || []), JSON.stringify(skills || []), JSON.stringify(integrations || {}), activeFile || 'PROJECT_OVERVIEW.md', health || 100];
+
+      try {
+        await db.execute(
+            `INSERT INTO projects (id, user_id, life_area_id, name, emoji, phase, status, priority, revenue_ready, income_target, momentum, last_touched, description, next_action, blockers, tags, skills, integrations, active_file, health)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, auth.userId, areaId || null, name, emoji || '📁', phase || 'BOOTSTRAP', status || 'active', priority || 99, revenueReady ? 1 : 0, incomeTarget || 0, momentum || 3, lastTouched || null, desc || '', nextAction || '', JSON.stringify(blockers || []), JSON.stringify(tags || []), JSON.stringify(skills || []), JSON.stringify(integrations || {}), activeFile || 'PROJECT_OVERVIEW.md', health || 100]
+          );
+      } catch (e) {
+          if (e.message.includes('Unknown column \'life_area_id\'')) {
+            await db.execute(
+                `INSERT INTO projects (id, user_id, name, emoji, phase, status, priority, revenue_ready, income_target, momentum, last_touched, description, next_action, blockers, tags, skills, integrations, active_file, health)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                values
+              );
+          } else {
+              throw e;
+          }
+      }
 
       if (files) {
         for (const [path, content] of Object.entries(files)) {
@@ -182,6 +229,7 @@ export default async function handler(req, res) {
       const data = req.body || {};
       const fields = [], values = [];
       const map = {
+        areaId: 'life_area_id',
         name: 'name', emoji: 'emoji', phase: 'phase', status: 'status',
         priority: 'priority', momentum: 'momentum', lastTouched: 'last_touched',
         desc: 'description', nextAction: 'next_action', health: 'health',

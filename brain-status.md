@@ -224,6 +224,11 @@ At the end of each build session, update this document with:
 2. ~~**Fix comments loading from DB**~~ ✅ Done (2026-03-08)
 3. ~~**Build AI Coach proxy function**~~ ✅ Done (2026-03-08)
 
+### Phase 1: Foundations
+4. ~~**Life Areas ("Parts")**~~ ✅ Done (2026-03-08)
+5. **Generic goal system** (replace hardcoded Thailand tracker)
+6. **Template system** (BUIDL phases become optional)
+
 ### After that (Phase 0 completion)
 4. ~~Fix rename stale reference bug~~ ✅ Done (2026-03-08)
 5. ~~Add `beforeunload` handler for session timer~~ ✅ Done (2026-03-08)

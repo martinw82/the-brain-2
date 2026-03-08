@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS projects (
   id              VARCHAR(64)   PRIMARY KEY,   -- user-defined slug e.g. "startifi"
   user_id         VARCHAR(36)   NOT NULL,
+  life_area_id    VARCHAR(36)   DEFAULT NULL,
   name            VARCHAR(255)  NOT NULL,
   emoji           VARCHAR(8)    DEFAULT '📁',
   phase           VARCHAR(32)   DEFAULT 'BOOTSTRAP',
@@ -153,4 +154,21 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
   version     INT           NOT NULL UNIQUE,
   name        VARCHAR(255)  NOT NULL,
   applied_at  DATETIME      DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── LIFE AREAS ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS life_areas (
+  id                  VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
+  user_id             VARCHAR(36)   NOT NULL,
+  name                VARCHAR(255)  NOT NULL,
+  color               VARCHAR(16)   DEFAULT '#3b82f6',
+  icon                VARCHAR(8)    DEFAULT '🌐',
+  description         TEXT,
+  target_hours_weekly INT           DEFAULT NULL,
+  health_score        INT           DEFAULT 100,
+  sort_order          INT           DEFAULT 0,
+  created_at          DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  updated_at          DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user_areas (user_id, sort_order)
 );

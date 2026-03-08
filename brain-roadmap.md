@@ -103,11 +103,11 @@ _Not a full test suite — just the 3 paths where data loss would destroy trust.
 
 _These are the base systems that everything else plugs into. Get these right and every future feature is easier._
 
-### 1.0 [EXTENSIBLE] Life Areas ("Parts") `[DB]` `[API]` `[UI]`
+### 1.0 [EXTENSIBLE] Life Areas ("Parts") `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
 
 The core philosophy is Life > Parts > Things. Without Parts as first-class entities, this is a project manager, not a life OS.
 
-- [ ] **Schema:** Create `life_areas` table:
+- [x] **Schema:** Create `life_areas` table:
   ```
   id, user_id, name, color, icon,
   description,
@@ -116,19 +116,19 @@ The core philosophy is Life > Parts > Things. Without Parts as first-class entit
   sort_order (int),
   created_at, updated_at
   ```
-- [ ] **Schema:** Add `life_area_id VARCHAR(36) NULLABLE` to `projects` table (FK to life_areas)
-- [ ] **Seed defaults** on first user creation (user can rename/delete):
+- [x] **Schema:** Add `life_area_id VARCHAR(36) NULLABLE` to `projects` table (FK to life_areas)
+- [x] **Seed defaults** on first user creation (user can rename/delete):
   - Business / Revenue (💼)
   - Health / Body (🏋️)
   - Relationships (❤️)
   - Creative / Learning (🎨)
   - Personal / Admin (🏠)
-- [ ] **API:** CRUD routes for life areas (`/api/areas`)
-- [ ] **API:** Assign/unassign project to area (`/api/projects/:id` update with `life_area_id`)
-- [ ] **Health calculation:** Area health = weighted average of its projects' health scores
-- [ ] **UI:** Life area pills/tabs in Command Centre — click to filter projects by area
-- [ ] **UI:** Area assignment dropdown in project creation and project overview
-- [ ] **UI:** Area health summary card — shows all areas with health bars
+- [x] **API:** CRUD routes for life areas (`/api/areas`)
+- [x] **API:** Assign/unassign project to area (`/api/projects/:id` update with `life_area_id`)
+- [x] **Health calculation:** Area health = weighted average of its projects' health scores
+- [x] **UI:** Life area pills/tabs in Command Centre — click to filter projects by area
+- [x] **UI:** Area assignment dropdown in project creation and project overview
+- [x] **UI:** Area health summary card — shows all areas with health bars
 - [ ] **Agent integration:** AI Coach receives area context — can say "Business is strong but Health is declining" and route advice accordingly
 - [ ] **Allow projects to belong to multiple areas** via the tagging system (Phase 1.3) as an alternative to the FK — both paths should work
 - **Done when:** You can see a dashboard that says "Business: 65%, Health: 30%, Creative: 80%" and filter projects by life area

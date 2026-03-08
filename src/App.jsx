@@ -3,13 +3,13 @@
 // Also handles the initial "load all user data from API" on login.
 
 import { useState, useEffect } from "react";
-import { token, auth as authApi, projects as projectsApi, staging as stagingApi, ideas as ideasApi } from "./api.js";
+import { token, auth as authApi, projects as projectsApi, staging as stagingApi, ideas as ideasApi, areas as areasApi } from "./api.js";
 import AuthScreen from "./AuthScreen.jsx";
 import TheBrain from "./TheBrain.jsx";
 
 export default function App() {
   const [user, setUser]         = useState(null);
-  const [appData, setAppData]   = useState(null);  // { projects, staging, ideas }
+  const [appData, setAppData]   = useState(null);  // { projects, staging, ideas, areas }
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
 
@@ -29,20 +29,32 @@ export default function App() {
       const { user } = await authApi.me();
       setUser(user);
 
-      // Load all data in parallel
-      const [projRes, stagingRes, ideasRes] = await Promise.all([
-        projectsApi.list(),
-        stagingApi.list(),
-        ideasApi.list(),
+      // Load all data with individual error handling to prevent one failure from blocking all
+      const safeFetch = async (apiCall, fallback) => {
+        try {
+          return await apiCall();
+        } catch (e) {
+          console.error("Bootstrap fetch error:", e);
+          return fallback;
+        }
+      };
+
+      const [projRes, stagingRes, ideasRes, areasRes] = await Promise.all([
+        safeFetch(() => projectsApi.list(), { projects: [] }),
+        safeFetch(() => stagingApi.list(), { staging: [] }),
+        safeFetch(() => ideasApi.list(), { ideas: [] }),
+        safeFetch(() => areasApi.list(), { areas: [] }),
       ]);
 
       setAppData({
         projects: projRes.projects || [],
         staging:  stagingRes.staging || [],
         ideas:    ideasRes.ideas || [],
+        areas:    areasRes.areas || [],
       });
     } catch (e) {
       // Token expired or invalid — clear it
+      console.error("Bootstrap auth error:", e);
       token.clear();
       setUser(null);
       setAppData(null);
@@ -91,6 +103,7 @@ export default function App() {
       initialProjects={appData?.projects || []}
       initialStaging={appData?.staging || []}
       initialIdeas={appData?.ideas || []}
+      initialAreas={appData?.areas || []}
       onLogout={handleLogout}
     />
   );
