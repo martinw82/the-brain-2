@@ -146,8 +146,16 @@ export default async function handler(req, res) {
     // ── AREAS ─────────────────────────────────────────────────
     if (resource === 'areas') {
       if (req.method === 'GET') {
-        const [rows] = await db.execute('SELECT * FROM life_areas WHERE user_id = ? ORDER BY sort_order ASC', [auth.userId]);
-        return ok(res, { areas: rows });
+        try {
+          const [rows] = await db.execute('SELECT * FROM life_areas WHERE user_id = ? ORDER BY sort_order ASC', [auth.userId]);
+          return ok(res, { areas: rows });
+        } catch (e) {
+          if (e.message.includes('Table') && e.message.includes('doesn\'t exist')) {
+            return ok(res, { areas: [] });
+          } else {
+            throw e;
+          }
+        }
       }
       if (req.method === 'POST') {
         const { id, name, color, icon, description, target_hours_weekly } = req.body || {};

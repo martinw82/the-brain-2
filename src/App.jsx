@@ -29,12 +29,21 @@ export default function App() {
       const { user } = await authApi.me();
       setUser(user);
 
-      // Load all data in parallel
+      // Load all data with individual error handling to prevent one failure from blocking all
+      const safeFetch = async (apiCall, fallback) => {
+        try {
+          return await apiCall();
+        } catch (e) {
+          console.error("Bootstrap fetch error:", e);
+          return fallback;
+        }
+      };
+
       const [projRes, stagingRes, ideasRes, areasRes] = await Promise.all([
-        projectsApi.list(),
-        stagingApi.list(),
-        ideasApi.list(),
-        areasApi.list(),
+        safeFetch(() => projectsApi.list(), { projects: [] }),
+        safeFetch(() => stagingApi.list(), { staging: [] }),
+        safeFetch(() => ideasApi.list(), { ideas: [] }),
+        safeFetch(() => areasApi.list(), { areas: [] }),
       ]);
 
       setAppData({
@@ -45,6 +54,7 @@ export default function App() {
       });
     } catch (e) {
       // Token expired or invalid — clear it
+      console.error("Bootstrap auth error:", e);
       token.clear();
       setUser(null);
       setAppData(null);
