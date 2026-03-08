@@ -2,9 +2,9 @@
 > the-brain@6.0.0 dev
 > vite
 
+Port 5173 is in use, trying another one...
 
-  VITE v5.4.21  ready in 297 ms
+  VITE v5.4.21  ready in 295 ms
 
-  ➜  Local:   http://localhost:5173/
+  ➜  Local:   http://localhost:5174/
   ➜  Network: use --host to expose
-7:54:10 PM [vite] hmr update /src/TheBrain.jsx

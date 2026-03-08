@@ -225,13 +225,14 @@ At the end of each build session, update this document with:
 3. ~~**Build AI Coach proxy function**~~ ✅ Done (2026-03-08)
 
 ### After that (Phase 0 completion)
-4. Fix rename stale reference bug
-5. Add `beforeunload` handler for session timer
-6. Bootstrap wizard null check
-7. Soft deletes on project_files (safety net against data loss)
-8. Debounced saves in markdown editor
-9. AI proxy rate limiting + cost controls
-10. Critical path tests (file round-trip, comments, sessions)
+4. ~~Fix rename stale reference bug~~ ✅ Done (2026-03-08)
+5. ~~Add `beforeunload` handler for session timer~~ ✅ Done (2026-03-08)
+6. ~~Bootstrap wizard null check~~ ✅ Done (2026-03-08)
+7. ~~Soft deletes on project_files (safety net against data loss)~~ ✅ Done (2026-03-08)
+8. ~~Debounced saves in markdown editor~~ ✅ Done (2026-03-08)
+9. ~~AI proxy rate limiting + cost controls~~ ✅ Done (2026-03-08)
+10. ~~DB migration versioning~~ ✅ Done (2026-03-08)
+11. Critical path tests (file round-trip, comments, sessions)
 
 ### Then (Phase 1 foundations)
 11. **Life Areas** — first-class "Parts" entities (the philosophical foundation)

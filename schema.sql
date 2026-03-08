@@ -146,3 +146,11 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_token (token_hash)
 );
+
+-- ── MIGRATIONS ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  id          INT           AUTO_INCREMENT PRIMARY KEY,
+  version     INT           NOT NULL UNIQUE,
+  name        VARCHAR(255)  NOT NULL,
+  applied_at  DATETIME      DEFAULT CURRENT_TIMESTAMP
+);

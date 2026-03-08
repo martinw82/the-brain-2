@@ -94,7 +94,7 @@ _Not a full test suite — just the 3 paths where data loss would destroy trust.
 - [ ] **Test: File save/load round-trip** — create file via API, reload app, verify content matches
 - [ ] **Test: Comment persistence** — add comment, reload, verify it appears
 - [ ] **Test: Session logging** — start session, end it, verify it persists in DB and appends to DEVLOG.md
-- [ ] **DB migration versioning:** Create `schema_migrations` table to track which ALTER/CREATE statements have run
+- [x] **DB migration versioning:** Create `schema_migrations` table to track which ALTER/CREATE statements have run (Applied 2026-03-08)
 - [ ] Write as simple Node scripts runnable via `npm run test:critical` — no framework needed
 
 ---
