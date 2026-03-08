@@ -385,6 +385,7 @@ export default function TheBrain({ user, initialProjects = [], initialStaging = 
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(false);
 
   const showToast = (msg) => setToast({ msg });
 
@@ -403,6 +404,26 @@ export default function TheBrain({ user, initialProjects = [], initialStaging = 
     return () => clearInterval(timerRef.current);
   }, [sessionActive]);
   const fmtTime = s => `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+  // ── COMMENTS LOADER — fetch from DB when hub or active file changes ──
+  useEffect(() => {
+    if (!hubId || !hub?.activeFile) return;
+    const filePath = hub.activeFile;
+    const commKey = `${hubId}:${filePath}`;
+    setCommentsLoading(true);
+    commentsApi.list(hubId, filePath)
+      .then(({ comments: rows }) => {
+        const mapped = (rows || []).map(r => ({
+          id: r.id,
+          text: r.text,
+          date: r.created_at ? r.created_at.toString().slice(0, 10) : "",
+          resolved: !!r.resolved,
+        }));
+        setComments(prev => ({ ...prev, [commKey]: mapped }));
+      })
+      .catch(() => { /* silently ignore — existing UI still works */ })
+      .finally(() => setCommentsLoading(false));
+  }, [hubId, hub?.activeFile]);
 
   // ── NAVIGATION ─────────────────────────────────────
   const openHub = useCallback(async (id, file = "PROJECT_OVERVIEW.md") => {
@@ -984,6 +1005,124 @@ ${buildCtx(projId)}
                 </div>
               </div>
             )}
+
+            {hubTab === "folders" && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <span style={{ fontSize: 10, color: C.blue, letterSpacing: "0.1em", textTransform: "uppercase" }}>📁 All Folders</span>
+                  <button style={S.btn("ghost")} onClick={() => setModal("new-custom-folder")}>+ Custom Folder</button>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 8 }}>
+                  {hubAllFolders.map(f => {
+                    const files = hub.files || {};
+                    const count = Object.keys(files).filter(k => k.startsWith(f.id + "/") && !k.endsWith(".gitkeep")).length;
+                    const isCustom = !STANDARD_FOLDER_IDS.has(f.id);
+                    return <div key={f.id} style={{ background: C.bg, border: `1px solid ${isCustom ? C.purple : C.border}`, borderRadius: 6, padding: "10px 12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <span style={{ fontSize: 12 }}>{f.icon} <span style={{ fontSize: 11, color: "#e2e8f0", fontWeight: 600 }}>{f.label}</span></span>
+                        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>{isCustom && <span style={S.badge(C.purple)}>custom</span>}<span style={{ fontSize: 9, color: count > 0 ? C.blue2 : C.dim }}>{count}</span></div>
+                      </div>
+                      <div style={{ fontSize: 9, color: C.muted }}>{f.desc}</div>
+                      {count > 0 && <div style={{ marginTop: 6 }}>{Object.keys(files).filter(k => k.startsWith(f.id + "/") && !k.endsWith(".gitkeep")).map(path => (
+                        <div key={path} onClick={() => { setProjects(prev => prev.map(p => p.id === hubId ? { ...p, activeFile: path } : p)); setHubTab("editor"); }} style={{ fontSize: 9, color: C.blue, cursor: "pointer", padding: "1px 0" }}>{path.split("/").pop()}</div>
+                      ))}</div>}
+                    </div>;
+                  })}
+                </div>
+              </div>
+            )}
+
+            {hubTab === "review" && (
+              <div>
+                <div onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={e => handleDrop(e, hubId)}
+                  style={{ background: dragOver ? "rgba(26,79,214,0.08)" : C.surface, border: `2px dashed ${dragOver ? C.blue : C.border}`, borderRadius: 8, padding: 16, textAlign: "center", marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, color: C.muted }}>🌀 Drag & drop files to stage them</div>
+                </div>
+                {staging.filter(s => s.project === hubId).length === 0
+                  ? <div style={{ fontSize: 10, color: C.dim, textAlign: "center", padding: "24px 0" }}>No staging items for {hub.name}.</div>
+                  : staging.filter(s => s.project === hubId).map(item => { const sc = REVIEW_STATUSES[item.status]; return (
+                    <div key={item.id} style={{ background: C.bg, border: `1px solid ${sc.color}25`, borderLeft: `3px solid ${sc.color}`, borderRadius: "0 6px 6px 0", padding: "10px 14px", marginBottom: 7 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 5 }}>
+                        <span style={{ fontSize: 11 }}>{item.name}</span><span style={S.badge(sc.color)}>{sc.icon} {sc.label}</span>
+                      </div>
+                      <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>{item.notes} · {item.added}</div>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {["approved", "rejected", "deferred"].filter(s => s !== item.status).map(s => (
+                          <button key={s} style={{ ...S.btn(s === "approved" ? "success" : s === "rejected" ? "danger" : "ghost"), padding: "2px 8px", fontSize: 8 }} onClick={() => updateStagingStatus(item.id, s)}>{REVIEW_STATUSES[s].icon} {s}</button>
+                        ))}
+                      </div>
+                    </div>
+                  ); })}
+              </div>
+            )}
+
+            {hubTab === "devlog" && (
+              <div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                  <textarea style={{ ...S.input, height: 60, resize: "vertical", flex: 1 }} placeholder="What did you build/learn/decide?" value={sessionLog} onChange={e => setSessionLog(e.target.value)} />
+                  <button style={{ ...S.btn("success"), alignSelf: "flex-end" }} onClick={async () => {
+                    if (!sessionLog.trim()) return;
+                    const entry = `\n## ${new Date().toISOString().slice(0, 10)}\n\n${sessionLog}\n`;
+                    const current = (hub.files || {})["DEVLOG.md"] || "";
+                    await saveFile(hubId, "DEVLOG.md", current + entry);
+                    setSessionLog("");
+                  }}>Log</button>
+                </div>
+                <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "14px 18px", maxHeight: 420, overflowY: "auto", fontSize: 11, lineHeight: 1.8 }} dangerouslySetInnerHTML={{ __html: renderMd((hub.files || {})["DEVLOG.md"] || "*No entries yet.*") }} />
+              </div>
+            )}
+
+            {hubTab === "gantt" && (
+              <div style={S.card(false)}>
+                <span style={S.label()}>Timeline</span>
+                <GanttChart tasks={parseTasks((hub.files || {})["TASKS.md"] || "")} />
+                <div style={{ marginTop: 14, maxHeight: 280, overflowY: "auto" }} dangerouslySetInnerHTML={{ __html: renderMd((hub.files || {})["TASKS.md"] || "*No tasks yet.*") }} />
+              </div>
+            )}
+
+            {hubTab === "comments" && (
+              <div>
+                <div style={{ fontSize: 9, color: C.muted, marginBottom: 8 }}>On: <span style={{ color: C.blue }}>{hub.activeFile}</span></div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                  <input style={S.input} placeholder="Add comment..." value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={async e => { if (e.key === "Enter" && newComment.trim()) { const tmp = { id: `tmp-${Date.now()}`, text: newComment, date: new Date().toISOString().slice(0, 10), resolved: false }; setComments(prev => ({ ...prev, [commKey]: [...(prev[commKey] || []), tmp] })); setNewComment(""); try { const r = await commentsApi.create(hubId, hub.activeFile, newComment); setComments(prev => ({ ...prev, [commKey]: (prev[commKey] || []).map(c => c.id === tmp.id ? { ...c, id: r.id } : c) })); } catch { } } }} />
+                  <button style={S.btn("primary")} onClick={async () => { if (!newComment.trim()) return; const tmp = { id: `tmp-${Date.now()}`, text: newComment, date: new Date().toISOString().slice(0, 10), resolved: false }; setComments(prev => ({ ...prev, [commKey]: [...(prev[commKey] || []), tmp] })); setNewComment(""); try { const r = await commentsApi.create(hubId, hub.activeFile, newComment); setComments(prev => ({ ...prev, [commKey]: (prev[commKey] || []).map(c => c.id === tmp.id ? { ...c, id: r.id } : c) })); } catch { } }}>Add</button>
+                </div>
+                {commentsLoading
+                  ? <div style={{ fontSize: 10, color: C.dim, textAlign: "center", padding: "20px 0" }}>Loading comments...</div>
+                  : fileComs.length === 0
+                    ? <div style={{ fontSize: 10, color: C.dim, textAlign: "center", padding: "20px 0" }}>No comments yet.</div>
+                    : fileComs.map(c => (
+                      <div key={c.id} style={{ background: C.bg, border: `1px solid ${c.resolved ? C.border : C.blue + "40"}`, borderRadius: 6, padding: "10px 14px", marginBottom: 6 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                          <span style={{ fontSize: 9, color: C.muted }}>{c.date}</span>
+                          <button style={{ ...S.btn(c.resolved ? "ghost" : "success"), padding: "1px 7px", fontSize: 8 }} onClick={async () => { setComments(prev => ({ ...prev, [commKey]: prev[commKey].map(cm => cm.id === c.id ? { ...cm, resolved: !cm.resolved } : cm) })); await commentsApi.resolve(c.id, !c.resolved).catch(() => { }); }}>{c.resolved ? "Reopen" : "✓ Resolve"}</button>
+                        </div>
+                        <div style={{ fontSize: 11, color: c.resolved ? C.muted : C.text, textDecoration: c.resolved ? "line-through" : "none" }}>{c.text}</div>
+                      </div>
+                    ))}
+              </div>
+            )}
+
+            {hubTab === "meta" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={S.card(false)}>
+                  <span style={S.label()}>manifest.json <span style={S.badge(C.purple)}>portability contract</span></span>
+                  <pre style={{ fontSize: 9, color: C.muted, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 5, padding: 12, overflow: "auto", maxHeight: 300, lineHeight: 1.6, margin: 0 }}>{(hub.files || {})["manifest.json"] || "{}"}</pre>
+                </div>
+                <div style={S.card(false)}>
+                  <span style={S.label()}>Folder Summary</span>
+                  {hubAllFolders.map(f => {
+                    const count = Object.keys(hub.files || {}).filter(k => k.startsWith(f.id + "/") && !k.endsWith(".gitkeep")).length;
+                    const isCustom = !STANDARD_FOLDER_IDS.has(f.id);
+                    return <div key={f.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 9, padding: "3px 0", borderBottom: `1px solid ${C.border}`, color: count > 0 ? C.text : C.dim }}>
+                      <span>{f.icon} {f.label} {isCustom && <span style={{ color: C.purple }}>·custom</span>}</span>
+                      <span style={{ color: count > 0 ? C.blue2 : C.dim }}>{count}</span>
+                    </div>;
+                  })}
+                </div>
+              </div>
+            )}
+
           </div>
         })()}
 
@@ -1039,6 +1178,182 @@ ${buildCtx(projId)}
               <div style={{ fontSize: 9, color: C.dim, textAlign: "center" }}>🇹🇭 Goal: £{totalIncome} / £{user?.monthly_target || THAILAND_TARGET}/mo ({Math.round(totalIncome / (user?.monthly_target || THAILAND_TARGET) * 100)}%)</div>
             </div>
           )}
+          {mainTab === "projects" && (
+            <div>
+              <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+                <button style={S.btn("primary")} onClick={() => setModal("new-project")}>+ New Project</button>
+              </div>
+              {projects.map(p => (
+                <div key={p.id} style={S.card(false)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span style={{ fontSize: 18 }}>{p.emoji}</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#f1f5f9" }}>{p.name}</div>
+                        <div style={{ fontSize: 8, color: C.muted }}>{p.phase} · #{p.priority} · {p.lastTouched}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }}>
+                      <HealthBar score={p.health} /><Dots n={p.momentum} /><BadgeStatus status={p.status} />
+                      <button style={{ ...S.btn("success"), fontSize: 9 }} onClick={() => openHub(p.id)}>🗂 Hub</button>
+                      <button style={{ ...S.btn("ghost"), fontSize: 9 }} onClick={() => exportProject(p.id)}>⬇</button>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.5, marginBottom: 4 }}>{p.desc}</div>
+                  <div style={{ fontSize: 10, color: C.green }}>→ {p.nextAction}</div>
+                </div>
+              ))}
+              {projects.length === 0 && <div style={{ fontSize: 11, color: C.dim, textAlign: "center", padding: "40px 0" }}>No projects yet. Create your first one above.</div>}
+            </div>
+          )}
+
+          {mainTab === "bootstrap" && (
+            <div>
+              <div style={{ ...S.card(true, C.green), marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+                  <div>
+                    <span style={S.label(C.green)}>🚀 Agent Bootstrap Protocol</span>
+                    <div style={{ fontSize: 11, color: C.text, lineHeight: 1.8, maxWidth: 560 }}>Spin up a new project with agent control baked in from day one. Generates a Bootstrap Brief + ready-to-paste agent prompts, all saved to your database.</div>
+                  </div>
+                  <button style={{ ...S.btn("success"), fontSize: 11, padding: "8px 16px" }} onClick={() => setModal("new-project")}>+ New Project → Bootstrap</button>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 8, marginBottom: 14 }}>
+                {BOOTSTRAP_STEPS.map((s, i) => (
+                  <div key={s.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 16, marginBottom: 4 }}>{s.icon}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}><span style={{ fontSize: 9, color: C.dim, fontWeight: 700 }}>STEP {i + 1}</span>{s.agent ? <span style={S.badge(C.blue2)}>{s.agent}</span> : <span style={S.badge(C.amber)}>YOU</span>}</div>
+                    <div style={{ fontSize: 11, color: "#e2e8f0", fontWeight: 600, marginBottom: 4 }}>{s.label}</div>
+                    <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.6 }}>{s.desc}</div>
+                  </div>
+                ))}
+              </div>
+              {projects.map(p => {
+                const bf = p.files || {};
+                const briefExists = !!bf["project-artifacts/BOOTSTRAP_BRIEF.md"];
+                const stratDone = !!bf["project-artifacts/STRATEGY_OUTPUT.md"];
+                const devDone = !!bf["code-modules/DEV_BRIEF.md"];
+                const steps = [{ label: "Brief", done: briefExists }, { label: "Strategy", done: stratDone }, { label: "Dev", done: devDone }, { label: "Design", done: !!bf["design-assets/UI_SPEC.md"] }, { label: "Content", done: !!bf["content-assets/LAUNCH_COPY.md"] }, { label: "Review", done: p.status === "active" && briefExists && stratDone && devDone }];
+                const pct = Math.round(steps.filter(s => s.done).length / steps.length * 100);
+                return <div key={p.id} style={{ ...S.card(false), display: "flex", gap: 12, alignItems: "center", cursor: "pointer" }} onClick={() => setBootstrapWiz(p.id)}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{p.emoji}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                      <span style={{ fontSize: 11, color: "#e2e8f0", fontWeight: 600 }}>{p.name}</span>
+                      <span style={{ fontSize: 9, color: pct === 100 ? C.green : pct > 0 ? C.amber : C.dim }}>{pct}% bootstrapped</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{steps.map(s => <span key={s.label} style={{ fontSize: 8, padding: "2px 6px", borderRadius: 3, background: s.done ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.04)", color: s.done ? C.green : C.dim, border: `1px solid ${s.done ? "#10b98130" : C.border}` }}>{s.done ? "✓" : ""} {s.label}</span>)}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+                    {briefExists ? <button style={{ ...S.btn("ghost"), fontSize: 9 }} onClick={e => { e.stopPropagation(); openHub(p.id, "project-artifacts/BOOTSTRAP_BRIEF.md"); }}>📋 Brief</button> : <span style={S.badge(C.amber)}>No Brief</span>}
+                    {briefExists && !stratDone && <button style={{ ...S.btn("primary"), fontSize: 9 }} onClick={e => { e.stopPropagation(); openHub(p.id, "project-artifacts/STRATEGY_PROMPT.md"); }}>🎯 Strategy →</button>}
+                    {stratDone && !devDone && <button style={{ ...S.btn("primary"), fontSize: 9 }} onClick={e => { e.stopPropagation(); openHub(p.id, "project-artifacts/DEV_PROMPT.md"); }}>🛠 Dev →</button>}
+                  </div>
+                </div>;
+              })}
+            </div>
+          )}
+
+          {mainTab === "staging" && (
+            <div>
+              <div style={S.card(false)}>
+                <span style={S.label()}>🌀 Stage Something</span>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
+                  <select style={S.sel} value={newStaging.tag} onChange={e => setNewStaging(s => ({ ...s, tag: e.target.value }))}>{ITEM_TAGS.map(t => <option key={t}>{t}</option>)}</select>
+                  <select style={S.sel} value={newStaging.project} onChange={e => setNewStaging(s => ({ ...s, project: e.target.value }))}>{projects.map(p => <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}</select>
+                </div>
+                <input style={{ ...S.input, marginBottom: 6 }} placeholder="Name or description..." value={newStaging.name} onChange={e => setNewStaging(s => ({ ...s, name: e.target.value }))} />
+                <input style={{ ...S.input, marginBottom: 6 }} placeholder="Notes..." value={newStaging.notes} onChange={e => setNewStaging(s => ({ ...s, notes: e.target.value }))} />
+                <button style={S.btn("primary")} onClick={() => { if (newStaging.name.trim()) { addStaging(newStaging); setNewStaging({ name: "", tag: "IDEA_", project: projects[0]?.id || "", notes: "" }); } }}>→ Stage It</button>
+              </div>
+              {["in-review", "approved", "deferred", "rejected"].map(sk => {
+                const items = staging.filter(s => s.status === sk);
+                if (!items.length && sk !== "in-review") return null;
+                const sc = REVIEW_STATUSES[sk];
+                return <div key={sk} style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 9, color: sc.color, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>{sc.icon} {sc.label} ({items.length})</div>
+                  {!items.length && <div style={{ fontSize: 9, color: C.dim }}>Nothing here.</div>}
+                  {items.map(item => { const proj = projects.find(p => p.id === item.project); const isc = REVIEW_STATUSES[item.status]; return (
+                    <div key={item.id} style={{ background: C.surface, border: `1px solid ${isc.color}22`, borderLeft: `3px solid ${isc.color}`, borderRadius: "0 5px 5px 0", padding: "8px 13px", marginBottom: 5 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 5, marginBottom: 3 }}>
+                        <div><span style={{ fontSize: 9, background: C.border, padding: "1px 5px", borderRadius: 3, marginRight: 6 }}>{item.tag}</span><span style={{ fontSize: 11 }}>{item.name}</span></div>
+                        <span style={{ fontSize: 8, color: C.muted }}>{proj?.emoji} {proj?.name} · {item.added}</span>
+                      </div>
+                      {item.notes && <div style={{ fontSize: 9, color: C.muted, marginBottom: 5 }}>{item.notes}</div>}
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {["approved", "rejected", "deferred"].filter(s => s !== sk).map(s => (
+                          <button key={s} style={{ ...S.btn(s === "approved" ? "success" : s === "rejected" ? "danger" : "ghost"), padding: "2px 7px", fontSize: 8 }} onClick={() => updateStagingStatus(item.id, s)}>{REVIEW_STATUSES[s].icon} {s}</button>
+                        ))}
+                        <button style={{ ...S.btn("ghost"), padding: "2px 7px", fontSize: 8 }} onClick={() => openHub(item.project)}>🗂 Hub</button>
+                      </div>
+                    </div>
+                  ); })}
+                </div>;
+              })}
+            </div>
+          )}
+
+          {mainTab === "skills" && (
+            <div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 12 }}>{Object.values(SKILLS).map(sk => <button key={sk.id} style={{ ...S.btn(activeSkill === sk.id ? "primary" : "ghost"), fontSize: 10 }} onClick={() => setActiveSkill(sk.id)}>{sk.icon} {sk.label}</button>)}</div>
+              {SKILLS[activeSkill] && (() => { const sk = SKILLS[activeSkill]; return <div style={S.card(true)}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+                  <div><div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>{sk.icon} {sk.label}</div><div style={{ fontSize: 10, color: C.muted }}>{sk.description}</div></div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <select style={{ ...S.sel, width: 160 }} value={briefProj} onChange={e => setBriefProj(e.target.value)}>{projects.map(p => <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}</select>
+                    <button style={S.btn("primary")} onClick={() => copy(buildBrief(activeSkill, briefProj))}>{copied ? "✓ Copied!" : "📋 Copy Briefing"}</button>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div><span style={S.label()}>SOP</span>{sk.sop.map((s, i) => <div key={i} style={{ fontSize: 10, color: C.muted, padding: "3px 0", borderBottom: `1px solid ${C.border}`, lineHeight: 1.5 }}>{i + 1}. {s}</div>)}</div>
+                  <div><span style={S.label(C.green)}>Permissions</span>{sk.permissions.map(p => <div key={p} style={{ fontSize: 10, color: C.green, padding: "2px 0" }}>✅ {p}</div>)}<span style={{ ...S.label(C.red), marginTop: 8 }}>agent.ignore</span>{sk.ignore.map(p => <div key={p} style={{ fontSize: 10, color: C.red, padding: "2px 0" }}>🚫 {p}</div>)}</div>
+                </div>
+                <div style={{ marginTop: 10, background: C.bg, border: `1px solid ${C.blue}`, borderRadius: 5, padding: "10px 13px" }}><span style={S.label()}>Prompt Prefix</span><div style={{ fontSize: 10, color: C.muted, fontStyle: "italic" }}>{sk.prompt_prefix}</div></div>
+              </div>; })()}
+            </div>
+          )}
+
+          {mainTab === "workflows" && (
+            <div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 12 }}>{WORKFLOWS.map(w => <button key={w.id} style={{ ...S.btn(activeWF === w.id ? "primary" : "ghost"), fontSize: 10 }} onClick={() => setActiveWF(activeWF === w.id ? null : w.id)}>{w.icon} {w.label}</button>)}</div>
+              {activeWF && (() => { const wf = WORKFLOWS.find(w => w.id === activeWF); if (!wf) return null; return (
+                <div style={S.card(true)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>{wf.icon} {wf.label}</div>
+                    <select style={{ ...S.sel, width: 180 }} value={wfProj} onChange={e => setWfProj(e.target.value)}>{projects.map(p => <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}</select>
+                  </div>
+                  {wf.steps.map((step, i) => { const sk = SKILLS[step.agent]; const isH = step.agent === "human"; return (
+                    <div key={step.id} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: i < wf.steps.length - 1 ? `1px solid ${C.border}` : "none", alignItems: "flex-start" }}>
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: isH ? C.border : "#1a4fd615", border: `1px solid ${isH ? C.dim : C.blue}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: isH ? C.muted : C.blue, flexShrink: 0 }}>{step.id}</div>
+                      <div style={{ flex: 1 }}><div style={{ display: "flex", gap: 6, marginBottom: 3 }}><div style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0" }}>{step.label}</div><span style={S.badge(isH ? C.dim : C.blue2)}>{isH ? "👤 Human" : `${sk?.icon} ${sk?.label}`}</span></div><div style={{ fontSize: 10, color: C.muted }}>{step.sop}</div></div>
+                      {!isH && <button style={{ ...S.btn("ghost"), fontSize: 8 }} onClick={() => copy(buildBrief(step.agent, wfProj))}>📋 Brief</button>}
+                    </div>
+                  ); })}
+                </div>
+              ); })()}
+            </div>
+          )}
+
+          {mainTab === "integrations" && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 10 }}>
+              {integrations.map(int => (
+                <div key={int.id} style={S.card(showInt === int.id)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}><span style={{ fontSize: 18 }}>{int.icon}</span><div><div style={{ fontSize: 12, fontWeight: 700, color: "#f1f5f9" }}>{int.label}</div><div style={{ fontSize: 9, color: C.muted }}>{int.desc}</div></div></div>
+                    <span style={S.badge(int.connected ? C.green : C.dim)}>{int.connected ? "LIVE" : "OFF"}</span>
+                  </div>
+                  {int.fields.length > 0 && <div style={{ display: "flex", gap: 5 }}>
+                    <button style={S.btn("ghost")} onClick={() => setShowInt(showInt === int.id ? null : int.id)}>⚙️ Configure</button>
+                  </div>}
+                  {showInt === int.id && <div style={{ marginTop: 10, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                    {int.fields.map(field => <div key={field} style={{ marginBottom: 6 }}><span style={S.label()}>{field}</span><input style={{ ...S.input, fontSize: 10 }} placeholder={`${field}...`} type={field.includes("key") || field.includes("token") || field.includes("secret") ? "password" : "text"} /></div>)}
+                    <button style={S.btn("success")} onClick={() => { setIntegrations(prev => prev.map(i => i.id === int.id ? { ...i, connected: true } : i)); setShowInt(null); }}>✅ Connect</button>
+                  </div>}
+                </div>
+              ))}
+            </div>
+          )}
+
           {mainTab === "ideas" && (
             <div>
               <div style={S.card(false)}>
@@ -1060,22 +1375,39 @@ ${buildCtx(projId)}
               ))}
             </div>
           )}
-           {mainTab==="ai"&&(
+          {mainTab === "ai" && (
             <div>
               <div style={S.card(false)}>
                 <span style={S.label()}>💬 AI Coach</span>
-                <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
-                  {["What should I work on today?","Where am I looping?","Thailand income path?","Triage staging","Rank by revenue potential","Which project is dying?"].map(p=><button key={p} style={S.btn("ghost")} onClick={()=>askAI(p)}>{p}</button>)}
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
+                  {["What should I work on today?", "Where am I looping?", "Thailand income path?", "Triage staging", "Rank by revenue potential", "Which project is dying?"].map(p => <button key={p} style={S.btn("ghost")} onClick={() => askAI(p)}>{p}</button>)}
                 </div>
-                <div style={{display:"flex",gap:6}}>
-                  <input style={S.input} value={aiIn} placeholder="Ask anything..." onChange={e=>setAiIn(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&aiIn.trim()){askAI(aiIn);setAiIn("");}}}/>
-                  <button style={S.btn("primary")} onClick={()=>{if(aiIn.trim()){askAI(aiIn);setAiIn("");}}} disabled={aiLoad}>Ask</button>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input style={S.input} value={aiIn} placeholder="Ask anything..." onChange={e => setAiIn(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && aiIn.trim()) { askAI(aiIn); setAiIn(""); } }} />
+                  <button style={S.btn("primary")} onClick={() => { if (aiIn.trim()) { askAI(aiIn); setAiIn(""); } }} disabled={aiLoad}>Ask</button>
                 </div>
               </div>
-              {(aiLoad||aiOut)&&<div ref={aiRef} style={{...S.card(true,C.green)}}>
+              {(aiLoad || aiOut) && <div ref={aiRef} style={{ ...S.card(true, C.green) }}>
                 <span style={S.label(C.green)}>Response</span>
-                {aiLoad?<div style={{fontSize:10,color:C.dim}}>Thinking...</div>:<div style={{fontSize:11,color:C.text,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{aiOut}</div>}
+                {aiLoad ? <div style={{ fontSize: 10, color: C.dim }}>Thinking...</div> : <div style={{ fontSize: 11, color: C.text, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{aiOut}</div>}
               </div>}
+            </div>
+          )}
+
+          {mainTab === "export" && (
+            <div>
+              <div style={S.card(true)}>
+                <span style={S.label()}>📤 Agent Context + Exports</span>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+                  <button style={S.btn("primary")} onClick={() => copy(buildCtx())}>{copied ? "✓ Copied!" : "📋 Copy Full Context"}</button>
+                  {projects[0] && <><button style={S.btn("ghost")} onClick={() => copy(buildBrief("dev", briefProj))}>📋 Dev Brief</button><button style={S.btn("ghost")} onClick={() => copy(buildBrief("strategy", briefProj))}>📋 Strategy Brief</button></>}
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <span style={S.label()}>Export Projects (local download)</span>
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>{projects.map(p => <button key={p.id} style={S.btn("ghost")} onClick={() => exportProject(p.id)}>{p.emoji} {p.name}</button>)}</div>
+                </div>
+                <pre style={{ fontSize: 8, color: C.dim, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 5, padding: 12, overflow: "auto", maxHeight: 280, lineHeight: 1.6, margin: 0 }}>{buildCtx()}</pre>
+              </div>
             </div>
           )}
         </>}

@@ -22,20 +22,22 @@
 
 _Nothing new can be built reliably until these are resolved._
 
-### 0.1 Fix file loading from DB on initial render
-- [ ] Audit `App.jsx` → confirm it calls the projects API on mount
-- [ ] Audit `api.js` → confirm `projects.list()` fetches files for each project (or has a separate `projects.getFiles(projectId)` call)
-- [ ] Audit the serverless function → confirm it joins `project_files` when returning projects
-- [ ] If files are fetched separately: add a loading state so TheBrain.jsx waits for files before rendering FileTree
-- [ ] Verify: reload the app → file tree shows all files for all projects
+### 0.1 Fix file loading from DB on initial render ✅ COMPLETE (2026-03-08)
+- [x] Audit `App.jsx` → confirm it calls the projects API on mount
+- [x] Audit `api.js` → confirm `projects.list()` fetches files for each project (or has a separate `projects.getFiles(projectId)` call)
+- [x] Audit the serverless function → confirm it joins `project_files` when returning projects
+- [x] If files are fetched separately: add a loading state so TheBrain.jsx waits for files before rendering FileTree
+- [x] Verify: reload the app → file tree shows all files for all projects
 - **Done when:** Browser refresh shows full file tree with all saved content
+- **How:** `api/projects.js` list returns `files: null` (lightweight). `openHub()` lazy-loads via `projectsApi.get(id)`. `mapProject()` helper centralises snake→camelCase.
 
-### 0.2 Fix comments loading from DB
-- [ ] Add `useEffect` in TheBrain.jsx that fetches comments when `hubId` or `hub.activeFile` changes
-- [ ] Call `commentsApi.list(hubId, hub.activeFile)` (or equivalent)
-- [ ] Populate `comments` state with the response
-- [ ] Handle loading state (don't flash "No comments" before fetch completes)
+### 0.2 Fix comments loading from DB ✅ COMPLETE (2026-03-08)
+- [x] Add `useEffect` in TheBrain.jsx that fetches comments when `hubId` or `hub.activeFile` changes
+- [x] Call `commentsApi.list(hubId, hub.activeFile)` (or equivalent)
+- [x] Populate `comments` state with the response
+- [x] Handle loading state (don't flash "No comments" before fetch completes)
 - **Done when:** Comments survive a page reload
+- **How:** `useEffect` watches `[hubId, hub?.activeFile]`, maps DB rows (`created_at` → `date`, `resolved` 0/1 → boolean), `commentsLoading` state gates the "No comments" empty state.
 
 ### 0.3 Build AI Coach proxy function
 - [ ] Create serverless function: `/api/ai` (Vercel) or `netlify/functions/ai.js`

@@ -93,8 +93,8 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 ## 5. Known Bugs (Must Fix for Beta)
 
 ### Critical
-1. **Files don't load from DB on initial render.** The component receives `initialProjects` as props — if App.jsx/api.js doesn't populate `files` when fetching projects, the file tree is empty. This is the most blocking bug.
-2. **Comments don't load from DB.** Comments state starts empty (`useState({})`). No `useEffect` fetches existing comments on mount or file switch. Comments persist to DB on creation but vanish on reload.
+1. ~~**Files don't load from DB on initial render.**~~ ✅ **FIXED (2026-03-08)** — `api/projects.js` list action now returns `files: null` (lightweight). `openHub()` in TheBrain.jsx lazy-loads files via `projectsApi.get(id)` on first open. `mapProject()` helper centralises snake→camelCase field mapping. FileTree shows a loading guard while files are fetching.
+2. ~~**Comments don't load from DB.**~~ ✅ **FIXED (2026-03-08)** — `useEffect` in TheBrain.jsx watches `hubId` + `hub.activeFile`, calls `commentsApi.list()`, maps response fields. `commentsLoading` state prevents "No comments" flash on initial load.
 3. **AI Coach API key exposed client-side.** `askAI()` calls `api.anthropic.com` directly from frontend. Needs a serverless proxy function to keep the key server-side.
 
 ### Important
@@ -217,8 +217,8 @@ At the end of each build session, update this document with:
 ## 9. Current Priority Stack
 
 ### Next 3 Actions (in order)
-1. **Fix file loading from DB** — ensure App.jsx/api.js populates project files on fetch. This unblocks everything.
-2. **Fix comments loading from DB** — add useEffect to fetch comments on mount/file switch.
+1. ~~**Fix file loading from DB**~~ ✅ Done (2026-03-08)
+2. ~~**Fix comments loading from DB**~~ ✅ Done (2026-03-08)
 3. **Build AI Coach proxy function** — serverless function to keep API key server-side, with rate limiting and caching.
 
 ### After that (Phase 0 completion)
@@ -290,3 +290,9 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 08/03/26 14:51
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-08 (session 2):**
+- ✅ Task 0.1 marked complete. `api/projects.js` + `TheBrain.jsx` updated: lazy file loading via `openHub()`, `mapProject()` helper for snake→camelCase, loading guard in hub IIFE.
+- ✅ Task 0.2 complete. `TheBrain.jsx`: added `commentsLoading` state + `useEffect` on `[hubId, hub?.activeFile]` → fetches `commentsApi.list()`, maps rows to `{ id, text, date, resolved }`, prevents "No comments" flash.
+- Also restored all 6 missing hub tabs (folders, review, devlog, gantt, comments, meta) and 7 missing brain tabs (projects, bootstrap, staging, skills, workflows, integrations, export) that were dropped by a previous agent. Build confirmed clean.
