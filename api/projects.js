@@ -135,10 +135,10 @@ export default async function handler(req, res) {
       const data = req.body || {};
       const fields = [], values = [];
       const map = { name:'name', emoji:'emoji', phase:'phase', status:'status', priority:'priority', momentum:'momentum', lastTouched:'last_touched', desc:'description', nextAction:'next_action', health:'health', incomeTarget:'income_target', activeFile:'active_file' };
-      for (const [k, col] of Object.entries(map)) { if (data[k] !== undefined) { fields.push(\`\${col} = ?\`); values.push(data[k]); } }
-      for (const [k, col] of Object.entries({ blockers:'blockers', tags:'tags', skills:'skills', integrations:'integrations' })) { if (data[k] !== undefined) { fields.push(\`\${col} = ?\`); values.push(JSON.stringify(data[k])); } }
+      for (const [k, col] of Object.entries(map)) { if (data[k] !== undefined) { fields.push(\`\\\${col} = ?\`); values.push(data[k]); } }
+      for (const [k, col] of Object.entries({ blockers:'blockers', tags:'tags', skills:'skills', integrations:'integrations' })) { if (data[k] !== undefined) { fields.push(\`\\\${col} = ?\`); values.push(JSON.stringify(data[k])); } }
       if (data.revenueReady !== undefined) { fields.push('revenue_ready = ?'); values.push(data.revenueReady ? 1 : 0); }
-      if (fields.length) { values.push(projectId, auth.userId); await db.execute(\`UPDATE projects SET \${fields.join(', ')} WHERE id = ? AND user_id = ?\`, values); }
+      if (fields.length) { values.push(projectId, auth.userId); await db.execute(\`UPDATE projects SET \\\${fields.join(', ')} WHERE id = ? AND user_id = ?\`, values); }
       return ok(res, { success: true });
     }
 
