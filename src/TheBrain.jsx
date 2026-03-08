@@ -117,8 +117,15 @@ const GanttChart=({tasks})=>{const rows=tasks.filter(t=>t.start&&t.end);if(!rows
 const parseTasks=(md)=>{const rows=[];md?.split("\n").forEach(line=>{const m=line.match(/[-*]\s+\[(.)\]\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s*(?:→|-|to)\s*(\d{4}-\d{2}-\d{2})/);if(m)rows.push({done:m[1]==="x",label:m[2],start:m[3],end:m[4]});});return rows;};
 
 // ── FILE TREE ─────────────────────────────────────────────────
-const FileTree=({files,activeFile,onSelect,onNewFile,onDelete,customFolders=[]})=>{
+const FileTree=({files,activeFile,onSelect,onNewFile,onDelete,customFolders=[],loading})=>{
   const [expanded,setExpanded]=useState(new Set(["staging","system","content-assets","code-modules"]));
+  if (loading) {
+    return (
+      <div style={{padding: 12, fontSize: 10, color: C.dim}}>
+        Loading files...
+      </div>
+    );
+  }
   const tree={};
   Object.keys(files).forEach(p=>{const parts=p.split("/");let node=tree;parts.forEach((part,i)=>{if(i===parts.length-1){node[part]={_file:p};}else{node[part]=node[part]||{};}node=node[part];});});
   const allFolders=[...STANDARD_FOLDERS,...customFolders];
@@ -319,6 +326,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   // Persistence state
   const [saving,setSaving]   = useState(false);   // file save indicator
   const [toast,setToast]     = useState(null);    // {msg} or null
+  const [filesLoading, setFilesLoading] = useState(false);
 
   const showToast = (msg) => setToast({msg});
 
@@ -339,11 +347,27 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const fmtTime=s=>`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
 
   // ── NAVIGATION ─────────────────────────────────────────────
-  const openHub=(id,file="PROJECT_OVERVIEW.md")=>{
-    setHubId(id);setView("hub");setHubTab("editor");
-    setProjects(prev=>prev.map(p=>p.id===id?{...p,activeFile:file}:p));
-    // Persist active file change
-    projectsApi.setActiveFile(id,file).catch(()=>{});
+  const openHub = async (id, file = "PROJECT_OVERVIEW.md") => {
+    setHubId(id);
+    setView("hub");
+    setHubTab("editor");
+
+    const project = projects.find(p => p.id === id);
+    if (project && !project.files) {
+      setFilesLoading(true);
+      try {
+        const { project: fullProject } = await projectsApi.get(id);
+        setProjects(prev => prev.map(p => (p.id === id ? { ...p, ...fullProject, activeFile: file } : p)));
+      } catch (e) {
+        showToast("⚠ Failed to load project files");
+      } finally {
+        setFilesLoading(false);
+      }
+    } else {
+      setProjects(prev => prev.map(p => (p.id === id ? { ...p, activeFile: file } : p)));
+    }
+    
+    projectsApi.setActiveFile(id, file).catch(() => {});
   };
 
   // ── FILE OPS — optimistic + persisted ─────────────────────
@@ -363,7 +387,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     if(!name.trim())return;
     const path=folder?`${folder}/${name}`:name;
     const ext=name.split(".").pop();
-    const def=ext==="md"?`# ${name.replace(".md","")}\n\n`:ext==="json"?"{}\n":"";
+    const def=ext==="md"?`# ${name.replace(".md","")}\n\n`:ext==="json"?`{}\n`:"";
     // Optimistic
     setProjects(prev=>prev.map(p=>p.id===projId?{...p,files:{...p.files,[path]:def},activeFile:path}:p));
     setModal(null);setNewFileName("");
@@ -615,7 +639,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
   // ── TAB DEFINITIONS ────────────────────────────────────────
   const BRAIN_TABS=[{id:"command",label:"⚡ Command"},{id:"projects",label:"🗂 Projects"},{id:"bootstrap",label:"🚀 Bootstrap"},{id:"staging",label:`🌀 Staging${inReview>0?` (${inReview})`:""}`},{id:"skills",label:"🤖 Skills"},{id:"workflows",label:"⚙️ Workflows"},{id:"integrations",label:"🔌 Connect"},{id:"ideas",label:"💡 Ideas"},{id:"ai",label:"💬 AI Coach"},{id:"export",label:"📤 Export"}];
-  const HUB_TABS=[{id:"editor",label:"📝 Editor"},{id:"overview",label:"📊 Overview"},{id:"folders",label:"📁 Folders"},{id:"review",label:`🔄 Review${hub?staging.filter(s=>s.project===hubId&&s.status==="in-review").length>0?` (${staging.filter(s=>s.project===hubId&&s.status==="in-review").length})`:"":""}`},{id:"devlog",label:"📓 Dev Log"},{id:"gantt",label:"📅 Timeline"},{id:"comments",label:"💬 Comments"},{id:"meta",label:"🔧 Meta"}];
+  const HUB_TABS=[{id:"editor",label:"📝 Editor"},{id:"overview",label:"📊 Overview"},{id:"folders",label:"📁 Folders"},{id:"review",label:`🔄 Review${hub?staging.filter(s=>s.project===hubId&&s.status==="in-review").length>0?` (${staging.filter(s=>s.project===hubId&&s.status==="in-review").length})`:""}`},{id:"devlog",label:"📓 Dev Log"},{id:"gantt",label:"📅 Timeline"},{id:"comments",label:"💬 Comments"},{id:"meta",label:"🔧 Meta"}];
 
   // ══════════════════════════════════════════════════════════
   // RENDER
@@ -770,7 +794,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   <FileTree files={hub.files||{}} activeFile={hub.activeFile} customFolders={hub.customFolders||[]}
                     onSelect={path=>{setProjects(prev=>prev.map(p=>p.id===hubId?{...p,activeFile:path}:p));projectsApi.setActiveFile(hubId,path).catch(()=>{});}}
                     onNewFile={()=>setModal("new-file")}
-                    onDelete={path=>deleteFile(hubId,path)}/>
+                    onDelete={path=>deleteFile(hubId,path)}
+                    loading={filesLoading}/>
                 </div>
                 <div style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative"}}
                   onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>handleDrop(e,hubId)}>

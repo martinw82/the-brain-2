@@ -53,44 +53,39 @@ export default async function handler(req, res) {
 
     // GET list
     if (req.method === 'GET' && action === 'list') {
-        const [projects] = await db.execute(
-            `SELECT p.*, 
-              (SELECT JSON_ARRAYAGG(JSON_OBJECT(
-                'folder_id', cf.folder_id, 'label', cf.label,
-                'icon', cf.icon, 'description', cf.description
-              )) FROM project_custom_folders cf WHERE cf.project_id = p.id) as custom_folders
-             FROM projects p WHERE p.user_id = ? ORDER BY p.priority ASC`,
-            [auth.userId]
-          );
-    
-          // New: Fetch all files for this user in a separate query
-          const [files] = await db.execute(
-            'SELECT project_id, path, content FROM project_files WHERE user_id = ?',
-            [auth.userId]
-          );
-    
-          // Create a map of files by project_id
-          const filesByProject = {};
-          for (const file of files) {
-            if (!filesByProject[file.project_id]) {
-              filesByProject[file.project_id] = {};
-            }
-            filesByProject[file.project_id][file.path] = file.content || '';
-          }
-    
-          const parsed = projects.map(p => ({
-            ...p,
-            blockers: safeJson(p.blockers, []),
-            tags: safeJson(p.tags, []),
-            skills: safeJson(p.skills, ['dev', 'strategy']),
-            integrations: safeJson(p.integrations, {}),
-            customFolders: safeJson(p.custom_folders, []).map(f => ({ id: f.folder_id, label: f.label, icon: f.icon, desc: f.description })),
-            // Assign the files map to the project
-            files: filesByProject[p.id] || {},
-            custom_folders: undefined, // remove redundant field
-          }));
-          return ok(res, { projects: parsed });
-        }
+      const [projects] = await db.execute(
+        `SELECT p.*, 
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+            'folder_id', cf.folder_id, 'label', cf.label,
+            'icon', cf.icon, 'description', cf.description
+          )) FROM project_custom_folders cf WHERE cf.project_id = p.id) as custom_folders
+         FROM projects p WHERE p.user_id = ? ORDER BY p.priority ASC`,
+        [auth.userId]
+      );
+
+      const parsed = projects.map(p => ({
+        id: p.id,
+        name: p.name,
+        emoji: p.emoji,
+        phase: p.phase,
+        status: p.status,
+        priority: p.priority,
+        revenueReady: p.revenue_ready,
+        incomeTarget: p.income_target,
+        momentum: p.momentum,
+        lastTouched: p.last_touched,
+        desc: p.description,
+        nextAction: p.next_action,
+        blockers: safeJson(p.blockers, []),
+        tags: safeJson(p.tags, []),
+        skills: safeJson(p.skills, ['dev', 'strategy']),
+        integrations: safeJson(p.integrations, {}),
+        customFolders: safeJson(p.custom_folders, []).map(f => ({ id: f.folder_id, label: f.label, icon: f.icon, desc: f.description })),
+        health: p.health,
+        activeFile: p.active_file,
+      }));
+      return ok(res, { projects: parsed });
+    }
 
     // GET single with files
     if (req.method === 'GET' && action === 'get' && projectId) {
