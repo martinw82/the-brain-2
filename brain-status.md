@@ -1,3 +1,5 @@
+************APPEND AND ANNOTATE ALL EDITS************
+
 # THE BRAIN — Master Status Document
 
 **Version:** 6.1 (Pre-Release)
@@ -109,6 +111,8 @@ These are features that existed in the original Next.js version or are needed fo
 
 ### Tier 1 — Required for core philosophy ("Life > Parts > Things")
 
+**Life Areas ("Parts") as first-class entities.** The core philosophy says Life > Parts > Things, but the data model jumps from users directly to projects. Without Parts (Business, Health, Relationships, Creative, Personal) as real entities, you can't see health per life area, can't do capacity planning across areas, and can't apply different agent rules per area (business = revenue-first, health = consistency-first). This is the most important structural addition.
+
 **Hierarchical / Linked project structure.** The old version had parent/sub-projects. But the real need is even more flexible: Things (projects, tasks, ideas) should be taggable and linkable across multiple Parts (life areas). A flat project list doesn't reflect how life actually works. This is THE key structural feature.
 
 **Project management templates/styles.** The BUIDL framework phases (BOOTSTRAP, UNLEASH, INNOVATE, etc.) should be one optional template among many. Different projects/users need different management styles. Templates could include: BUIDL Framework, Software Development, Content Creation, Marketing Campaign, Health Tracking, Personal Goal, Custom. Users should be able to save existing project structures as custom templates.
@@ -215,15 +219,23 @@ At the end of each build session, update this document with:
 ### Next 3 Actions (in order)
 1. **Fix file loading from DB** — ensure App.jsx/api.js populates project files on fetch. This unblocks everything.
 2. **Fix comments loading from DB** — add useEffect to fetch comments on mount/file switch.
-3. **Build AI Coach proxy function** — serverless function to keep API key server-side.
+3. **Build AI Coach proxy function** — serverless function to keep API key server-side, with rate limiting and caching.
 
-### After that
+### After that (Phase 0 completion)
 4. Fix rename stale reference bug
-5. Build import UI (state already exists)
-6. Add `beforeunload` handler for session timer
-7. Make BUIDL phases optional (template system)
-8. Genericise financial goal tracking
-9. Begin agent layer (daily check-in, structured system prompt)
+5. Add `beforeunload` handler for session timer
+6. Bootstrap wizard null check
+7. Soft deletes on project_files (safety net against data loss)
+8. Debounced saves in markdown editor
+9. AI proxy rate limiting + cost controls
+10. Critical path tests (file round-trip, comments, sessions)
+
+### Then (Phase 1 foundations)
+11. **Life Areas** — first-class "Parts" entities (the philosophical foundation)
+12. Generic goal system (replace hardcoded Thailand tracker)
+13. Template system (BUIDL phases become optional)
+14. Tagging and linking system
+15. Settings system
 
 ### Parking Lot (good ideas, not now)
 - Parent/sub-project or tagging/linking system (critical but architecturally significant — needs design first)
@@ -237,6 +249,11 @@ At the end of each build session, update this document with:
 - Script execution
 - Integration connectors actually working
 - Onboarding flow for new users
+- Keyboard shortcuts beyond Cmd+K/S/N
+- Monaco/CodeMirror editor upgrade (enables proper undo/redo)
+- Vector embeddings for semantic search (only when full-text search proves insufficient)
+- Push notifications / email digests (only after in-app notifications work)
+- Notion/Todoist/Linear importers (only if going multi-user)
 
 ---
 
@@ -262,9 +279,13 @@ At the end of each build session, update this document with:
 - **Portable data** — MySQL-compatible DB, standard schema, can switch providers by changing one env var.
 - **Agent-first** — the AI coach isn't a bolt-on feature, it's the primary interaction layer.
 - **Flexible structure** — the system must accommodate any type of "life thing," not just software projects.
+- **Soft deletes** — never hard-delete user content immediately. `deleted_at` timestamps with 30-day retention.
+- **Context compression** — AI receives project summaries + recent changes, not raw file dumps. Token budget per call. Summaries cached and regenerated on change.
+- **Binary migration path** — images stored as base64 now, but viewer component accepts both base64 and URLs so migration to object storage (S3/R2) is non-breaking.
 
 ---
 
-APPEND AND ANNOTATE ALL EDITS
+*THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+*************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 08/03/26 14:51
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
