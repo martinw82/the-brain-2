@@ -23,11 +23,11 @@
 _Nothing new can be built reliably until these are resolved._
 
 ### 0.1 Fix file loading from DB on initial render
-- [ ] Audit `App.jsx` → confirm it calls the projects API on mount
-- [ ] Audit `api.js` → confirm `projects.list()` fetches files for each project (or has a separate `projects.getFiles(projectId)` call)
-- [ ] Audit the serverless function → confirm it joins `project_files` when returning projects
-- [ ] If files are fetched separately: add a loading state so TheBrain.jsx waits for files before rendering FileTree
-- [ ] Verify: reload the app → file tree shows all files for all projects
+- [x] Audit `App.jsx` → confirm it calls the projects API on mount
+- [x] Audit `api.js` → confirm `projects.list()` fetches files for each project (or has a separate `projects.getFiles(projectId)` call)
+- [x] Audit the serverless function → confirm it joins `project_files` when returning projects
+- [x] If files are fetched separately: add a loading state so TheBrain.jsx waits for files before rendering FileTree
+- [x] Verify: reload the app → file tree shows all files for all projects
 - **Done when:** Browser refresh shows full file tree with all saved content
 
 ### 0.2 Fix comments loading from DB

@@ -4,7 +4,7 @@
 
 **Version:** 6.1 (Pre-Release)
 **Live URL:** the-brain-2.vercel.app
-**Last Updated:** 2026-03-08
+**Last Updated:** 2026-03-09
 **Status:** Beta — deployed, functional, bugs to fix before daily use
 
 ---
@@ -78,6 +78,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **Meta** — manifest.json viewer + folder summary
 
 ### Infrastructure
+- File loading from DB on initial render.
 - File operations: create, save, delete, with optimistic UI + DB persistence
 - Custom folder creation per project
 - Full-text search across all files (DB-backed with in-memory fallback)
@@ -93,15 +94,14 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 ## 5. Known Bugs (Must Fix for Beta)
 
 ### Critical
-1. **Files don't load from DB on initial render.** The component receives `initialProjects` as props — if App.jsx/api.js doesn't populate `files` when fetching projects, the file tree is empty. This is the most blocking bug.
-2. **Comments don't load from DB.** Comments state starts empty (`useState({})`). No `useEffect` fetches existing comments on mount or file switch. Comments persist to DB on creation but vanish on reload.
-3. **AI Coach API key exposed client-side.** `askAI()` calls `api.anthropic.com` directly from frontend. Needs a serverless proxy function to keep the key server-side.
+1. **Comments don't load from DB.** Comments state starts empty (`useState({})`). No `useEffect` fetches existing comments on mount or file switch. Comments persist to DB on creation but vanish on reload.
+2. **AI Coach API key exposed client-side.** `askAI()` calls `api.anthropic.com` directly from frontend. Needs a serverless proxy function to keep the key server-side.
 
 ### Important
-4. **Rename project has stale reference.** Line 431 reads `projects` before `setProjects` has re-rendered, so re-saved files may not reflect the rename.
-5. **Import functionality incomplete.** `importText`/`importError` state exists but no import UI or parsing logic was built.
-6. **Session timer doesn't auto-save.** Closing the tab mid-session loses data. No `beforeunload` handler.
-7. **Bootstrap wizard has no validation on complete.** If `projects.find()` returns undefined, subsequent operations silently fail.
+3. **Rename project has stale reference.** Line 431 reads `projects` before `setProjects` has re-rendered, so re-saved files may not reflect the rename.
+4. **Import functionality incomplete.** `importText`/`importError` state exists but no import UI or parsing logic was built.
+5. **Session timer doesn't auto-save.** Closing the tab mid-session loses data. No `beforeunload` handler.
+6. **Bootstrap wizard has no validation on complete.** If `projects.find()` returns undefined, subsequent operations silently fail.
 
 ---
 
@@ -217,18 +217,17 @@ At the end of each build session, update this document with:
 ## 9. Current Priority Stack
 
 ### Next 3 Actions (in order)
-1. **Fix file loading from DB** — ensure App.jsx/api.js populates project files on fetch. This unblocks everything.
-2. **Fix comments loading from DB** — add useEffect to fetch comments on mount/file switch.
-3. **Build AI Coach proxy function** — serverless function to keep API key server-side, with rate limiting and caching.
+1. **Fix comments loading from DB** — add useEffect to fetch comments on mount/file switch.
+2. **Build AI Coach proxy function** — serverless function to keep API key server-side, with rate limiting and caching.
+3. Fix rename stale reference bug
 
 ### After that (Phase 0 completion)
-4. Fix rename stale reference bug
-5. Add `beforeunload` handler for session timer
-6. Bootstrap wizard null check
-7. Soft deletes on project_files (safety net against data loss)
-8. Debounced saves in markdown editor
-9. AI proxy rate limiting + cost controls
-10. Critical path tests (file round-trip, comments, sessions)
+4. Add `beforeunload` handler for session timer
+5. Bootstrap wizard null check
+6. Soft deletes on project_files (safety net against data loss)
+7. Debounced saves in markdown editor
+8. AI proxy rate limiting + cost controls
+9. Critical path tests (file round-trip, comments, sessions)
 
 ### Then (Phase 1 foundations)
 11. **Life Areas** — first-class "Parts" entities (the philosophical foundation)
