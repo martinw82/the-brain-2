@@ -11,7 +11,7 @@ const C = {
   blue:"#1a4fd6", blue2:"#3b82f6", green:"#10b981",
   amber:"#f59e0b", red:"#ef4444", purple:"#6366f1",
   text:"#cbd5e1", muted:"#475569", dim:"#334155",
-  mono:"'JetBrains Mono','Fira Code','Courier New',monospace",
+  mono:"\'JetBrains Mono\',\'Fira Code\',\'Courier New\',monospace",
 };
 const S = {
   root:  {fontFamily:C.mono,background:C.bg,color:C.text,minHeight:"100vh"},
@@ -29,17 +29,7 @@ const Dots=({n=0,max=5,size=5})=><div style={{display:"flex",gap:3}}>{Array.from
 const HealthBar=({score})=>{const col=score>70?C.green:score>40?C.amber:C.red;return <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:60,height:4,background:C.border,borderRadius:2,overflow:"hidden"}}><div style={{width:`${score}%`,height:"100%",background:col,borderRadius:2}}/></div><span style={{fontSize:9,color:col,fontWeight:700}}>{score}</span></div>;};
 const STATUS_MAP={active:{l:"ACTIVE",c:C.green},stalled:{l:"STALLED",c:C.amber},paused:{l:"PAUSED",c:C.purple},done:{l:"DONE",c:C.blue2},idea:{l:"IDEA",c:"#94a3b8"}};
 const BadgeStatus=({status})=>{const m=STATUS_MAP[status]||STATUS_MAP.idea;return <span style={S.badge(m.c)}>{m.l}</span>;};
-const Modal=({title,onClose,children,width=400})=>(
-  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
-    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:24,width,maxWidth:"95vw",maxHeight:"90vh",overflowY:"auto"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        <span style={{fontSize:12,fontWeight:700,color:"#f1f5f9"}}>{title}</span>
-        <button style={{...S.btn("ghost"),padding:"2px 8px"}} onClick={onClose}>✕</button>
-      </div>
-      {children}
-    </div>
-  </div>
-);
+const Modal=({title,onClose,children,width=400})=>(\n  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={e=>e.target===e.currentTarget&&onClose()}>\n    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:24,width,maxWidth:"95vw",maxHeight:"90vh",overflowY:"auto"}}>\n      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>\n        <span style={{fontSize:12,fontWeight:700,color:"#f1f5f9"}}>{title}</span>\n        <button style={{...S.btn("ghost"),padding:"2px 8px"}} onClick={onClose}>✕</button>\n      </div>\n      {children}\n    </div>\n  </div>\n);
 
 // Inline toast — replaces alert() for save confirmations
 const Toast=({msg,onDone})=>{
@@ -112,14 +102,15 @@ const makeProject = (id,name,emoji,phase,status,priority,revenueReady,desc,nextA
 };
 
 // ── MARKDOWN + GANTT ──────────────────────────────────────────
-const renderMd=(md="")=>{if(!md)return"";return md.replace(/^### (.+)$/gm,"<h3 style='color:#e2e8f0;font-size:13px;margin:12px 0 6px'>$1</h3>").replace(/^## (.+)$/gm,"<h2 style='color:#f1f5f9;font-size:15px;margin:16px 0 8px;border-bottom:1px solid #0f1e3a;padding-bottom:4px'>$1</h2>").replace(/^# (.+)$/gm,"<h1 style='color:#f1f5f9;font-size:18px;margin:0 0 16px;font-weight:700'>$1</h1>").replace(/\*\*(.+?)\*\*/g,"<strong style='color:#e2e8f0'>$1</strong>").replace(/`([^`]+)`/g,"<code style='background:#0d1424;border:1px solid #1e293b;padding:1px 5px;border-radius:3px;font-size:11px;color:#10b981'>$1</code>").replace(/^- \[x\] (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#10b981'>✅</span><span>$1</span></div>").replace(/^- \[ \] (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#334155'>⬜</span><span style='color:#94a3b8'>$1</span></div>").replace(/^- (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#1a4fd6'>·</span><span>$1</span></div>").replace(/^\| (.+) \|$/gm,row=>{const cells=row.slice(2,-2).split(" | ");if(cells.every(c=>c.match(/^[-:]+$/)))return"";return`<div style='display:flex;border-bottom:1px solid #0f1e3a'>${cells.map(c=>`<div style='flex:1;padding:4px 8px;font-size:10px;color:#94a3b8'>${c}</div>`).join("")}</div>`;}).replace(/^> (.+)$/gm,"<blockquote style='border-left:3px solid #1a4fd6;margin:8px 0;padding:6px 12px;color:#94a3b8;font-style:italic'>$1</blockquote>").replace(/\n\n/g,"<br/><br/>").replace(/\n/g,"<br/>");};
+const renderMd=(md="")=>{if(!md)return"";return md.replace(/^### (.+)$/gm,"<h3 style=\'color:#e2e8f0;font-size:13px;margin:12px 0 6px\'>$1</h3>").replace(/^## (.+)$/gm,"<h2 style=\'color:#f1f5f9;font-size:15px;margin:16px 0 8px;border-bottom:1px solid #0f1e3a;padding-bottom:4px\'>$1</h2>").replace(/^# (.+)$/gm,"<h1 style=\'color:#f1f5f9;font-size:18px;margin:0 0 16px;font-weight:700\'>$1</h1>").replace(/\*\*(.+?)\*\*/g,"<strong style=\'color:#e2e8f0\'>$1</strong>").replace(/`([^`]+)`/g,"<code style=\'background:#0d1424;border:1px solid #1e293b;padding:1px 5px;border-radius:3px;font-size:11px;color:#10b981\'>$1</code>").replace(/^- \[x\] (.+)$/gm,"<div style=\'display:flex;gap:6px;padding:2px 0\'><span style=\'color:#10b981\'>✅</span><span>$1</span></div>").replace(/^- \[ \] (.+)$/gm,"<div style=\'display:flex;gap:6px;padding:2px 0\'><span style=\'color:#334155\'>⬜</span><span style=\'color:#94a3b8\'>$1</span></div>").replace(/^- (.+)$/gm,"<div style=\'display:flex;gap:6px;padding:2px 0\'><span style=\'color:#1a4fd6\'>·</span><span>$1</span></div>").replace(/^\| (.+) \|$/gm,row=>{const cells=row.slice(2,-2).split(" | ");if(cells.every(c=>c.match(/^[-:]+$/)))return"";return`<div style=\'display:flex;border-bottom:1px solid #0f1e3a\'>${cells.map(c=>`<div style=\'flex:1;padding:4px 8px;font-size:10px;color:#94a3b8\'>${c}</div>`).join("")}</div>`;}).replace(/^> (.+)$/gm,"<blockquote style=\'border-left:3px solid #1a4fd6;margin:8px 0;padding:6px 12px;color:#94a3b8;font-style:italic\'>$1</blockquote>").replace(/\n\n/g,"<br/><br/>").replace(/\n/g,"<br/>");};
 const GanttChart=({tasks})=>{const rows=tasks.filter(t=>t.start&&t.end);if(!rows.length)return<div style={{color:C.muted,fontSize:10,padding:"12px 0"}}>Format: <code style={{color:C.green}}>- [ ] Task 2025-01-01 → 2025-01-14</code></div>;const allD=rows.flatMap(r=>[new Date(r.start),new Date(r.end)]);const minD=new Date(Math.min(...allD));const maxD=new Date(Math.max(...allD));const range=maxD-minD||1;return<div style={{overflowX:"auto"}}>{rows.map((r,i)=>{const left=((new Date(r.start)-minD)/range)*100;const width=((new Date(r.end)-new Date(r.start))/range)*100;return<div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}><div style={{width:140,fontSize:10,color:C.text,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.label}</div><div style={{flex:1,height:16,background:C.border,borderRadius:3,position:"relative",minWidth:200}}><div style={{position:"absolute",left:`${left}%`,width:`${Math.max(width,2)}%`,height:"100%",background:r.done?C.green:C.blue,borderRadius:3,opacity:0.85}}/></div></div>;})} </div>;};
 const parseTasks=(md)=>{const rows=[];md?.split("\n").forEach(line=>{const m=line.match(/[-*]\s+\[(.)\]\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s*(?:→|-|to)\s*(\d{4}-\d{2}-\d{2})/);if(m)rows.push({done:m[1]==="x",label:m[2],start:m[3],end:m[4]});});return rows;};
 
 // ── FILE TREE ─────────────────────────────────────────────────
-const FileTree=({files,activeFile,onSelect,onNewFile,onDelete,customFolders=[]})=>{
+const FileTree=({files,activeFile,onSelect,onNewFile,onDelete,customFolders=[],loading})=>{
   const [expanded,setExpanded]=useState(new Set(["staging","system","content-assets","code-modules"]));
   const tree={};
+  if(loading)return <div style={{padding:12,fontSize:10,color:C.dim}}>Loading files...</div>;
   Object.keys(files).forEach(p=>{const parts=p.split("/");let node=tree;parts.forEach((part,i)=>{if(i===parts.length-1){node[part]={_file:p};}else{node[part]=node[part]||{};}node=node[part];});});
   const allFolders=[...STANDARD_FOLDERS,...customFolders];
   const getFolderMeta=id=>allFolders.find(f=>f.id===id);
@@ -220,7 +211,7 @@ const BootstrapWizard=({project,onComplete,onClose})=>{
           <Row label="Revenue Model"><input style={S.input} placeholder="e.g. $9/mo SaaS, freemium + pro tier..." value={brief.revenueModel} onChange={e=>setBrief(b=>({...b,revenueModel:e.target.value}))}/></Row>
         </div>}
         {step===1&&<div>
-          <div style={{fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.7}}>5 features maximum. If you can't ship all 5 in 2 weeks solo, cut more.</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.7}}>5 features maximum. If you can\'t ship all 5 in 2 weeks solo, cut more.</div>
           <Row label="MVP Features">{brief.mvpFeatures.map((f,i)=><div key={i} style={{display:"flex",gap:6,marginBottom:6,alignItems:"center"}}><span style={{fontSize:10,color:C.dim,width:16,flexShrink:0}}>{i+1}.</span><input style={S.input} placeholder={i===0?"e.g. User can create a project and fill the Bootstrap Brief":"Optional feature..."} value={f} onChange={e=>setFeature(i,e.target.value)}/></div>)}</Row>
           <Row label="Custom Folders?" hint="Beyond the standard 12. Leave blank if unsure.">{["","",""].map((_,i)=><input key={i} style={{...S.input,marginBottom:6}} placeholder={`Custom folder ${i+1}...`} value={brief.customFolders[i]||""} onChange={e=>{const f=[...brief.customFolders];f[i]=e.target.value;setBrief(b=>({...b,customFolders:f}));}}/>)}</Row>
         </div>}
@@ -317,8 +308,9 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [renameValue,setRenameValue]         = useState("");
 
   // Persistence state
-  const [saving,setSaving]   = useState(false);   // file save indicator
-  const [toast,setToast]     = useState(null);    // {msg} or null
+  const [saving,setSaving]     = useState(false);   // file save indicator
+  const [toast,setToast]       = useState(null);    // {msg} or null
+  const [loadingFiles, setLoadingFiles] = useState(false);
 
   const showToast = (msg) => setToast({msg});
 
@@ -338,12 +330,33 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   },[sessionActive]);
   const fmtTime=s=>`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
 
-  // ── NAVIGATION ─────────────────────────────────────────────
-  const openHub=(id,file="PROJECT_OVERVIEW.md")=>{
-    setHubId(id);setView("hub");setHubTab("editor");
-    setProjects(prev=>prev.map(p=>p.id===id?{...p,activeFile:file}:p));
-    // Persist active file change
-    projectsApi.setActiveFile(id,file).catch(()=>{});
+  // ── NAVIGATION ─────────────────────────────────────
+  const openHub = async (id, file = "PROJECT_OVERVIEW.md") => {
+    setHubId(id);
+    setView("hub");
+    setHubTab("editor");
+  
+    const project = projects.find(p => p.id === id);
+  
+    if (project && project.files === null) {
+      setLoadingFiles(true);
+      try {
+        const { project: loadedProject } = await projectsApi.get(id);
+        setProjects(prev => prev.map(p =>
+          p.id === id ? { ...p, ...loadedProject, files: loadedProject.files || {}, activeFile: file } : p
+        ));
+      } catch (e) {
+        showToast("⚠ Failed to load project files");
+      } finally {
+        setLoadingFiles(false);
+      }
+    } else {
+      setProjects(prev => prev.map(p =>
+        p.id === id ? { ...p, activeFile: file } : p
+      ));
+    }
+  
+    projectsApi.setActiveFile(id, file).catch(() => {});
   };
 
   // ── FILE OPS — optimistic + persisted ─────────────────────
@@ -615,7 +628,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
   // ── TAB DEFINITIONS ────────────────────────────────────────
   const BRAIN_TABS=[{id:"command",label:"⚡ Command"},{id:"projects",label:"🗂 Projects"},{id:"bootstrap",label:"🚀 Bootstrap"},{id:"staging",label:`🌀 Staging${inReview>0?` (${inReview})`:""}`},{id:"skills",label:"🤖 Skills"},{id:"workflows",label:"⚙️ Workflows"},{id:"integrations",label:"🔌 Connect"},{id:"ideas",label:"💡 Ideas"},{id:"ai",label:"💬 AI Coach"},{id:"export",label:"📤 Export"}];
-  const HUB_TABS=[{id:"editor",label:"📝 Editor"},{id:"overview",label:"📊 Overview"},{id:"folders",label:"📁 Folders"},{id:"review",label:`🔄 Review${hub?staging.filter(s=>s.project===hubId&&s.status==="in-review").length>0?` (${staging.filter(s=>s.project===hubId&&s.status==="in-review").length})`:"":""}`},{id:"devlog",label:"📓 Dev Log"},{id:"gantt",label:"📅 Timeline"},{id:"comments",label:"💬 Comments"},{id:"meta",label:"🔧 Meta"}];
+  const HUB_TABS=[{id:"editor",label:"📝 Editor"},{id:"overview",label:"📊 Overview"},{id:"folders",label:"📁 Folders"},{id:"review",label:`🔄 Review${hub?staging.filter(s=>s.project===hubId&&s.status==="in-review").length>0?` (${staging.filter(s=>s.project===hubId&&s.status==="in-review").length})`:""}`},{id:"devlog",label:"📓 Dev Log"},{id:"gantt",label:"📅 Timeline"},{id:"comments",label:"💬 Comments"},{id:"meta",label:"🔧 Meta"}];
 
   // ══════════════════════════════════════════════════════════
   // RENDER
@@ -767,10 +780,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             {hubTab==="editor"&&(
               <div style={{display:"flex",gap:10,height:"calc(100vh-160px)",minHeight:500}}>
                 <div style={{width:210,flexShrink:0,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
-                  <FileTree files={hub.files||{}} activeFile={hub.activeFile} customFolders={hub.customFolders||[]}
+                <FileTree files={hub.files||{}} activeFile={hub.activeFile} customFolders={hub.customFolders||[]}
                     onSelect={path=>{setProjects(prev=>prev.map(p=>p.id===hubId?{...p,activeFile:path}:p));projectsApi.setActiveFile(hubId,path).catch(()=>{});}}
                     onNewFile={()=>setModal("new-file")}
-                    onDelete={path=>deleteFile(hubId,path)}/>
+                    onDelete={path=>deleteFile(hubId,path)}
+                    loading={loadingFiles}/>
                 </div>
                 <div style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative"}}
                   onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>handleDrop(e,hubId)}>
@@ -853,8 +867,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                         ))}
                       </div>
                     </div>
-                  );}
-                )}
+                  );})}
               </div>
             )}
 
@@ -939,7 +952,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
               )}
               <div style={S.card(true)}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
-                  <span style={{fontSize:10,color:C.blue,letterSpacing:"0.11em",textTransform:"uppercase"}}>⚡ Today's Focus</span>
+                  <span style={{fontSize:10,color:C.blue,letterSpacing:"0.11em",textTransform:"uppercase"}}>⚡ Today\'s Focus</span>
                   <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{projects.map(p=><button key={p.id} style={{...S.btn(focusId===p.id?"primary":"ghost"),fontSize:9}} onClick={()=>setFocusId(p.id)}>{p.emoji}</button>)}</div>
                 </div>
                 {focusP&&<div style={{background:C.bg,border:`1px solid ${C.blue}`,borderRadius:6,padding:"12px 16px"}}>
