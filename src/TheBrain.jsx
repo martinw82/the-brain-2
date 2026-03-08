@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, token } from "./api.js";
+import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, token } from "./api.js";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -156,7 +156,25 @@ const FileTree=({files,activeFile,onSelect,onNewFile,onDelete,customFolders=[]})
 const MarkdownEditor=({path,content,onChange,onSave,saving})=>{
   const [mode,setMode]=useState("edit");
   const [val,setVal]=useState(content);
-  useEffect(()=>setVal(content),[content,path]);
+  const [dirty,setDirty]=useState(false);
+  const timerRef=useRef(null);
+
+  useEffect(()=> {
+    setVal(content);
+    setDirty(false);
+  },[content,path]);
+
+  // Debounced auto-save
+  useEffect(() => {
+    if (!dirty) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      onSave(path, val);
+      setDirty(false);
+    }, 2000);
+    return () => clearTimeout(timerRef.current);
+  }, [val, dirty, path, onSave]);
+
   const isJson=path?.endsWith(".json");
   const isReadonly=path==="system/agent.ignore"||path==="manifest.json";
   return <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
@@ -166,13 +184,14 @@ const MarkdownEditor=({path,content,onChange,onSave,saving})=>{
         {isReadonly&&<span style={S.badge(C.amber)}>READONLY</span>}
         {path==="manifest.json"&&<span style={S.badge(C.purple)}>MANIFEST</span>}
       </div>
-      <div style={{display:"flex",gap:4,flexShrink:0}}>
+      <div style={{display:"flex",gap:4,flexShrink:0,alignItems:"center"}}>
+        {dirty && <span style={{fontSize:9,color:C.amber,marginRight:8}}>Unsaved changes...</span>}
         {!isJson&&!isReadonly&&<><button style={S.tab(mode==="edit","#10b981")} onClick={()=>setMode("edit")}>Edit</button><button style={S.tab(mode==="preview","#10b981")} onClick={()=>setMode("preview")}>Preview</button></>}
-        {!isReadonly&&<button style={{...S.btn("success"),padding:"4px 10px",opacity:saving?0.6:1}} onClick={()=>onSave(path,val)} disabled={saving}>{saving?"Saving…":"Save"}</button>}
+        {!isReadonly&&<button style={{...S.btn("success"),padding:"4px 10px",opacity:saving?0.6:1}} onClick={()=>{onSave(path,val);setDirty(false);}} disabled={saving}>{saving?"Saving…":"Save"}</button>}
       </div>
     </div>
     {mode==="edit"||isJson
-      ?<textarea style={{...S.input,flex:1,resize:"none",border:"none",borderRadius:0,fontSize:isJson?11:12,lineHeight:1.7,padding:"14px 16px",background:"#050810"}} value={val} onChange={e=>{setVal(e.target.value);onChange(e.target.value);}} readOnly={isReadonly} spellCheck={false}/>
+      ?<textarea style={{...S.input,flex:1,resize:"none",border:"none",borderRadius:0,fontSize:isJson?11:12,lineHeight:1.7,padding:"14px 16px",background:"#050810"}} value={val} onChange={e=>{setVal(e.target.value);onChange(e.target.value);setDirty(true);}} readOnly={isReadonly} spellCheck={false}/>
       :<div style={{flex:1,overflowY:"auto",padding:"14px 20px",background:"#050810",fontSize:12,lineHeight:1.8,color:C.text}} dangerouslySetInnerHTML={{__html:renderMd(val)}}/>}
   </div>;
 };
@@ -320,6 +339,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [saving,setSaving]   = useState(false);   // file save indicator
   const [toast,setToast]     = useState(null);    // {msg} or null
   const [loadingFiles,setLoadingFiles] = useState(false);  // hub file loading
+  const [commentsLoading, setCommentsLoading] = useState(false); // comments loading indicator
 
   const showToast = (msg) => setToast({msg});
 
@@ -333,11 +353,57 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
   // ── SESSION TIMER ──────────────────────────────────────────
   useEffect(()=>{
-    if(sessionActive){sessionStart.current=new Date();timerRef.current=setInterval(()=>setSessionSecs(s=>s+1),1000);}
-    else clearInterval(timerRef.current);
-    return()=>clearInterval(timerRef.current);
-  },[sessionActive]);
+    if(sessionActive){
+      sessionStart.current=new Date();
+      timerRef.current=setInterval(()=>setSessionSecs(s=>s+1),1000);
+
+      const handleBeforeUnload = (e) => {
+        // We can't await endSession() here, but we can try to fire a beacon or sync request if we were using a different API pattern.
+        // For now, we'll just log that we should save. In a real environment, we'd use navigator.sendBeacon.
+        const dur = Math.floor((new Date() - sessionStart.current) / 1000);
+        const data = JSON.stringify({
+          project_id: focusId,
+          duration_s: dur,
+          log: "(Auto-saved on tab close)",
+          started_at: sessionStart.current?.toISOString(),
+          ended_at: new Date().toISOString()
+        });
+        // Try beacon if API supported it without complex auth headers,
+        // but our API needs Bearer token which beacon doesn't support well.
+        // So we just add the standard listener to prompt user.
+        e.preventDefault();
+        e.returnValue = '';
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => {
+        clearInterval(timerRef.current);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    } else {
+      clearInterval(timerRef.current);
+    }
+  },[sessionActive, focusId]);
   const fmtTime=s=>`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+
+  // ── COMMENTS LOADER — fetch from DB when hub or active file changes ──
+  useEffect(() => {
+    if (!hubId || !hub?.activeFile) return;
+    const filePath = hub.activeFile;
+    const commKey = `${hubId}:${filePath}`;
+    setCommentsLoading(true);
+    commentsApi.list(hubId, filePath)
+      .then(({ comments: rows }) => {
+        const mapped = (rows || []).map(r => ({
+          id: r.id,
+          text: r.text,
+          date: r.created_at ? r.created_at.toString().slice(0, 10) : "",
+          resolved: !!r.resolved,
+        }));
+        setComments(prev => ({ ...prev, [commKey]: mapped }));
+      })
+      .catch(() => { /* silently ignore — existing UI still works */ })
+      .finally(() => setCommentsLoading(false));
+  }, [hubId, hub?.activeFile]);
 
   // ── NAVIGATION — lazy-loads files on first hub open ────────
   const openHub = async (id, file) => {
@@ -373,17 +439,21 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   };
 
   // ── FILE OPS — optimistic + persisted ─────────────────────
-  const saveFile=async(projId,path,content)=>{
+  const saveFile = useCallback(async (projId, path, content) => {
     // Optimistic update
-    setProjects(prev=>prev.map(p=>p.id===projId?{...p,files:{...p.files,[path]:content}}:p));
+    setProjects(prev => prev.map(p => p.id === projId ? { ...p, files: { ...p.files, [path]: content } } : p));
     setSaving(true);
-    try{
-      await projectsApi.saveFile(projId,path,content);
+    try {
+      await projectsApi.saveFile(projId, path, content);
       showToast("✓ Saved");
-    }catch(e){
+    } catch (e) {
       showToast("⚠ Save failed — check connection");
-    }finally{setSaving(false);}
-  };
+    } finally { setSaving(false); }
+  }, []);
+
+  const handleHubSave = useCallback((path, content) => {
+    if (hubId) saveFile(hubId, path, content);
+  }, [hubId, saveFile]);
 
   const createFile=async(projId,folder,name)=>{
     if(!name.trim())return;
@@ -443,20 +513,27 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   };
 
   const renameProject=async(projId,newName)=>{
-    setProjects(prev=>prev.map(p=>{
-      if(p.id!==projId)return p;
-      const files={...p.files};
-      if(files["PROJECT_OVERVIEW.md"])files["PROJECT_OVERVIEW.md"]=files["PROJECT_OVERVIEW.md"].replace(/^# .+$/m,`# ${newName}`);
-      const manifest=makeManifest({...p,name:newName});
-      files["manifest.json"]=JSON.stringify(manifest,null,2);
-      return{...p,name:newName,files};
-    }));
+    let updatedFiles = {};
+    setProjects(prev=>{
+      const newProjects = prev.map(p=>{
+        if(p.id!==projId)return p;
+        const files={...p.files};
+        if(files["PROJECT_OVERVIEW.md"])files["PROJECT_OVERVIEW.md"]=files["PROJECT_OVERVIEW.md"].replace(/^# .+$/m,`# ${newName}`);
+        const manifest=makeManifest({...p,name:newName});
+        files["manifest.json"]=JSON.stringify(manifest,null,2);
+        updatedFiles = files; // capture for re-save
+        return{...p,name:newName,files};
+      });
+      return newProjects;
+    });
     setModal(null);
     await projectsApi.update(projId,{name:newName}).catch(()=>{});
     // Re-save overview + manifest
-    const proj=projects.find(p=>p.id===projId);
-    if(proj){
-      await projectsApi.saveFile(projId,"PROJECT_OVERVIEW.md",(proj.files["PROJECT_OVERVIEW.md"]||"").replace(/^# .+$/m,`# ${newName}`)).catch(()=>{});
+    if(updatedFiles["PROJECT_OVERVIEW.md"]){
+      await projectsApi.saveFile(projId,"PROJECT_OVERVIEW.md",updatedFiles["PROJECT_OVERVIEW.md"]).catch(()=>{});
+    }
+    if(updatedFiles["manifest.json"]){
+      await projectsApi.saveFile(projId,"manifest.json",updatedFiles["manifest.json"]).catch(()=>{});
     }
   };
 
@@ -470,6 +547,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   };
 
   const completeBootstrap=async(projId,brief)=>{
+    const proj=projects.find(p=>p.id===projId);
+    if(!proj){
+      showToast("⚠ Error: Project not found. Refresh and try again.");
+      return;
+    }
     const today=new Date().toISOString().slice(0,10);
     const newCustomFolders=(brief.customFolders||[]).filter(Boolean).map(f=>({id:f.toLowerCase().replace(/\s+/g,"-"),label:f,icon:"📁",desc:"Custom folder from Bootstrap Brief"}));
 
@@ -623,9 +705,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     setAiLoad(true);setAiOut("");
     const sys=`You are The Brain AI Coach for ${user?.name||"this builder"}, targeting £${user?.monthly_target||3000}/mo. Direct, max 250 words. Reference specific projects. Context:\n${buildCtx()}`;
     try{
-      const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:sys,messages:[{role:"user",content:prompt}]})});
-      const d=await r.json();setAiOut(d.content?.map(b=>b.text||"").join("")||"No response.");
-    }catch{setAiOut("Connection error.");}
+      const d = await aiApi.ask(prompt, sys);
+      setAiOut(d.content?.map(b=>b.text||"").join("")||"No response.");
+    }catch(e){
+      setAiOut(e.message || "Connection error.");
+    }
     setAiLoad(false);setTimeout(()=>aiRef.current?.scrollIntoView({behavior:"smooth"}),100);
   };
 
@@ -809,7 +893,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 <div style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative"}}
                   onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>handleDrop(e,hubId)}>
                   {dragOver&&<div style={{position:"absolute",inset:0,background:"rgba(26,79,214,0.12)",border:`2px dashed ${C.blue}`,borderRadius:8,zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}><span style={{fontSize:14,color:C.blue}}>Drop to stage →</span></div>}
-                  <MarkdownEditor path={hub.activeFile} content={(hub.files||{})[hub.activeFile]||""} onChange={()=>{}} onSave={saveFile.bind(null,hubId)} saving={saving}/>
+                  <MarkdownEditor path={hub.activeFile} content={(hub.files||{})[hub.activeFile]||""} onChange={()=>{}} onSave={handleHubSave} saving={saving}/>
                 </div>
               </div>
             )}
@@ -923,7 +1007,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   <input style={S.input} placeholder="Add comment..." value={newComment} onChange={e=>setNewComment(e.target.value)} onKeyDown={async e=>{if(e.key==="Enter"&&newComment.trim()){const tmp={id:`tmp-${Date.now()}`,text:newComment,date:new Date().toISOString().slice(0,10),resolved:false};setComments(prev=>({...prev,[commKey]:[...(prev[commKey]||[]),tmp]}));setNewComment("");try{const r=await commentsApi.create(hubId,hub.activeFile,newComment);setComments(prev=>({...prev,[commKey]:(prev[commKey]||[]).map(c=>c.id===tmp.id?{...c,id:r.id}:c)}));}catch{}}}}/>
                   <button style={S.btn("primary")} onClick={async()=>{if(!newComment.trim())return;const tmp={id:`tmp-${Date.now()}`,text:newComment,date:new Date().toISOString().slice(0,10),resolved:false};setComments(prev=>({...prev,[commKey]:[...(prev[commKey]||[]),tmp]}));setNewComment("");try{const r=await commentsApi.create(hubId,hub.activeFile,newComment);setComments(prev=>({...prev,[commKey]:(prev[commKey]||[]).map(c=>c.id===tmp.id?{...c,id:r.id}:c)}));}catch{}}}>Add</button>
                 </div>
-                {fileComs.length===0?<div style={{fontSize:10,color:C.dim,textAlign:"center",padding:"20px 0"}}>No comments yet.</div>
+                {commentsLoading ? <div style={{fontSize:10,color:C.dim,textAlign:"center",padding:"20px 0"}}>Loading comments...</div> :
+                  fileComs.length===0?<div style={{fontSize:10,color:C.dim,textAlign:"center",padding:"20px 0"}}>No comments yet.</div>
                   :fileComs.map(c=>(
                     <div key={c.id} style={{background:C.bg,border:`1px solid ${c.resolved?C.border:C.blue+"40"}`,borderRadius:6,padding:"10px 14px",marginBottom:6}}>
                       <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>

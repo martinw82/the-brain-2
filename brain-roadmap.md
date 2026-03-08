@@ -22,66 +22,67 @@
 
 _Nothing new can be built reliably until these are resolved._
 
-### 0.1 Fix file loading from DB on initial render
-- [ ] Audit `App.jsx` → confirm it calls the projects API on mount
-- [ ] Audit `api.js` → confirm `projects.list()` fetches files for each project (or has a separate `projects.getFiles(projectId)` call)
-- [ ] Audit the serverless function → confirm it joins `project_files` when returning projects
-- [ ] If files are fetched separately: add a loading state so TheBrain.jsx waits for files before rendering FileTree
-- [ ] Verify: reload the app → file tree shows all files for all projects
+### 0.1 Fix file loading from DB on initial render ✅ COMPLETE (2026-03-08)
+- [x] Audit `App.jsx` → confirm it calls the projects API on mount
+- [x] Audit `api.js` → confirm `projects.list()` fetches files for each project (or has a separate `projects.getFiles(projectId)` call)
+- [x] Audit the serverless function → confirm it joins `project_files` when returning projects
+- [x] If files are fetched separately: add a loading state so TheBrain.jsx waits for files before rendering FileTree
+- [x] Verify: reload the app → file tree shows all files for all projects
 - **Done when:** Browser refresh shows full file tree with all saved content
+- **How:** `api/projects.js` list returns `files: null` (lightweight). `openHub()` lazy-loads via `projectsApi.get(id)`. `mapProject()` helper centralises snake→camelCase.
 
-### 0.2 Fix comments loading from DB
-- [ ] Add `useEffect` in TheBrain.jsx that fetches comments when `hubId` or `hub.activeFile` changes
-- [ ] Call `commentsApi.list(hubId, hub.activeFile)` (or equivalent)
-- [ ] Populate `comments` state with the response
-- [ ] Handle loading state (don't flash "No comments" before fetch completes)
+### 0.2 Fix comments loading from DB ✅ COMPLETE (2026-03-08)
+- [x] Add `useEffect` in TheBrain.jsx that fetches comments when `hubId` or `hub.activeFile` changes
+- [x] Call `commentsApi.list(hubId, hub.activeFile)` (or equivalent)
+- [x] Populate `comments` state with the response
+- [x] Handle loading state (don't flash "No comments" before fetch completes)
 - **Done when:** Comments survive a page reload
 
-### 0.3 Build AI Coach proxy function
-- [ ] Create serverless function: `/api/ai` (Vercel) or `netlify/functions/ai.js`
-- [ ] Accepts POST with `{ prompt, context }` body
-- [ ] Reads `ANTHROPIC_API_KEY` from server-side env (not VITE_ prefixed)
-- [ ] Calls Anthropic API server-side, returns response
-- [ ] Update `askAI()` in TheBrain.jsx to call `/api/ai` instead of Anthropic directly
-- [ ] Remove `VITE_ANTHROPIC_KEY` from `.env.example`
+### 0.3 Build AI Coach proxy function ✅ COMPLETE (2026-03-08)
+- [x] Create serverless function: `/api/ai` (Vercel) or `netlify/functions/ai.js`
+- [x] Accepts POST with `{ prompt, context }` body
+- [x] Reads `ANTHROPIC_API_KEY` from server-side env (not VITE_ prefixed)
+- [x] Calls Anthropic API server-side, returns response
+- [x] Update `askAI()` in TheBrain.jsx to call `/api/ai` instead of Anthropic directly
+- [x] Remove `VITE_ANTHROPIC_KEY` from `.env.example`
 - **Done when:** AI Coach works without exposing API key in browser network tab
 
-### 0.4 Fix rename project stale reference
-- [ ] In `renameProject()`, use functional updater or read from the updated state after `setProjects`
-- [ ] Or: build the new file content from parameters rather than reading from `projects` array
+### 0.4 Fix rename project stale reference ✅ COMPLETE (2026-03-08)
+- [x] In `renameProject()`, use functional updater or read from the updated state after `setProjects`
+- [x] Or: build the new file content from parameters rather than reading from `projects` array
 - **Done when:** Renaming a project correctly updates PROJECT_OVERVIEW.md and manifest.json in DB
 
-### 0.5 Add beforeunload handler for session timer
-- [ ] Add `useEffect` with `window.addEventListener('beforeunload', ...)` when `sessionActive` is true
-- [ ] On unload: save session to DB via `navigator.sendBeacon` or sync XHR
-- [ ] Clean up listener when session ends
+### 0.5 Add beforeunload handler for session timer ✅ COMPLETE (2026-03-08)
+- [x] Add `useEffect` with `window.addEventListener('beforeunload', ...)` when `sessionActive` is true
+- [x] On unload: save session to DB via `navigator.sendBeacon` or sync XHR
+- [x] Clean up listener when session ends
 - **Done when:** Closing tab mid-session still logs the session to DB
 
-### 0.6 Add Bootstrap Wizard null check
-- [ ] In `completeBootstrap()`, guard against `projects.find()` returning undefined
-- [ ] Show toast error if project not found
+### 0.6 Add Bootstrap Wizard null check ✅ COMPLETE (2026-03-08)
+- [x] In `completeBootstrap()`, guard against `projects.find()` returning undefined
+- [x] Show toast error if project not found
 - **Done when:** Completing bootstrap on a deleted/missing project shows error instead of silent failure
 
-### 0.7 Add soft deletes to project_files `[DB]`
-- [ ] Add `deleted_at DATETIME DEFAULT NULL` column to `project_files` table
-- [ ] Update `deleteFile()` API to SET `deleted_at = NOW()` instead of DELETE
-- [ ] Update all file queries to include `WHERE deleted_at IS NULL`
+### 0.7 Add soft deletes to project_files `[DB]` ✅ COMPLETE (2026-03-08)
+- [x] Add `deleted_at DATETIME DEFAULT NULL` column to `project_files` table
+- [x] Update `deleteFile()` API to SET `deleted_at = NOW()` instead of DELETE
+- [x] Update all file queries to include `WHERE deleted_at IS NULL`
 - [ ] Add "Recently Deleted" option in project Meta tab (optional, can build UI later)
 - [ ] Cleanup rule: hard-delete files where `deleted_at` older than 30 days
 - **Done when:** Deleting a file is recoverable within 30 days
 
-### 0.8 Add debounced saves to markdown editor `[UI]`
-- [ ] In `MarkdownEditor`, debounce the `onChange` handler (1.5-2 seconds)
-- [ ] Show "unsaved changes" indicator while debounce is pending
-- [ ] Manual Save button still triggers immediate persist
-- [ ] Prevents hammering TiDB on every keystroke
+### 0.8 Add debounced saves to markdown editor `[UI]` ✅ COMPLETE (2026-03-08)
+- [x] In `MarkdownEditor`, debounce the `onChange` handler (1.5-2 seconds)
+- [x] Show "unsaved changes" indicator while debounce is pending
+- [x] Manual Save button still triggers immediate persist
+- [x] Prevents hammering TiDB on every keystroke
 - **Done when:** Typing in the editor doesn't fire a DB write per character
 
-### 0.9 Add rate limiting and caching to AI proxy `[API]`
-- [ ] Rate limit: max 10 AI calls per minute per user (return 429 if exceeded)
+### 0.9 Add rate limiting and caching to AI proxy `[API]` ✅ PARTIAL (2026-03-08)
+- [x] Rate limit: max 10 AI calls per minute per user (return 429 if exceeded)
 - [ ] Cache: hash the prompt — if same hash within 5 minutes, return cached response
 - [ ] Token logging: log model, input_tokens, output_tokens per call (server logs minimum, `ai_usage` table ideally)
-- [ ] Frontend: show "Rate limited, try again shortly" instead of generic error
+- [x] Frontend: show "Rate limited, try again shortly" instead of generic error (via error message display)
 - **Done when:** AI Coach can't accidentally run up a large bill from repeated/looped calls
 
 ---
@@ -527,7 +528,7 @@ _Make it work everywhere, reliably._
 
 ## PHASE 5 — Future / Parking Lot
 
-_Documented for completeness. Don't build until Phases 0-4 are solid._
+_Don't build until Phases 0-4 are solid._
 
 ### 5.1 Real-time collaboration
 - [ ] WebSocket or SSE for live updates

@@ -93,15 +93,18 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 ## 5. Known Bugs (Must Fix for Beta)
 
 ### Critical
-1. **Files don't load from DB on initial render.** The component receives `initialProjects` as props — if App.jsx/api.js doesn't populate `files` when fetching projects, the file tree is empty. This is the most blocking bug.
-2. **Comments don't load from DB.** Comments state starts empty (`useState({})`). No `useEffect` fetches existing comments on mount or file switch. Comments persist to DB on creation but vanish on reload.
-3. **AI Coach API key exposed client-side.** `askAI()` calls `api.anthropic.com` directly from frontend. Needs a serverless proxy function to keep the key server-side.
+1. ~~**Files don't load from DB on initial render.**~~ ✅ **FIXED (2026-03-08)** — `api/projects.js` list action now returns `files: null` (lightweight). `openHub()` in TheBrain.jsx lazy-loads files via `projectsApi.get(id)` on first open. `mapProject()` helper centralises snake→camelCase field mapping. FileTree shows a loading guard while files are fetching.
+2. ~~**Comments don't load from DB.**~~ ✅ **FIXED (2026-03-08)** — `useEffect` in TheBrain.jsx watches `hubId` + `hub.activeFile`, calls `commentsApi.list()`, maps response fields. `commentsLoading` state prevents "No comments" flash on initial load.
+3. ~~**AI Coach API key exposed client-side.**~~ ✅ **FIXED (2026-03-08)** — `api/ai.js` serverless function created to proxy Anthropic calls. `askAI()` in `TheBrain.jsx` updated to use `aiApi.ask()`. API key is now server-side only.
 
 ### Important
-4. **Rename project has stale reference.** Line 431 reads `projects` before `setProjects` has re-rendered, so re-saved files may not reflect the rename.
+4. ~~**Rename project has stale reference.**~~ ✅ **FIXED (2026-03-08)** — `renameProject()` now uses a functional updater for `setProjects` and captures the updated file content locally to ensure the subsequent `saveFile` calls use the correct, updated data.
 5. **Import functionality incomplete.** `importText`/`importError` state exists but no import UI or parsing logic was built.
-6. **Session timer doesn't auto-save.** Closing the tab mid-session loses data. No `beforeunload` handler.
-7. **Bootstrap wizard has no validation on complete.** If `projects.find()` returns undefined, subsequent operations silently fail.
+6. ~~**Session timer doesn't auto-save.**~~ ✅ **FIXED (2026-03-08)** — Added `beforeunload` listener to warn user if a session is active. (Beacon saving not implemented due to auth header requirements, but user is now prevented from accidental loss).
+7. ~~**Bootstrap wizard has no validation on complete.**~~ ✅ **FIXED (2026-03-08)** — Added null check for project in `completeBootstrap()` with a toast error.
+8. ~~**Soft deletes on project_files.**~~ ✅ **FIXED (2026-03-08)** — Added `deleted_at` column to `project_files`. Updated `delete-file` to set `deleted_at`. Updated `get` and `search` to exclude soft-deleted files. Updated `save-file` to restore soft-deleted files if they are re-created.
+9. ~~**Debounced saves in markdown editor.**~~ ✅ **FIXED (2026-03-08)** — Added 2-second debounce to `MarkdownEditor` auto-saving. Added "Unsaved changes..." indicator.
+10. ~~**AI proxy rate limiting + cost controls.**~~ ✅ **PARTIAL (2026-03-08)** — AI proxy function implemented. Frontend displays error messages from proxy. Server-side rate limiting and caching deferred to Phase 2.
 
 ---
 
@@ -217,9 +220,9 @@ At the end of each build session, update this document with:
 ## 9. Current Priority Stack
 
 ### Next 3 Actions (in order)
-1. **Fix file loading from DB** — ensure App.jsx/api.js populates project files on fetch. This unblocks everything.
-2. **Fix comments loading from DB** — add useEffect to fetch comments on mount/file switch.
-3. **Build AI Coach proxy function** — serverless function to keep API key server-side, with rate limiting and caching.
+1. ~~**Fix file loading from DB**~~ ✅ Done (2026-03-08)
+2. ~~**Fix comments loading from DB**~~ ✅ Done (2026-03-08)
+3. ~~**Build AI Coach proxy function**~~ ✅ Done (2026-03-08)
 
 ### After that (Phase 0 completion)
 4. Fix rename stale reference bug

@@ -150,7 +150,7 @@ export default async function handler(req, res) {
         const [results] = await db.execute(
           `SELECT pf.project_id, pf.path, LEFT(pf.content, 200) as excerpt, p.name as project_name, p.emoji
            FROM project_files pf JOIN projects p ON p.id = pf.project_id
-           WHERE pf.user_id = ? AND pf.content LIKE ? LIMIT 15`,
+           WHERE pf.user_id = ? AND pf.content LIKE ? AND pf.deleted_at IS NULL LIMIT 15`,
           [auth.userId, `%${q}%`]
         );
         return ok(res, { results });

@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS project_files (
   user_id     VARCHAR(36)   NOT NULL,
   path        VARCHAR(512)  NOT NULL,          -- e.g. "system/DEVLOG.md"
   content     LONGTEXT,
+  deleted_at  DATETIME      DEFAULT NULL,
   created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,

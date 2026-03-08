@@ -110,7 +110,7 @@ export default async function handler(req, res) {
       const p = projects[0];
 
       const [files] = await db.execute(
-        'SELECT path, content FROM project_files WHERE project_id = ? AND user_id = ?',
+        'SELECT path, content FROM project_files WHERE project_id = ? AND user_id = ? AND deleted_at IS NULL',
         [projectId, auth.userId]
       );
       const filesMap = {};
@@ -199,16 +199,17 @@ export default async function handler(req, res) {
       const { path, content } = req.body || {};
       if (!path) return err(res, 'path required');
       await db.execute(
-        `INSERT INTO project_files (project_id, user_id, path, content) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE content = VALUES(content), updated_at = CURRENT_TIMESTAMP`,
+        `INSERT INTO project_files (project_id, user_id, path, content, deleted_at) VALUES (?, ?, ?, ?, NULL) ON DUPLICATE KEY UPDATE content = VALUES(content), deleted_at = NULL, updated_at = CURRENT_TIMESTAMP`,
         [projectId, auth.userId, path, content || '']
       );
       return ok(res, { success: true });
     }
 
-    // ── DELETE file ──────────────────────────────────────────
+    // ── DELETE file (Soft Delete) ────────────────────────────
+    // TODO: Implement hard-delete cleanup for files older than 30 days
     if (req.method === 'DELETE' && action === 'delete-file' && projectId) {
       const { path } = req.body || {};
-      await db.execute('DELETE FROM project_files WHERE project_id = ? AND user_id = ? AND path = ?', [projectId, auth.userId, path]);
+      await db.execute('UPDATE project_files SET deleted_at = CURRENT_TIMESTAMP WHERE project_id = ? AND user_id = ? AND path = ?', [projectId, auth.userId, path]);
       return ok(res, { success: true });
     }
 
