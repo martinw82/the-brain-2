@@ -109,10 +109,23 @@ export default async function handler(req, res) {
       if (!projects.length) return err(res, 'Not found', 404);
       const p = projects[0];
 
-      const [files] = await db.execute(
-        'SELECT path, content FROM project_files WHERE project_id = ? AND user_id = ?',
-        [projectId, auth.userId]
-      );
+      // Use fallback for deleted_at to avoid breaking if migration hasn't run yet
+      let files;
+      try {
+        [files] = await db.execute(
+          'SELECT path, content FROM project_files WHERE project_id = ? AND user_id = ? AND deleted_at IS NULL',
+          [projectId, auth.userId]
+        );
+      } catch (e) {
+        if (e.message.includes('Unknown column \'deleted_at\'')) {
+          [files] = await db.execute(
+            'SELECT path, content FROM project_files WHERE project_id = ? AND user_id = ?',
+            [projectId, auth.userId]
+          );
+        } else {
+          throw e;
+        }
+      }
       const filesMap = {};
       files.forEach(f => { filesMap[f.path] = f.content || ''; });
 
@@ -198,17 +211,37 @@ export default async function handler(req, res) {
     if (req.method === 'PUT' && action === 'save-file' && projectId) {
       const { path, content } = req.body || {};
       if (!path) return err(res, 'path required');
-      await db.execute(
-        `INSERT INTO project_files (project_id, user_id, path, content) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE content = VALUES(content), updated_at = CURRENT_TIMESTAMP`,
-        [projectId, auth.userId, path, content || '']
-      );
+      try {
+        await db.execute(
+          `INSERT INTO project_files (project_id, user_id, path, content, deleted_at) VALUES (?, ?, ?, ?, NULL) ON DUPLICATE KEY UPDATE content = VALUES(content), deleted_at = NULL, updated_at = CURRENT_TIMESTAMP`,
+          [projectId, auth.userId, path, content || '']
+        );
+      } catch (e) {
+        if (e.message.includes('Unknown column \'deleted_at\'')) {
+          await db.execute(
+            `INSERT INTO project_files (project_id, user_id, path, content) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE content = VALUES(content), updated_at = CURRENT_TIMESTAMP`,
+            [projectId, auth.userId, path, content || '']
+          );
+        } else {
+          throw e;
+        }
+      }
       return ok(res, { success: true });
     }
 
-    // ── DELETE file ──────────────────────────────────────────
+    // ── DELETE file (Soft Delete with fallback) ──────────────
+    // TODO: Implement hard-delete cleanup for files older than 30 days
     if (req.method === 'DELETE' && action === 'delete-file' && projectId) {
       const { path } = req.body || {};
-      await db.execute('DELETE FROM project_files WHERE project_id = ? AND user_id = ? AND path = ?', [projectId, auth.userId, path]);
+      try {
+        await db.execute('UPDATE project_files SET deleted_at = CURRENT_TIMESTAMP WHERE project_id = ? AND user_id = ? AND path = ?', [projectId, auth.userId, path]);
+      } catch (e) {
+        if (e.message.includes('Unknown column \'deleted_at\'')) {
+          await db.execute('DELETE FROM project_files WHERE project_id = ? AND user_id = ? AND path = ?', [projectId, auth.userId, path]);
+        } else {
+          throw e;
+        }
+      }
       return ok(res, { success: true });
     }
 

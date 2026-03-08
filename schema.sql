@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS project_files (
   user_id     VARCHAR(36)   NOT NULL,
   path        VARCHAR(512)  NOT NULL,          -- e.g. "system/DEVLOG.md"
   content     LONGTEXT,
+  deleted_at  DATETIME      DEFAULT NULL,
   created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
@@ -144,4 +145,12 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_token (token_hash)
+);
+
+-- ── MIGRATIONS ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  id          INT           AUTO_INCREMENT PRIMARY KEY,
+  version     INT           NOT NULL UNIQUE,
+  name        VARCHAR(255)  NOT NULL,
+  applied_at  DATETIME      DEFAULT CURRENT_TIMESTAMP
 );

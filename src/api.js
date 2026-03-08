@@ -139,3 +139,9 @@ export const search = {
   query: (q) =>
     get(`${BASE}/api/data?resource=search&q=${encodeURIComponent(q)}`),
 };
+
+// ── AI ────────────────────────────────────────────────────────
+export const ai = {
+  ask: (prompt, system) =>
+    post(`${BASE}/api/ai`, { prompt, system }),
+};

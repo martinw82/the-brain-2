@@ -147,12 +147,26 @@ export default async function handler(req, res) {
     if (resource === 'search') {
       if (!q?.trim()) return ok(res, { results: [] });
       try {
-        const [results] = await db.execute(
-          `SELECT pf.project_id, pf.path, LEFT(pf.content, 200) as excerpt, p.name as project_name, p.emoji
-           FROM project_files pf JOIN projects p ON p.id = pf.project_id
-           WHERE pf.user_id = ? AND pf.content LIKE ? LIMIT 15`,
-          [auth.userId, `%${q}%`]
-        );
+        let results;
+        try {
+          [results] = await db.execute(
+            `SELECT pf.project_id, pf.path, LEFT(pf.content, 200) as excerpt, p.name as project_name, p.emoji
+             FROM project_files pf JOIN projects p ON p.id = pf.project_id
+             WHERE pf.user_id = ? AND pf.content LIKE ? AND pf.deleted_at IS NULL LIMIT 15`,
+            [auth.userId, `%${q}%`]
+          );
+        } catch (e) {
+          if (e.message.includes('Unknown column \'pf.deleted_at\'')) {
+            [results] = await db.execute(
+              `SELECT pf.project_id, pf.path, LEFT(pf.content, 200) as excerpt, p.name as project_name, p.emoji
+               FROM project_files pf JOIN projects p ON p.id = pf.project_id
+               WHERE pf.user_id = ? AND pf.content LIKE ? LIMIT 15`,
+              [auth.userId, `%${q}%`]
+            );
+          } else {
+            throw e;
+          }
+        }
         return ok(res, { results });
       } catch {
         return ok(res, { results: [] });
