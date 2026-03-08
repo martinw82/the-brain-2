@@ -41,6 +41,7 @@ function safeJson(val, fallback) {
 function mapProject(p, customFolders) {
   return {
     id:           p.id,
+    areaId:       p.life_area_id || null,
     name:         p.name,
     emoji:        p.emoji || '📁',
     phase:        p.phase || 'BOOTSTRAP',
@@ -109,10 +110,23 @@ export default async function handler(req, res) {
       if (!projects.length) return err(res, 'Not found', 404);
       const p = projects[0];
 
-      const [files] = await db.execute(
-        'SELECT path, content FROM project_files WHERE project_id = ? AND user_id = ?',
-        [projectId, auth.userId]
-      );
+      // Use fallback for deleted_at to avoid breaking if migration hasn't run yet
+      let files;
+      try {
+        [files] = await db.execute(
+          'SELECT path, content FROM project_files WHERE project_id = ? AND user_id = ? AND deleted_at IS NULL',
+          [projectId, auth.userId]
+        );
+      } catch (e) {
+        if (e.message.includes('Unknown column \'deleted_at\'')) {
+          [files] = await db.execute(
+            'SELECT path, content FROM project_files WHERE project_id = ? AND user_id = ?',
+            [projectId, auth.userId]
+          );
+        } else {
+          throw e;
+        }
+      }
       const filesMap = {};
       files.forEach(f => { filesMap[f.path] = f.content || ''; });
 
@@ -130,17 +144,33 @@ export default async function handler(req, res) {
     // ── POST create ──────────────────────────────────────────
     if (req.method === 'POST' && action === 'create') {
       const data = req.body || {};
-      const { id, name, emoji, phase, status, priority, revenueReady, incomeTarget, momentum, lastTouched, desc, nextAction, blockers, tags, skills, integrations, files, customFolders, health, activeFile } = data;
+      const { id, areaId, name, emoji, phase, status, priority, revenueReady, incomeTarget, momentum, lastTouched, desc, nextAction, blockers, tags, skills, integrations, files, customFolders, health, activeFile } = data;
       if (!id || !name) return err(res, 'id and name required');
 
       const [existing] = await db.execute('SELECT id FROM projects WHERE id = ? AND user_id = ?', [id, auth.userId]);
       if (existing.length) return err(res, 'Project ID exists', 409);
 
-      await db.execute(
-        `INSERT INTO projects (id, user_id, name, emoji, phase, status, priority, revenue_ready, income_target, momentum, last_touched, description, next_action, blockers, tags, skills, integrations, active_file, health)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, auth.userId, name, emoji || '📁', phase || 'BOOTSTRAP', status || 'active', priority || 99, revenueReady ? 1 : 0, incomeTarget || 0, momentum || 3, lastTouched || null, desc || '', nextAction || '', JSON.stringify(blockers || []), JSON.stringify(tags || []), JSON.stringify(skills || []), JSON.stringify(integrations || {}), activeFile || 'PROJECT_OVERVIEW.md', health || 100]
-      );
+      // Support for life_area_id if column exists
+      const columns = ['id', 'user_id', 'name', 'emoji', 'phase', 'status', 'priority', 'revenue_ready', 'income_target', 'momentum', 'last_touched', 'description', 'next_action', 'blockers', 'tags', 'skills', 'integrations', 'active_file', 'health'];
+      const values = [id, auth.userId, name, emoji || '📁', phase || 'BOOTSTRAP', status || 'active', priority || 99, revenueReady ? 1 : 0, incomeTarget || 0, momentum || 3, lastTouched || null, desc || '', nextAction || '', JSON.stringify(blockers || []), JSON.stringify(tags || []), JSON.stringify(skills || []), JSON.stringify(integrations || {}), activeFile || 'PROJECT_OVERVIEW.md', health || 100];
+
+      try {
+        await db.execute(
+            `INSERT INTO projects (id, user_id, life_area_id, name, emoji, phase, status, priority, revenue_ready, income_target, momentum, last_touched, description, next_action, blockers, tags, skills, integrations, active_file, health)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, auth.userId, areaId || null, name, emoji || '📁', phase || 'BOOTSTRAP', status || 'active', priority || 99, revenueReady ? 1 : 0, incomeTarget || 0, momentum || 3, lastTouched || null, desc || '', nextAction || '', JSON.stringify(blockers || []), JSON.stringify(tags || []), JSON.stringify(skills || []), JSON.stringify(integrations || {}), activeFile || 'PROJECT_OVERVIEW.md', health || 100]
+          );
+      } catch (e) {
+          if (e.message.includes('Unknown column \'life_area_id\'')) {
+            await db.execute(
+                `INSERT INTO projects (id, user_id, name, emoji, phase, status, priority, revenue_ready, income_target, momentum, last_touched, description, next_action, blockers, tags, skills, integrations, active_file, health)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                values
+              );
+          } else {
+              throw e;
+          }
+      }
 
       if (files) {
         for (const [path, content] of Object.entries(files)) {
@@ -169,6 +199,7 @@ export default async function handler(req, res) {
       const data = req.body || {};
       const fields = [], values = [];
       const map = {
+        areaId: 'life_area_id',
         name: 'name', emoji: 'emoji', phase: 'phase', status: 'status',
         priority: 'priority', momentum: 'momentum', lastTouched: 'last_touched',
         desc: 'description', nextAction: 'next_action', health: 'health',
@@ -198,17 +229,37 @@ export default async function handler(req, res) {
     if (req.method === 'PUT' && action === 'save-file' && projectId) {
       const { path, content } = req.body || {};
       if (!path) return err(res, 'path required');
-      await db.execute(
-        `INSERT INTO project_files (project_id, user_id, path, content) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE content = VALUES(content), updated_at = CURRENT_TIMESTAMP`,
-        [projectId, auth.userId, path, content || '']
-      );
+      try {
+        await db.execute(
+          `INSERT INTO project_files (project_id, user_id, path, content, deleted_at) VALUES (?, ?, ?, ?, NULL) ON DUPLICATE KEY UPDATE content = VALUES(content), deleted_at = NULL, updated_at = CURRENT_TIMESTAMP`,
+          [projectId, auth.userId, path, content || '']
+        );
+      } catch (e) {
+        if (e.message.includes('Unknown column \'deleted_at\'')) {
+          await db.execute(
+            `INSERT INTO project_files (project_id, user_id, path, content) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE content = VALUES(content), updated_at = CURRENT_TIMESTAMP`,
+            [projectId, auth.userId, path, content || '']
+          );
+        } else {
+          throw e;
+        }
+      }
       return ok(res, { success: true });
     }
 
-    // ── DELETE file ──────────────────────────────────────────
+    // ── DELETE file (Soft Delete with fallback) ──────────────
+    // TODO: Implement hard-delete cleanup for files older than 30 days
     if (req.method === 'DELETE' && action === 'delete-file' && projectId) {
       const { path } = req.body || {};
-      await db.execute('DELETE FROM project_files WHERE project_id = ? AND user_id = ? AND path = ?', [projectId, auth.userId, path]);
+      try {
+        await db.execute('UPDATE project_files SET deleted_at = CURRENT_TIMESTAMP WHERE project_id = ? AND user_id = ? AND path = ?', [projectId, auth.userId, path]);
+      } catch (e) {
+        if (e.message.includes('Unknown column \'deleted_at\'')) {
+          await db.execute('DELETE FROM project_files WHERE project_id = ? AND user_id = ? AND path = ?', [projectId, auth.userId, path]);
+        } else {
+          throw e;
+        }
+      }
       return ok(res, { success: true });
     }
 

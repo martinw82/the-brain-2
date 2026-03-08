@@ -44,7 +44,7 @@ export default async function handler(req, res) {
   const auth = getAuth(req);
   if (!auth) return err(res, 'Unauthorised', 401);
 
-  const { resource, id: resourceId, project_id, file_path, q, limit } = req.query;
+  const { resource, id: resourceId, project_id, file_path, q, limit, health_only } = req.query;
   let db;
 
   try {
@@ -143,16 +143,61 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── AREAS ─────────────────────────────────────────────────
+    if (resource === 'areas') {
+      if (req.method === 'GET') {
+        const [rows] = await db.execute('SELECT * FROM life_areas WHERE user_id = ? ORDER BY sort_order ASC', [auth.userId]);
+        return ok(res, { areas: rows });
+      }
+      if (req.method === 'POST') {
+        const { id, name, color, icon, description, target_hours_weekly } = req.body || {};
+        if (!name) return err(res, 'name required');
+        const newId = id || crypto.randomUUID();
+        await db.execute('INSERT INTO life_areas (id, user_id, name, color, icon, description, target_hours_weekly) VALUES (?, ?, ?, ?, ?, ?, ?)', [newId, auth.userId, name, color || '#3b82f6', icon || '🌐', description || '', target_hours_weekly || null]);
+        return ok(res, { success: true, id: newId }, 201);
+      }
+      if (req.method === 'PUT' && resourceId) {
+        const data = req.body || {};
+        const fields = [], values = [];
+        const map = { name:'name', color:'color', icon:'icon', description:'description', target_hours_weekly:'target_hours_weekly', health_score:'health_score', sort_order:'sort_order' };
+        for (const [k, col] of Object.entries(map)) {
+          if (data[k] !== undefined) { fields.push(`${col} = ?`); values.push(data[k]); }
+        }
+        if (fields.length) { values.push(resourceId, auth.userId); await db.execute(`UPDATE life_areas SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`, values); }
+        return ok(res, { success: true });
+      }
+      if (req.method === 'DELETE' && resourceId) {
+        await db.execute('DELETE FROM life_areas WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+        // Also unassign projects
+        await db.execute('UPDATE projects SET life_area_id = NULL WHERE life_area_id = ? AND user_id = ?', [resourceId, auth.userId]);
+        return ok(res, { success: true });
+      }
+    }
+
     // ── SEARCH ────────────────────────────────────────────────
     if (resource === 'search') {
       if (!q?.trim()) return ok(res, { results: [] });
       try {
-        const [results] = await db.execute(
-          `SELECT pf.project_id, pf.path, LEFT(pf.content, 200) as excerpt, p.name as project_name, p.emoji
-           FROM project_files pf JOIN projects p ON p.id = pf.project_id
-           WHERE pf.user_id = ? AND pf.content LIKE ? LIMIT 15`,
-          [auth.userId, `%${q}%`]
-        );
+        let results;
+        try {
+          [results] = await db.execute(
+            `SELECT pf.project_id, pf.path, LEFT(pf.content, 200) as excerpt, p.name as project_name, p.emoji
+             FROM project_files pf JOIN projects p ON p.id = pf.project_id
+             WHERE pf.user_id = ? AND pf.content LIKE ? AND pf.deleted_at IS NULL LIMIT 15`,
+            [auth.userId, `%${q}%`]
+          );
+        } catch (e) {
+          if (e.message.includes('Unknown column \'pf.deleted_at\'')) {
+            [results] = await db.execute(
+              `SELECT pf.project_id, pf.path, LEFT(pf.content, 200) as excerpt, p.name as project_name, p.emoji
+               FROM project_files pf JOIN projects p ON p.id = pf.project_id
+               WHERE pf.user_id = ? AND pf.content LIKE ? LIMIT 15`,
+              [auth.userId, `%${q}%`]
+            );
+          } else {
+            throw e;
+          }
+        }
         return ok(res, { results });
       } catch {
         return ok(res, { results: [] });

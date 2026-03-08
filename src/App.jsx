@@ -3,13 +3,13 @@
 // Also handles the initial "load all user data from API" on login.
 
 import { useState, useEffect } from "react";
-import { token, auth as authApi, projects as projectsApi, staging as stagingApi, ideas as ideasApi } from "./api.js";
+import { token, auth as authApi, projects as projectsApi, staging as stagingApi, ideas as ideasApi, areas as areasApi } from "./api.js";
 import AuthScreen from "./AuthScreen.jsx";
 import TheBrain from "./TheBrain.jsx";
 
 export default function App() {
   const [user, setUser]         = useState(null);
-  const [appData, setAppData]   = useState(null);  // { projects, staging, ideas }
+  const [appData, setAppData]   = useState(null);  // { projects, staging, ideas, areas }
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
 
@@ -30,16 +30,18 @@ export default function App() {
       setUser(user);
 
       // Load all data in parallel
-      const [projRes, stagingRes, ideasRes] = await Promise.all([
+      const [projRes, stagingRes, ideasRes, areasRes] = await Promise.all([
         projectsApi.list(),
         stagingApi.list(),
         ideasApi.list(),
+        areasApi.list(),
       ]);
 
       setAppData({
         projects: projRes.projects || [],
         staging:  stagingRes.staging || [],
         ideas:    ideasRes.ideas || [],
+        areas:    areasRes.areas || [],
       });
     } catch (e) {
       // Token expired or invalid — clear it
@@ -91,6 +93,7 @@ export default function App() {
       initialProjects={appData?.projects || []}
       initialStaging={appData?.staging || []}
       initialIdeas={appData?.ideas || []}
+      initialAreas={appData?.areas || []}
       onLogout={handleLogout}
     />
   );

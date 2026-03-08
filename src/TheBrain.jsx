@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, token } from "./api.js";
+import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, token } from "./api.js";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -25,6 +25,7 @@ const S = {
 };
 
 // ── SMALL COMPONENTS ─────────────────────────────────────────
+const AreaPill=({area,active,onClick})=> <button onClick={onClick} style={{...S.btn(active?"primary":"ghost"),background:active?area.color:C.surface,border:active?`1px solid ${area.color}`:`1px solid ${C.border}`,color:active?"#fff":C.text,fontSize:9,display:"flex",alignItems:"center",gap:4}}><span style={{fontSize:12}}>{area.icon}</span> {area.name}</button>;
 const Dots=({n=0,max=5,size=5})=><div style={{display:"flex",gap:3}}>{Array.from({length:max}).map((_,i)=><div key={i} style={{width:size,height:size,borderRadius:"50%",background:i<n?C.blue2:C.border}}/>)}</div>;
 const HealthBar=({score})=>{const col=score>70?C.green:score>40?C.amber:C.red;return <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:60,height:4,background:C.border,borderRadius:2,overflow:"hidden"}}><div style={{width:`${score}%`,height:"100%",background:col,borderRadius:2}}/></div><span style={{fontSize:9,color:col,fontWeight:700}}>{score}</span></div>;};
 const STATUS_MAP={active:{l:"ACTIVE",c:C.green},stalled:{l:"STALLED",c:C.amber},paused:{l:"PAUSED",c:C.purple},done:{l:"DONE",c:C.blue2},idea:{l:"IDEA",c:"#94a3b8"}};
@@ -156,7 +157,25 @@ const FileTree=({files,activeFile,onSelect,onNewFile,onDelete,customFolders=[]})
 const MarkdownEditor=({path,content,onChange,onSave,saving})=>{
   const [mode,setMode]=useState("edit");
   const [val,setVal]=useState(content);
-  useEffect(()=>setVal(content),[content,path]);
+  const [dirty,setDirty]=useState(false);
+  const timerRef=useRef(null);
+
+  useEffect(()=> {
+    setVal(content);
+    setDirty(false);
+  },[content,path]);
+
+  // Debounced auto-save
+  useEffect(() => {
+    if (!dirty) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      onSave(path, val);
+      setDirty(false);
+    }, 2000);
+    return () => clearTimeout(timerRef.current);
+  }, [val, dirty, path, onSave]);
+
   const isJson=path?.endsWith(".json");
   const isReadonly=path==="system/agent.ignore"||path==="manifest.json";
   return <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
@@ -166,13 +185,14 @@ const MarkdownEditor=({path,content,onChange,onSave,saving})=>{
         {isReadonly&&<span style={S.badge(C.amber)}>READONLY</span>}
         {path==="manifest.json"&&<span style={S.badge(C.purple)}>MANIFEST</span>}
       </div>
-      <div style={{display:"flex",gap:4,flexShrink:0}}>
+      <div style={{display:"flex",gap:4,flexShrink:0,alignItems:"center"}}>
+        {dirty && <span style={{fontSize:9,color:C.amber,marginRight:8}}>Unsaved changes...</span>}
         {!isJson&&!isReadonly&&<><button style={S.tab(mode==="edit","#10b981")} onClick={()=>setMode("edit")}>Edit</button><button style={S.tab(mode==="preview","#10b981")} onClick={()=>setMode("preview")}>Preview</button></>}
-        {!isReadonly&&<button style={{...S.btn("success"),padding:"4px 10px",opacity:saving?0.6:1}} onClick={()=>onSave(path,val)} disabled={saving}>{saving?"Saving…":"Save"}</button>}
+        {!isReadonly&&<button style={{...S.btn("success"),padding:"4px 10px",opacity:saving?0.6:1}} onClick={()=>{onSave(path,val);setDirty(false);}} disabled={saving}>{saving?"Saving…":"Save"}</button>}
       </div>
     </div>
     {mode==="edit"||isJson
-      ?<textarea style={{...S.input,flex:1,resize:"none",border:"none",borderRadius:0,fontSize:isJson?11:12,lineHeight:1.7,padding:"14px 16px",background:"#050810"}} value={val} onChange={e=>{setVal(e.target.value);onChange(e.target.value);}} readOnly={isReadonly} spellCheck={false}/>
+      ?<textarea style={{...S.input,flex:1,resize:"none",border:"none",borderRadius:0,fontSize:isJson?11:12,lineHeight:1.7,padding:"14px 16px",background:"#050810"}} value={val} onChange={e=>{setVal(e.target.value);onChange(e.target.value);setDirty(true);}} readOnly={isReadonly} spellCheck={false}/>
       :<div style={{flex:1,overflowY:"auto",padding:"14px 20px",background:"#050810",fontSize:12,lineHeight:1.8,color:C.text}} dangerouslySetInnerHTML={{__html:renderMd(val)}}/>}
   </div>;
 };
@@ -262,12 +282,13 @@ const buildZipExport=(project)=>{
 // ══════════════════════════════════════════════════════════════
 // MAIN COMPONENT — accepts props from App.jsx (auth gate)
 // ══════════════════════════════════════════════════════════════
-export default function TheBrain({ user, initialProjects=[], initialStaging=[], initialIdeas=[], onLogout }) {
+export default function TheBrain({ user, initialProjects=[], initialStaging=[], initialIdeas=[], initialAreas=[], onLogout }) {
 
   // ── STATE ──────────────────────────────────────────────────
   const [projects,setProjects]       = useState(initialProjects.map(p=>({...p,health:calcHealth(p)})));
   const [staging,setStaging]         = useState(initialStaging);
   const [ideas,setIdeas]             = useState(initialIdeas);
+  const [areas,setAreas]             = useState(initialAreas);
 
   // UI navigation
   const [view,setView]               = useState("brain");
@@ -308,7 +329,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   // Modals
   const [modal,setModal]                     = useState(null);
   const [bootstrapWizardId,setBootstrapWiz]  = useState(null);
-  const [newProjForm,setNewProjForm]         = useState({name:"",emoji:"📁",phase:"BOOTSTRAP",desc:""});
+  const [newProjForm,setNewProjForm]         = useState({name:"",emoji:"📁",phase:"BOOTSTRAP",desc:"",areaId:""});
   const [newFileName,setNewFileName]         = useState("");
   const [newFileFolder,setNewFileFolder]     = useState("staging");
   const [customFolderForm,setCFForm]         = useState({id:"",label:"",icon:"📁",desc:""});
@@ -320,8 +341,25 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [saving,setSaving]   = useState(false);   // file save indicator
   const [toast,setToast]     = useState(null);    // {msg} or null
   const [loadingFiles,setLoadingFiles] = useState(false);  // hub file loading
+  const [commentsLoading, setCommentsLoading] = useState(false); // comments loading indicator
 
   const showToast = (msg) => setToast({msg});
+
+  // ── SEED DEFAULTS — called if areas are empty ─────────────
+  useEffect(() => {
+    if (areas.length === 0 && user) {
+      const defaults = [
+        { name: "Business / Revenue", color: "#1a4fd6", icon: "💼", description: "Revenue generating projects", sort_order: 1 },
+        { name: "Health / Body", color: "#10b981", icon: "🏋️", description: "Physical health and training", sort_order: 2 },
+        { name: "Relationships", color: "#ec4899", icon: "❤️", description: "Friends, family, and networking", sort_order: 3 },
+        { name: "Creative / Learning", color: "#8b5cf6", icon: "🎨", description: "Skill building and side projects", sort_order: 4 },
+        { name: "Personal / Admin", color: "#64748b", icon: "🏠", description: "Life maintenance and logistics", sort_order: 5 },
+      ];
+      Promise.all(defaults.map(d => areasApi.create(d))).then(() => {
+        areasApi.list().then(data => setAreas(data.areas || []));
+      });
+    }
+  }, [areas.length, user]);
 
   // ── DERIVED ────────────────────────────────────────────────
   const hub          = projects.find(p=>p.id===hubId);
@@ -331,13 +369,69 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const inReview     = staging.filter(s=>s.status==="in-review").length;
   const hubAllFolders= hub?[...STANDARD_FOLDERS,...(hub.customFolders||[])]:STANDARD_FOLDERS;
 
+  // Area health logic
+  const areaStats = areas.map(a => {
+    const areaProjects = projects.filter(p => p.areaId === a.id);
+    const health = areaProjects.length ? Math.round(areaProjects.reduce((s,p)=>s+p.health,0)/areaProjects.length) : 100;
+    return { ...a, health, projectCount: areaProjects.length };
+  });
+
+  const [activeAreaFilter, setActiveAreaFilter] = useState(null);
+  const filteredProjects = activeAreaFilter ? projects.filter(p => p.areaId === activeAreaFilter) : projects;
+
   // ── SESSION TIMER ──────────────────────────────────────────
   useEffect(()=>{
-    if(sessionActive){sessionStart.current=new Date();timerRef.current=setInterval(()=>setSessionSecs(s=>s+1),1000);}
-    else clearInterval(timerRef.current);
-    return()=>clearInterval(timerRef.current);
-  },[sessionActive]);
+    if(sessionActive){
+      sessionStart.current=new Date();
+      timerRef.current=setInterval(()=>setSessionSecs(s=>s+1),1000);
+
+      const handleBeforeUnload = (e) => {
+        // We can't await endSession() here, but we can try to fire a beacon or sync request if we were using a different API pattern.
+        // For now, we'll just log that we should save. In a real environment, we'd use navigator.sendBeacon.
+        const dur = Math.floor((new Date() - sessionStart.current) / 1000);
+        const data = JSON.stringify({
+          project_id: focusId,
+          duration_s: dur,
+          log: "(Auto-saved on tab close)",
+          started_at: sessionStart.current?.toISOString(),
+          ended_at: new Date().toISOString()
+        });
+        // Try beacon if API supported it without complex auth headers,
+        // but our API needs Bearer token which beacon doesn't support well.
+        // So we just add the standard listener to prompt user.
+        e.preventDefault();
+        e.returnValue = '';
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => {
+        clearInterval(timerRef.current);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    } else {
+      clearInterval(timerRef.current);
+    }
+  },[sessionActive, focusId]);
   const fmtTime=s=>`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+
+  // ── COMMENTS LOADER — fetch from DB when hub or active file changes ──
+  useEffect(() => {
+    if (!hubId || !hub?.activeFile) return;
+    const filePath = hub.activeFile;
+    const commKey = `${hubId}:${filePath}`;
+    setCommentsLoading(true);
+    commentsApi.list(hubId, filePath)
+      .then(({ comments: rows }) => {
+        const mapped = (rows || []).map(r => ({
+          id: r.id,
+          text: r.text,
+          date: r.created_at ? r.created_at.toString().slice(0, 10) : "",
+          resolved: !!r.resolved,
+        }));
+        setComments(prev => ({ ...prev, [commKey]: mapped }));
+      })
+      .catch(() => { /* silently ignore — existing UI still works */ })
+      .finally(() => setCommentsLoading(false));
+  }, [hubId, hub?.activeFile]);
 
   // ── NAVIGATION — lazy-loads files on first hub open ────────
   const openHub = async (id, file) => {
@@ -373,17 +467,21 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   };
 
   // ── FILE OPS — optimistic + persisted ─────────────────────
-  const saveFile=async(projId,path,content)=>{
+  const saveFile = useCallback(async (projId, path, content) => {
     // Optimistic update
-    setProjects(prev=>prev.map(p=>p.id===projId?{...p,files:{...p.files,[path]:content}}:p));
+    setProjects(prev => prev.map(p => p.id === projId ? { ...p, files: { ...p.files, [path]: content } } : p));
     setSaving(true);
-    try{
-      await projectsApi.saveFile(projId,path,content);
+    try {
+      await projectsApi.saveFile(projId, path, content);
       showToast("✓ Saved");
-    }catch(e){
+    } catch (e) {
       showToast("⚠ Save failed — check connection");
-    }finally{setSaving(false);}
-  };
+    } finally { setSaving(false); }
+  }, []);
+
+  const handleHubSave = useCallback((path, content) => {
+    if (hubId) saveFile(hubId, path, content);
+  }, [hubId, saveFile]);
 
   const createFile=async(projId,folder,name)=>{
     if(!name.trim())return;
@@ -422,6 +520,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const createProject=async(form)=>{
     const id=form.name.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"")+"-"+Date.now().toString(36);
     const proj=makeProject(id,form.name,form.emoji,form.phase,"active",projects.length+1,false,form.desc,"Run Bootstrap Protocol → define scope with agents",[],["new"],3,new Date().toISOString().slice(0,7),0,["dev","strategy"],[]);
+    proj.areaId = form.areaId || null;
     // Optimistic
     setProjects(prev=>[...prev,proj]);
     setFocusId(id);setModal(null);
@@ -443,20 +542,27 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   };
 
   const renameProject=async(projId,newName)=>{
-    setProjects(prev=>prev.map(p=>{
-      if(p.id!==projId)return p;
-      const files={...p.files};
-      if(files["PROJECT_OVERVIEW.md"])files["PROJECT_OVERVIEW.md"]=files["PROJECT_OVERVIEW.md"].replace(/^# .+$/m,`# ${newName}`);
-      const manifest=makeManifest({...p,name:newName});
-      files["manifest.json"]=JSON.stringify(manifest,null,2);
-      return{...p,name:newName,files};
-    }));
+    let updatedFiles = {};
+    setProjects(prev=>{
+      const newProjects = prev.map(p=>{
+        if(p.id!==projId)return p;
+        const files={...p.files};
+        if(files["PROJECT_OVERVIEW.md"])files["PROJECT_OVERVIEW.md"]=files["PROJECT_OVERVIEW.md"].replace(/^# .+$/m,`# ${newName}`);
+        const manifest=makeManifest({...p,name:newName});
+        files["manifest.json"]=JSON.stringify(manifest,null,2);
+        updatedFiles = files; // capture for re-save
+        return{...p,name:newName,files};
+      });
+      return newProjects;
+    });
     setModal(null);
     await projectsApi.update(projId,{name:newName}).catch(()=>{});
     // Re-save overview + manifest
-    const proj=projects.find(p=>p.id===projId);
-    if(proj){
-      await projectsApi.saveFile(projId,"PROJECT_OVERVIEW.md",(proj.files["PROJECT_OVERVIEW.md"]||"").replace(/^# .+$/m,`# ${newName}`)).catch(()=>{});
+    if(updatedFiles["PROJECT_OVERVIEW.md"]){
+      await projectsApi.saveFile(projId,"PROJECT_OVERVIEW.md",updatedFiles["PROJECT_OVERVIEW.md"]).catch(()=>{});
+    }
+    if(updatedFiles["manifest.json"]){
+      await projectsApi.saveFile(projId,"manifest.json",updatedFiles["manifest.json"]).catch(()=>{});
     }
   };
 
@@ -470,6 +576,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   };
 
   const completeBootstrap=async(projId,brief)=>{
+    const proj=projects.find(p=>p.id===projId);
+    if(!proj){
+      showToast("⚠ Error: Project not found. Refresh and try again.");
+      return;
+    }
     const today=new Date().toISOString().slice(0,10);
     const newCustomFolders=(brief.customFolders||[]).filter(Boolean).map(f=>({id:f.toLowerCase().replace(/\s+/g,"-"),label:f,icon:"📁",desc:"Custom folder from Bootstrap Brief"}));
 
@@ -623,9 +734,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     setAiLoad(true);setAiOut("");
     const sys=`You are The Brain AI Coach for ${user?.name||"this builder"}, targeting £${user?.monthly_target||3000}/mo. Direct, max 250 words. Reference specific projects. Context:\n${buildCtx()}`;
     try{
-      const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:sys,messages:[{role:"user",content:prompt}]})});
-      const d=await r.json();setAiOut(d.content?.map(b=>b.text||"").join("")||"No response.");
-    }catch{setAiOut("Connection error.");}
+      const d = await aiApi.ask(prompt, sys);
+      setAiOut(d.content?.map(b=>b.text||"").join("")||"No response.");
+    }catch(e){
+      setAiOut(e.message || "Connection error.");
+    }
     setAiLoad(false);setTimeout(()=>aiRef.current?.scrollIntoView({behavior:"smooth"}),100);
   };
 
@@ -697,7 +810,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
           </div>}
 
           <div style={{display:"flex",gap:0,flexWrap:"wrap"}}>
-            {view==="brain"?BRAIN_TABS.map(t=><button key={t.id} style={S.tab(mainTab===t.id)} onClick={()=>setMainTab(t.id)}>{t.label}</button>)
+            {view==="brain"?BRAIN_TABS.map(t=><button key={t.id} style={S.tab(mainTab===t.id)} onClick={()=>{setMainTab(t.id); if(t.id!=="command") setActiveAreaFilter(null);}}>{t.label}</button>)
               :HUB_TABS.map(t=><button key={t.id} style={S.tab(hubTab===t.id,"#10b981")} onClick={()=>setHubTab(t.id)}>{t.label}</button>)}
             {view==="hub"&&hub&&<div style={{marginLeft:"auto",display:"flex",gap:4,paddingBottom:4}}>
               <button style={{...S.btn("ghost"),fontSize:9}} onClick={()=>setModal("new-custom-folder")}>+ Folder</button>
@@ -719,7 +832,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
           <select style={{...S.sel,marginBottom:8}} value={newProjForm.phase} onChange={e=>setNewProjForm(f=>({...f,phase:e.target.value}))}>
             {BUIDL_PHASES.map(p=><option key={p}>{p}</option>)}
           </select>
-          <textarea style={{...S.input,height:60,resize:"vertical",marginBottom:12}} placeholder="One sentence description..." value={newProjForm.desc} onChange={e=>setNewProjForm(f=>({...f,desc:e.target.value}))}/>
+          <textarea style={{...S.input,height:60,resize:"vertical",marginBottom:8}} placeholder="One sentence description..." value={newProjForm.desc} onChange={e=>setNewProjForm(f=>({...f,desc:e.target.value}))}/>
+          <select style={{...S.sel,marginBottom:12}} value={newProjForm.areaId} onChange={e=>setNewProjForm(f=>({...f,areaId:e.target.value}))}>
+            <option value="">Assign to Area (Optional)</option>
+            {areas.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+          </select>
           <div style={{display:"flex",gap:6}}>
             <button style={S.btn("primary")} onClick={()=>newProjForm.name.trim()&&createProject(newProjForm)}>Create + Save to DB</button>
             <button style={S.btn("ghost")} onClick={()=>setModal(null)}>Cancel</button>
@@ -809,7 +926,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 <div style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative"}}
                   onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>handleDrop(e,hubId)}>
                   {dragOver&&<div style={{position:"absolute",inset:0,background:"rgba(26,79,214,0.12)",border:`2px dashed ${C.blue}`,borderRadius:8,zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}><span style={{fontSize:14,color:C.blue}}>Drop to stage →</span></div>}
-                  <MarkdownEditor path={hub.activeFile} content={(hub.files||{})[hub.activeFile]||""} onChange={()=>{}} onSave={saveFile.bind(null,hubId)} saving={saving}/>
+                  <MarkdownEditor path={hub.activeFile} content={(hub.files||{})[hub.activeFile]||""} onChange={()=>{}} onSave={handleHubSave} saving={saving}/>
                 </div>
               </div>
             )}
@@ -825,6 +942,13 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                         <div style={{fontSize:11}}>{r.v}</div>
                       </div>
                     ))}
+                  </div>
+                  <span style={S.label()}>Area</span>
+                  <div style={{marginBottom:10}}>
+                    <select style={S.sel} value={hub.areaId||""} onChange={e=>updateProject(hubId,{areaId:e.target.value})}>
+                      <option value="">No Area</option>
+                      {areas.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+                    </select>
                   </div>
                   <span style={S.label(C.green)}>Next Action</span>
                   <div style={{fontSize:11,color:C.green,marginBottom:8}}>→ {hub.nextAction}</div>
@@ -923,7 +1047,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   <input style={S.input} placeholder="Add comment..." value={newComment} onChange={e=>setNewComment(e.target.value)} onKeyDown={async e=>{if(e.key==="Enter"&&newComment.trim()){const tmp={id:`tmp-${Date.now()}`,text:newComment,date:new Date().toISOString().slice(0,10),resolved:false};setComments(prev=>({...prev,[commKey]:[...(prev[commKey]||[]),tmp]}));setNewComment("");try{const r=await commentsApi.create(hubId,hub.activeFile,newComment);setComments(prev=>({...prev,[commKey]:(prev[commKey]||[]).map(c=>c.id===tmp.id?{...c,id:r.id}:c)}));}catch{}}}}/>
                   <button style={S.btn("primary")} onClick={async()=>{if(!newComment.trim())return;const tmp={id:`tmp-${Date.now()}`,text:newComment,date:new Date().toISOString().slice(0,10),resolved:false};setComments(prev=>({...prev,[commKey]:[...(prev[commKey]||[]),tmp]}));setNewComment("");try{const r=await commentsApi.create(hubId,hub.activeFile,newComment);setComments(prev=>({...prev,[commKey]:(prev[commKey]||[]).map(c=>c.id===tmp.id?{...c,id:r.id}:c)}));}catch{}}}>Add</button>
                 </div>
-                {fileComs.length===0?<div style={{fontSize:10,color:C.dim,textAlign:"center",padding:"20px 0"}}>No comments yet.</div>
+                {commentsLoading ? <div style={{fontSize:10,color:C.dim,textAlign:"center",padding:"20px 0"}}>Loading comments...</div> :
+                  fileComs.length===0?<div style={{fontSize:10,color:C.dim,textAlign:"center",padding:"20px 0"}}>No comments yet.</div>
                   :fileComs.map(c=>(
                     <div key={c.id} style={{background:C.bg,border:`1px solid ${c.resolved?C.border:C.blue+"40"}`,borderRadius:6,padding:"10px 14px",marginBottom:6}}>
                       <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
@@ -965,6 +1090,19 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
           {mainTab==="command"&&(
             <div>
+              {/* Area summary cards */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10,marginBottom:14}}>
+                {areaStats.map(a=>(
+                  <div key={a.id} style={S.card(activeAreaFilter===a.id, a.color)} onClick={()=>setActiveAreaFilter(activeAreaFilter===a.id?null:a.id)}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                      <span style={{fontSize:14}}>{a.icon} <span style={{fontSize:12,fontWeight:700}}>{a.name}</span></span>
+                      <span style={{fontSize:10,color:C.muted}}>{a.projectCount} projects</span>
+                    </div>
+                    <HealthBar score={a.health}/>
+                  </div>
+                ))}
+              </div>
+
               {projects.filter(p=>p.health<50).length>0&&(
                 <div style={{background:"rgba(239,68,68,0.05)",border:"1px solid #ef444330",borderRadius:6,padding:"10px 14px",marginBottom:10}}>
                   <div style={{fontSize:9,color:C.red,letterSpacing:"0.12em",marginBottom:6}}>🚨 HEALTH ALERTS</div>
@@ -993,8 +1131,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 </div>}
               </div>
               <div style={S.card(false)}>
-                <div style={{fontSize:10,color:C.blue,letterSpacing:"0.11em",textTransform:"uppercase",marginBottom:10}}>📋 Priority Stack</div>
-                {[...projects].sort((a,b)=>a.priority-b.priority).map((p,i)=>(
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <div style={{fontSize:10,color:C.blue,letterSpacing:"0.11em",textTransform:"uppercase"}}>📋 Priority Stack {activeAreaFilter && "(Filtered)"}</div>
+                    {activeAreaFilter && <button style={{...S.btn("ghost"),fontSize:8}} onClick={()=>setActiveAreaFilter(null)}>Show All</button>}
+                </div>
+                {[...filteredProjects].sort((a,b)=>a.priority-b.priority).map((p,i)=>(
                   <div key={p.id} onClick={()=>openHub(p.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:i<projects.length-1?`1px solid ${C.border}`:"none",cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.background="#ffffff05"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <div style={{width:18,fontSize:10,color:C.dim,fontWeight:700}}>{p.priority}</div>
                     <span style={{fontSize:14}}>{p.emoji}</span>

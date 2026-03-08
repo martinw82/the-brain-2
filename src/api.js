@@ -80,6 +80,21 @@ export const projects = {
     put(`${BASE}/api/projects?action=active-file&id=${projectId}`, { path }),
 };
 
+// ── AREAS ─────────────────────────────────────────────────────
+export const areas = {
+  list: () =>
+    get(`${BASE}/api/data?resource=areas`),
+
+  create: (area) =>
+    post(`${BASE}/api/data?resource=areas`, area),
+
+  update: (id, data) =>
+    put(`${BASE}/api/data?resource=areas&id=${id}`, data),
+
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=areas&id=${id}`),
+};
+
 // ── STAGING ───────────────────────────────────────────────────
 export const staging = {
   list: (projectId) =>
@@ -138,4 +153,10 @@ export const comments = {
 export const search = {
   query: (q) =>
     get(`${BASE}/api/data?resource=search&q=${encodeURIComponent(q)}`),
+};
+
+// ── AI ────────────────────────────────────────────────────────
+export const ai = {
+  ask: (prompt, system) =>
+    post(`${BASE}/api/ai`, { prompt, system }),
 };
