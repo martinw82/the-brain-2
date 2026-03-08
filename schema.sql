@@ -172,3 +172,36 @@ CREATE TABLE IF NOT EXISTS life_areas (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_user_areas (user_id, sort_order)
 );
+
+-- ── GOALS ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS goals (
+  id              VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
+  user_id         VARCHAR(36)   NOT NULL,
+  title           VARCHAR(255)  NOT NULL,
+  target_amount   INT           NOT NULL,
+  current_amount  INT           DEFAULT 0,
+  currency        VARCHAR(8)    DEFAULT 'GBP',
+  timeframe       VARCHAR(32)   DEFAULT 'monthly', -- monthly/yearly/total
+  category        VARCHAR(32)   DEFAULT 'income',  -- income/savings/debt/custom
+  status          VARCHAR(32)   DEFAULT 'active',  -- active/achieved/paused
+  created_at      DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user_goals (user_id, status)
+);
+
+-- ── GOAL CONTRIBUTIONS ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS goal_contributions (
+  id              VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
+  goal_id         VARCHAR(36)   NOT NULL,
+  user_id         VARCHAR(36)   NOT NULL,
+  project_id      VARCHAR(64)   DEFAULT NULL,
+  source_label    VARCHAR(255),
+  amount          INT           NOT NULL,
+  date            VARCHAR(10),                     -- YYYY-MM-DD
+  notes           TEXT,
+  created_at      DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_goal_contributions (goal_id, date)
+);

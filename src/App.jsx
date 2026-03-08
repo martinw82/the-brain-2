@@ -3,7 +3,7 @@
 // Also handles the initial "load all user data from API" on login.
 
 import { useState, useEffect } from "react";
-import { token, auth as authApi, projects as projectsApi, staging as stagingApi, ideas as ideasApi, areas as areasApi } from "./api.js";
+import { token, auth as authApi, projects as projectsApi, staging as stagingApi, ideas as ideasApi, areas as areasApi, goals as goalsApi } from "./api.js";
 import AuthScreen from "./AuthScreen.jsx";
 import TheBrain from "./TheBrain.jsx";
 
@@ -39,11 +39,12 @@ export default function App() {
         }
       };
 
-      const [projRes, stagingRes, ideasRes, areasRes] = await Promise.all([
+      const [projRes, stagingRes, ideasRes, areasRes, goalsRes] = await Promise.all([
         safeFetch(() => projectsApi.list(), { projects: [] }),
         safeFetch(() => stagingApi.list(), { staging: [] }),
         safeFetch(() => ideasApi.list(), { ideas: [] }),
         safeFetch(() => areasApi.list(), { areas: [] }),
+        safeFetch(() => goalsApi.list(), { goals: [] }),
       ]);
 
       setAppData({
@@ -51,6 +52,7 @@ export default function App() {
         staging:  stagingRes.staging || [],
         ideas:    ideasRes.ideas || [],
         areas:    areasRes.areas || [],
+        goals:    goalsRes.goals || [],
       });
     } catch (e) {
       // Token expired or invalid — clear it
@@ -104,6 +106,7 @@ export default function App() {
       initialStaging={appData?.staging || []}
       initialIdeas={appData?.ideas || []}
       initialAreas={appData?.areas || []}
+      initialGoals={appData?.goals || []}
       onLogout={handleLogout}
     />
   );
