@@ -53,26 +53,44 @@ export default async function handler(req, res) {
 
     // GET list
     if (req.method === 'GET' && action === 'list') {
-      const [projects] = await db.execute(
-        `SELECT p.*, 
-          (SELECT JSON_ARRAYAGG(JSON_OBJECT(
-            'folder_id', cf.folder_id, 'label', cf.label,
-            'icon', cf.icon, 'description', cf.description
-          )) FROM project_custom_folders cf WHERE cf.project_id = p.id) as custom_folders
-         FROM projects p WHERE p.user_id = ? ORDER BY p.priority ASC`,
-        [auth.userId]
-      );
-      const parsed = projects.map(p => ({
-        ...p,
-        blockers: safeJson(p.blockers, []),
-        tags: safeJson(p.tags, []),
-        skills: safeJson(p.skills, ['dev', 'strategy']),
-        integrations: safeJson(p.integrations, {}),
-        customFolders: safeJson(p.custom_folders, []).map(f => ({ id: f.folder_id, label: f.label, icon: f.icon, desc: f.description })),
-        custom_folders: undefined,
-      }));
-      return ok(res, { projects: parsed });
-    }
+        const [projects] = await db.execute(
+            `SELECT p.*, 
+              (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+                'folder_id', cf.folder_id, 'label', cf.label,
+                'icon', cf.icon, 'description', cf.description
+              )) FROM project_custom_folders cf WHERE cf.project_id = p.id) as custom_folders
+             FROM projects p WHERE p.user_id = ? ORDER BY p.priority ASC`,
+            [auth.userId]
+          );
+    
+          // New: Fetch all files for this user in a separate query
+          const [files] = await db.execute(
+            'SELECT project_id, path, content FROM project_files WHERE user_id = ?',
+            [auth.userId]
+          );
+    
+          // Create a map of files by project_id
+          const filesByProject = {};
+          for (const file of files) {
+            if (!filesByProject[file.project_id]) {
+              filesByProject[file.project_id] = {};
+            }
+            filesByProject[file.project_id][file.path] = file.content || '';
+          }
+    
+          const parsed = projects.map(p => ({
+            ...p,
+            blockers: safeJson(p.blockers, []),
+            tags: safeJson(p.tags, []),
+            skills: safeJson(p.skills, ['dev', 'strategy']),
+            integrations: safeJson(p.integrations, {}),
+            customFolders: safeJson(p.custom_folders, []).map(f => ({ id: f.folder_id, label: f.label, icon: f.icon, desc: f.description })),
+            // Assign the files map to the project
+            files: filesByProject[p.id] || {},
+            custom_folders: undefined, // remove redundant field
+          }));
+          return ok(res, { projects: parsed });
+        }
 
     // GET single with files
     if (req.method === 'GET' && action === 'get' && projectId) {
@@ -117,10 +135,10 @@ export default async function handler(req, res) {
       const data = req.body || {};
       const fields = [], values = [];
       const map = { name:'name', emoji:'emoji', phase:'phase', status:'status', priority:'priority', momentum:'momentum', lastTouched:'last_touched', desc:'description', nextAction:'next_action', health:'health', incomeTarget:'income_target', activeFile:'active_file' };
-      for (const [k, col] of Object.entries(map)) { if (data[k] !== undefined) { fields.push(`${col} = ?`); values.push(data[k]); } }
-      for (const [k, col] of Object.entries({ blockers:'blockers', tags:'tags', skills:'skills', integrations:'integrations' })) { if (data[k] !== undefined) { fields.push(`${col} = ?`); values.push(JSON.stringify(data[k])); } }
+      for (const [k, col] of Object.entries(map)) { if (data[k] !== undefined) { fields.push(\`\${col} = ?\`); values.push(data[k]); } }
+      for (const [k, col] of Object.entries({ blockers:'blockers', tags:'tags', skills:'skills', integrations:'integrations' })) { if (data[k] !== undefined) { fields.push(\`\${col} = ?\`); values.push(JSON.stringify(data[k])); } }
       if (data.revenueReady !== undefined) { fields.push('revenue_ready = ?'); values.push(data.revenueReady ? 1 : 0); }
-      if (fields.length) { values.push(projectId, auth.userId); await db.execute(`UPDATE projects SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`, values); }
+      if (fields.length) { values.push(projectId, auth.userId); await db.execute(\`UPDATE projects SET \${fields.join(', ')} WHERE id = ? AND user_id = ?\`, values); }
       return ok(res, { success: true });
     }
 
@@ -134,7 +152,7 @@ export default async function handler(req, res) {
     if (req.method === 'PUT' && action === 'save-file' && projectId) {
       const { path, content } = req.body || {};
       if (!path) return err(res, 'path required');
-      await db.execute(`INSERT INTO project_files (project_id, user_id, path, content) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE content = VALUES(content), updated_at = CURRENT_TIMESTAMP`, [projectId, auth.userId, path, content || '']);
+      await db.execute(\`INSERT INTO project_files (project_id, user_id, path, content) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE content = VALUES(content), updated_at = CURRENT_TIMESTAMP\`, [projectId, auth.userId, path, content || '']);
       return ok(res, { success: true });
     }
 
@@ -149,7 +167,7 @@ export default async function handler(req, res) {
     if (req.method === 'POST' && action === 'add-folder' && projectId) {
       const { id: folderId, label, icon, desc } = req.body || {};
       if (!folderId || !label) return err(res, 'id and label required');
-      await db.execute(`INSERT INTO project_custom_folders (project_id, user_id, folder_id, label, icon, description) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE label=VALUES(label), icon=VALUES(icon)`, [projectId, auth.userId, folderId, label, icon || '📁', desc || '']);
+      await db.execute(\`INSERT INTO project_custom_folders (project_id, user_id, folder_id, label, icon, description) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE label=VALUES(label), icon=VALUES(icon)\`, [projectId, auth.userId, folderId, label, icon || '📁', desc || '']);
       return ok(res, { success: true });
     }
 
