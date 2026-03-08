@@ -1,5 +1,5 @@
 {
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
-  ]
+  "build": {
+    "command": "npm run build"
+  }
 }
