@@ -63,13 +63,26 @@ export default async function handler(req, res) {
         [auth.userId]
       );
       const parsed = projects.map(p => ({
-        ...p,
+        id: p.id,
+        name: p.name,
+        emoji: p.emoji,
+        phase: p.phase,
+        status: p.status,
+        priority: p.priority,
+        health: p.health,
+        momentum: p.momentum,
+        activeFile: p.active_file,
+        incomeTarget: p.income_target,
+        revenueReady: !!p.revenue_ready,
+        lastTouched: p.last_touched,
+        nextAction: p.next_action,
+        desc: p.description,
         blockers: safeJson(p.blockers, []),
         tags: safeJson(p.tags, []),
         skills: safeJson(p.skills, ['dev', 'strategy']),
         integrations: safeJson(p.integrations, {}),
         customFolders: safeJson(p.custom_folders, []).map(f => ({ id: f.folder_id, label: f.label, icon: f.icon, desc: f.description })),
-        custom_folders: undefined,
+        files: null, // Files loaded on-demand
       }));
       return ok(res, { projects: parsed });
     }
@@ -83,7 +96,29 @@ export default async function handler(req, res) {
       const filesMap = {};
       files.forEach(f => { filesMap[f.path] = f.content || ''; });
       const [folders] = await db.execute('SELECT folder_id as id, label, icon, description as desc FROM project_custom_folders WHERE project_id = ? ORDER BY sort_order', [projectId]);
-      return ok(res, { project: { ...p, blockers: safeJson(p.blockers, []), tags: safeJson(p.tags, []), skills: safeJson(p.skills, []), integrations: safeJson(p.integrations, {}), customFolders: folders, files: filesMap, activeFile: p.active_file } });
+      const project = {
+        id: p.id,
+        name: p.name,
+        emoji: p.emoji,
+        phase: p.phase,
+        status: p.status,
+        priority: p.priority,
+        health: p.health,
+        momentum: p.momentum,
+        activeFile: p.active_file,
+        incomeTarget: p.income_target,
+        revenueReady: !!p.revenue_ready,
+        lastTouched: p.last_touched,
+        nextAction: p.next_action,
+        desc: p.description,
+        blockers: safeJson(p.blockers, []),
+        tags: safeJson(p.tags, []),
+        skills: safeJson(p.skills, []),
+        integrations: safeJson(p.integrations, {}),
+        customFolders: folders,
+        files: filesMap,
+      };
+      return ok(res, { project });
     }
 
     // POST create
