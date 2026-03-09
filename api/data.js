@@ -44,7 +44,7 @@ export default async function handler(req, res) {
   const auth = getAuth(req);
   if (!auth) return err(res, 'Unauthorised', 401);
 
-  const { resource, id: resourceId, project_id, file_path, q, limit } = req.query;
+  const { resource, id: resourceId, project_id, file_path, q, limit, health_only } = req.query;
   let db;
 
   try {
@@ -143,16 +143,185 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── AREAS ─────────────────────────────────────────────────
+    if (resource === 'areas') {
+      if (req.method === 'GET') {
+        try {
+          const [rows] = await db.execute('SELECT * FROM life_areas WHERE user_id = ? ORDER BY sort_order ASC', [auth.userId]);
+          return ok(res, { areas: rows });
+        } catch (e) {
+          if (e.message.includes('Table') && e.message.includes('doesn\'t exist')) {
+            return ok(res, { areas: [] });
+          } else {
+            throw e;
+          }
+        }
+      }
+      if (req.method === 'POST') {
+        const { id, name, color, icon, description, target_hours_weekly } = req.body || {};
+        if (!name) return err(res, 'name required');
+        const newId = id || crypto.randomUUID();
+        await db.execute('INSERT INTO life_areas (id, user_id, name, color, icon, description, target_hours_weekly) VALUES (?, ?, ?, ?, ?, ?, ?)', [newId, auth.userId, name, color || '#3b82f6', icon || '🌐', description || '', target_hours_weekly || null]);
+        return ok(res, { success: true, id: newId }, 201);
+      }
+      if (req.method === 'PUT' && resourceId) {
+        const data = req.body || {};
+        const fields = [], values = [];
+        const map = { name:'name', color:'color', icon:'icon', description:'description', target_hours_weekly:'target_hours_weekly', health_score:'health_score', sort_order:'sort_order' };
+        for (const [k, col] of Object.entries(map)) {
+          if (data[k] !== undefined) { fields.push(`${col} = ?`); values.push(data[k]); }
+        }
+        if (fields.length) { values.push(resourceId, auth.userId); await db.execute(`UPDATE life_areas SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`, values); }
+        return ok(res, { success: true });
+      }
+      if (req.method === 'DELETE' && resourceId) {
+        await db.execute('DELETE FROM life_areas WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+        // Also unassign projects
+        await db.execute('UPDATE projects SET life_area_id = NULL WHERE life_area_id = ? AND user_id = ?', [resourceId, auth.userId]);
+        return ok(res, { success: true });
+      }
+    }
+
+    // ── GOALS ─────────────────────────────────────────────────
+    if (resource === 'goals') {
+      if (req.method === 'GET') {
+        try {
+          const [rows] = await db.execute('SELECT * FROM goals WHERE user_id = ? ORDER BY created_at DESC', [auth.userId]);
+          return ok(res, { goals: rows });
+        } catch (e) {
+          if (e.message.includes('Table') && e.message.includes('doesn\'t exist')) {
+            return ok(res, { goals: [] });
+          } else {
+            throw e;
+          }
+        }
+      }
+      if (req.method === 'POST') {
+        const { id, title, target_amount, current_amount, currency, timeframe, category, status } = req.body || {};
+        if (!title || target_amount === undefined) return err(res, 'title and target_amount required');
+        const newId = id || crypto.randomUUID();
+        await db.execute('INSERT INTO goals (id, user_id, title, target_amount, current_amount, currency, timeframe, category, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [newId, auth.userId, title, target_amount, current_amount || 0, currency || 'GBP', timeframe || 'monthly', category || 'income', status || 'active']);
+        return ok(res, { success: true, id: newId }, 201);
+      }
+      if (req.method === 'PUT' && resourceId) {
+        const data = req.body || {};
+        const fields = [], values = [];
+        const map = { title:'title', target_amount:'target_amount', current_amount:'current_amount', currency:'currency', timeframe:'timeframe', category:'category', status:'status' };
+        for (const [k, col] of Object.entries(map)) {
+          if (data[k] !== undefined) { fields.push(`${col} = ?`); values.push(data[k]); }
+        }
+        if (fields.length) { values.push(resourceId, auth.userId); await db.execute(`UPDATE goals SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`, values); }
+        return ok(res, { success: true });
+      }
+      if (req.method === 'DELETE' && resourceId) {
+        await db.execute('DELETE FROM goals WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+        return ok(res, { success: true });
+      }
+    }
+
+    // ── TEMPLATES ───────────────────────────────────────────────
+    if (resource === 'templates') {
+      if (req.method === 'GET') {
+        try {
+          const [rows] = await db.execute('SELECT * FROM templates WHERE user_id IS NULL OR user_id = ? ORDER BY is_system DESC, name ASC', [auth.userId]);
+          return ok(res, { templates: rows.map(r => ({ ...r, config: safeJson(r.config, {}) })) });
+        } catch (e) {
+          if (e.message.includes('Table') && e.message.includes('doesn\'t exist')) {
+            return ok(res, { templates: [] });
+          } else {
+            throw e;
+          }
+        }
+      }
+      if (req.method === 'POST') {
+        const { id, name, description, icon, category, config, is_system } = req.body || {};
+        if (!name || !config) return err(res, 'name and config required');
+        const newId = id || crypto.randomUUID();
+        await db.execute('INSERT INTO templates (id, user_id, name, description, icon, category, config, is_system) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [newId, auth.userId, name, description || '', icon || '📄', category || 'custom', JSON.stringify(config), is_system ? 1 : 0]);
+        return ok(res, { success: true, id: newId }, 201);
+      }
+      if (req.method === 'PUT' && resourceId) {
+        const data = req.body || {};
+        const fields = [], values = [];
+        const map = { name:'name', description:'description', icon:'icon', category:'category', config:'config', is_system:'is_system' };
+        for (const [k, col] of Object.entries(map)) {
+            if (data[k] !== undefined) {
+                fields.push(`${col} = ?`);
+                values.push(k === 'config' ? JSON.stringify(data[k]) : data[k]);
+            }
+        }
+        if (fields.length) { values.push(resourceId, auth.userId); await db.execute(`UPDATE templates SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`, values); }
+        return ok(res, { success: true });
+      }
+      if (req.method === 'DELETE' && resourceId) {
+        await db.execute('DELETE FROM templates WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+        return ok(res, { success: true });
+      }
+    }
+
+    // ── GOAL CONTRIBUTIONS ──────────────────────────────────────
+    if (resource === 'contributions') {
+      if (req.method === 'GET') {
+        const { goal_id } = req.query;
+        if (!goal_id) return err(res, 'goal_id required');
+        try {
+          const [rows] = await db.execute('SELECT * FROM goal_contributions WHERE user_id = ? AND goal_id = ? ORDER BY date DESC', [auth.userId, goal_id]);
+          return ok(res, { contributions: rows });
+        } catch (e) {
+          if (e.message.includes('Table') && e.message.includes('doesn\'t exist')) {
+            return ok(res, { contributions: [] });
+          } else {
+            throw e;
+          }
+        }
+      }
+      if (req.method === 'POST') {
+        const { goal_id, project_id, source_label, amount, date, notes } = req.body || {};
+        if (!goal_id || amount === undefined) return err(res, 'goal_id and amount required');
+        const id = crypto.randomUUID();
+        await db.execute('INSERT INTO goal_contributions (id, goal_id, user_id, project_id, source_label, amount, date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, goal_id, auth.userId, project_id || null, source_label || '', amount, date || new Date().toISOString().slice(0, 10), notes || '']);
+
+        // Auto-update current_amount in goal
+        await db.execute('UPDATE goals SET current_amount = current_amount + ? WHERE id = ? AND user_id = ?', [amount, goal_id, auth.userId]);
+
+        return ok(res, { success: true, id }, 201);
+      }
+      if (req.method === 'DELETE' && resourceId) {
+        // Need goal_id to update current_amount
+        const [rows] = await db.execute('SELECT goal_id, amount FROM goal_contributions WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+        if (rows.length) {
+          const { goal_id, amount } = rows[0];
+          await db.execute('DELETE FROM goal_contributions WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+          await db.execute('UPDATE goals SET current_amount = current_amount - ? WHERE id = ? AND user_id = ?', [amount, goal_id, auth.userId]);
+        }
+        return ok(res, { success: true });
+      }
+    }
+
     // ── SEARCH ────────────────────────────────────────────────
     if (resource === 'search') {
       if (!q?.trim()) return ok(res, { results: [] });
       try {
-        const [results] = await db.execute(
-          `SELECT pf.project_id, pf.path, LEFT(pf.content, 200) as excerpt, p.name as project_name, p.emoji
-           FROM project_files pf JOIN projects p ON p.id = pf.project_id
-           WHERE pf.user_id = ? AND pf.content LIKE ? LIMIT 15`,
-          [auth.userId, `%${q}%`]
-        );
+        let results;
+        try {
+          [results] = await db.execute(
+            `SELECT pf.project_id, pf.path, LEFT(pf.content, 200) as excerpt, p.name as project_name, p.emoji
+             FROM project_files pf JOIN projects p ON p.id = pf.project_id
+             WHERE pf.user_id = ? AND pf.content LIKE ? AND pf.deleted_at IS NULL LIMIT 15`,
+            [auth.userId, `%${q}%`]
+          );
+        } catch (e) {
+          if (e.message.includes('Unknown column \'pf.deleted_at\'')) {
+            [results] = await db.execute(
+              `SELECT pf.project_id, pf.path, LEFT(pf.content, 200) as excerpt, p.name as project_name, p.emoji
+               FROM project_files pf JOIN projects p ON p.id = pf.project_id
+               WHERE pf.user_id = ? AND pf.content LIKE ? LIMIT 15`,
+              [auth.userId, `%${q}%`]
+            );
+          } else {
+            throw e;
+          }
+        }
         return ok(res, { results });
       } catch {
         return ok(res, { results: [] });

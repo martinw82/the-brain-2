@@ -39,51 +39,51 @@ _Nothing new can be built reliably until these are resolved._
 - **Done when:** Comments survive a page reload
 - **How:** `useEffect` watches `[hubId, hub?.activeFile]`, maps DB rows (`created_at` → `date`, `resolved` 0/1 → boolean), `commentsLoading` state gates the "No comments" empty state.
 
-### 0.3 Build AI Coach proxy function
-- [ ] Create serverless function: `/api/ai` (Vercel) or `netlify/functions/ai.js`
-- [ ] Accepts POST with `{ prompt, context }` body
-- [ ] Reads `ANTHROPIC_API_KEY` from server-side env (not VITE_ prefixed)
-- [ ] Calls Anthropic API server-side, returns response
-- [ ] Update `askAI()` in TheBrain.jsx to call `/api/ai` instead of Anthropic directly
-- [ ] Remove `VITE_ANTHROPIC_KEY` from `.env.example`
+### 0.3 Build AI Coach proxy function ✅ COMPLETE (2026-03-08)
+- [x] Create serverless function: `/api/ai` (Vercel) or `netlify/functions/ai.js`
+- [x] Accepts POST with `{ prompt, context }` body
+- [x] Reads `ANTHROPIC_API_KEY` from server-side env (not VITE_ prefixed)
+- [x] Calls Anthropic API server-side, returns response
+- [x] Update `askAI()` in TheBrain.jsx to call `/api/ai` instead of Anthropic directly
+- [x] Remove `VITE_ANTHROPIC_KEY` from `.env.example`
 - **Done when:** AI Coach works without exposing API key in browser network tab
 
-### 0.4 Fix rename project stale reference
-- [ ] In `renameProject()`, use functional updater or read from the updated state after `setProjects`
-- [ ] Or: build the new file content from parameters rather than reading from `projects` array
+### 0.4 Fix rename project stale reference ✅ COMPLETE (2026-03-08)
+- [x] In `renameProject()`, use functional updater or read from the updated state after `setProjects`
+- [x] Or: build the new file content from parameters rather than reading from `projects` array
 - **Done when:** Renaming a project correctly updates PROJECT_OVERVIEW.md and manifest.json in DB
 
-### 0.5 Add beforeunload handler for session timer
-- [ ] Add `useEffect` with `window.addEventListener('beforeunload', ...)` when `sessionActive` is true
-- [ ] On unload: save session to DB via `navigator.sendBeacon` or sync XHR
-- [ ] Clean up listener when session ends
+### 0.5 Add beforeunload handler for session timer ✅ COMPLETE (2026-03-08)
+- [x] Add `useEffect` with `window.addEventListener('beforeunload', ...)` when `sessionActive` is true
+- [x] On unload: save session to DB via `navigator.sendBeacon` or sync XHR
+- [x] Clean up listener when session ends
 - **Done when:** Closing tab mid-session still logs the session to DB
 
-### 0.6 Add Bootstrap Wizard null check
-- [ ] In `completeBootstrap()`, guard against `projects.find()` returning undefined
-- [ ] Show toast error if project not found
+### 0.6 Add Bootstrap Wizard null check ✅ COMPLETE (2026-03-08)
+- [x] In `completeBootstrap()`, guard against `projects.find()` returning undefined
+- [x] Show toast error if project not found
 - **Done when:** Completing bootstrap on a deleted/missing project shows error instead of silent failure
 
-### 0.7 Add soft deletes to project_files `[DB]`
-- [ ] Add `deleted_at DATETIME DEFAULT NULL` column to `project_files` table
-- [ ] Update `deleteFile()` API to SET `deleted_at = NOW()` instead of DELETE
-- [ ] Update all file queries to include `WHERE deleted_at IS NULL`
+### 0.7 Add soft deletes to project_files `[DB]` ✅ COMPLETE (2026-03-08)
+- [x] Add `deleted_at DATETIME DEFAULT NULL` column to `project_files` table
+- [x] Update `deleteFile()` API to SET `deleted_at = NOW()` instead of DELETE
+- [x] Update all file queries to include `WHERE deleted_at IS NULL`
 - [ ] Add "Recently Deleted" option in project Meta tab (optional, can build UI later)
 - [ ] Cleanup rule: hard-delete files where `deleted_at` older than 30 days
 - **Done when:** Deleting a file is recoverable within 30 days
 
-### 0.8 Add debounced saves to markdown editor `[UI]`
-- [ ] In `MarkdownEditor`, debounce the `onChange` handler (1.5-2 seconds)
-- [ ] Show "unsaved changes" indicator while debounce is pending
-- [ ] Manual Save button still triggers immediate persist
-- [ ] Prevents hammering TiDB on every keystroke
+### 0.8 Add debounced saves to markdown editor `[UI]` ✅ COMPLETE (2026-03-08)
+- [x] In `MarkdownEditor`, debounce the `onChange` handler (1.5-2 seconds)
+- [x] Show "unsaved changes" indicator while debounce is pending
+- [x] Manual Save button still triggers immediate persist
+- [x] Prevents hammering TiDB on every keystroke
 - **Done when:** Typing in the editor doesn't fire a DB write per character
 
-### 0.9 Add rate limiting and caching to AI proxy `[API]`
-- [ ] Rate limit: max 10 AI calls per minute per user (return 429 if exceeded)
+### 0.9 Add rate limiting and caching to AI proxy `[API]` ✅ PARTIAL (2026-03-08)
+- [x] Rate limit: max 10 AI calls per minute per user (return 429 if exceeded)
 - [ ] Cache: hash the prompt — if same hash within 5 minutes, return cached response
 - [ ] Token logging: log model, input_tokens, output_tokens per call (server logs minimum, `ai_usage` table ideally)
-- [ ] Frontend: show "Rate limited, try again shortly" instead of generic error
+- [x] Frontend: show "Rate limited, try again shortly" instead of generic error (via error message display)
 - **Done when:** AI Coach can't accidentally run up a large bill from repeated/looped calls
 
 ---
@@ -95,7 +95,7 @@ _Not a full test suite — just the 3 paths where data loss would destroy trust.
 - [ ] **Test: File save/load round-trip** — create file via API, reload app, verify content matches
 - [ ] **Test: Comment persistence** — add comment, reload, verify it appears
 - [ ] **Test: Session logging** — start session, end it, verify it persists in DB and appends to DEVLOG.md
-- [ ] **DB migration versioning:** Create `schema_migrations` table to track which ALTER/CREATE statements have run
+- [x] **DB migration versioning:** Create `schema_migrations` table to track which ALTER/CREATE statements have run (Applied 2026-03-08)
 - [ ] Write as simple Node scripts runnable via `npm run test:critical` — no framework needed
 
 ---
@@ -104,11 +104,11 @@ _Not a full test suite — just the 3 paths where data loss would destroy trust.
 
 _These are the base systems that everything else plugs into. Get these right and every future feature is easier._
 
-### 1.0 [EXTENSIBLE] Life Areas ("Parts") `[DB]` `[API]` `[UI]`
+### 1.0 [EXTENSIBLE] Life Areas ("Parts") `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
 
 The core philosophy is Life > Parts > Things. Without Parts as first-class entities, this is a project manager, not a life OS.
 
-- [ ] **Schema:** Create `life_areas` table:
+- [x] **Schema:** Create `life_areas` table:
   ```
   id, user_id, name, color, icon,
   description,
@@ -117,28 +117,28 @@ The core philosophy is Life > Parts > Things. Without Parts as first-class entit
   sort_order (int),
   created_at, updated_at
   ```
-- [ ] **Schema:** Add `life_area_id VARCHAR(36) NULLABLE` to `projects` table (FK to life_areas)
-- [ ] **Seed defaults** on first user creation (user can rename/delete):
+- [x] **Schema:** Add `life_area_id VARCHAR(36) NULLABLE` to `projects` table (FK to life_areas)
+- [x] **Seed defaults** on first user creation (user can rename/delete):
   - Business / Revenue (💼)
   - Health / Body (🏋️)
   - Relationships (❤️)
   - Creative / Learning (🎨)
   - Personal / Admin (🏠)
-- [ ] **API:** CRUD routes for life areas (`/api/areas`)
-- [ ] **API:** Assign/unassign project to area (`/api/projects/:id` update with `life_area_id`)
-- [ ] **Health calculation:** Area health = weighted average of its projects' health scores
-- [ ] **UI:** Life area pills/tabs in Command Centre — click to filter projects by area
-- [ ] **UI:** Area assignment dropdown in project creation and project overview
-- [ ] **UI:** Area health summary card — shows all areas with health bars
+- [x] **API:** CRUD routes for life areas (`/api/areas`)
+- [x] **API:** Assign/unassign project to area (`/api/projects/:id` update with `life_area_id`)
+- [x] **Health calculation:** Area health = weighted average of its projects' health scores
+- [x] **UI:** Life area pills/tabs in Command Centre — click to filter projects by area
+- [x] **UI:** Area assignment dropdown in project creation and project overview
+- [x] **UI:** Area health summary card — shows all areas with health bars
 - [ ] **Agent integration:** AI Coach receives area context — can say "Business is strong but Health is declining" and route advice accordingly
 - [ ] **Allow projects to belong to multiple areas** via the tagging system (Phase 1.3) as an alternative to the FK — both paths should work
 - **Done when:** You can see a dashboard that says "Business: 65%, Health: 30%, Creative: 80%" and filter projects by life area
 
-### 1.1 [EXTENSIBLE] Generic goal system `[DB]` `[API]` `[UI]`
+### 1.1 [EXTENSIBLE] Generic goal system `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
 
 Replace the hardcoded Thailand/£3k tracker with a configurable goal engine.
 
-- [ ] **Schema:** Create `goals` table:
+- [x] **Schema:** Create `goals` table:
   ```
   id, user_id, title, target_amount, current_amount,
   currency, timeframe (monthly/yearly/total),
@@ -146,25 +146,25 @@ Replace the hardcoded Thailand/£3k tracker with a configurable goal engine.
   status (active/achieved/paused),
   created_at, updated_at
   ```
-- [ ] **Schema:** Create `goal_contributions` table:
+- [x] **Schema:** Create `goal_contributions` table:
   ```
   id, goal_id, project_id (nullable), source_label,
   amount, date, notes
   ```
-- [ ] **API:** CRUD routes for goals (`/api/goals`)
-- [ ] **API:** CRUD routes for contributions (`/api/goals/:id/contributions`)
-- [ ] **UI:** Replace hardcoded `THAILAND_TARGET` with `user.goals[0]` (or active goal)
-- [ ] **UI:** Progress bar reads from goal data, not project income_target sum
-- [ ] **UI:** Goal configuration in a modal (title, amount, currency, timeframe)
-- [ ] **UI:** Link projects to goals with contribution amounts
-- [ ] Remove all hardcoded `£`, `GBP`, `3000`, `THAILAND` references — read from goal/user config
+- [x] **API:** CRUD routes for goals (`/api/goals`)
+- [x] **API:** CRUD routes for contributions (`/api/goals/:id/contributions`)
+- [x] **UI:** Replace hardcoded `THAILAND_TARGET` with `user.goals[0]` (or active goal)
+- [x] **UI:** Progress bar reads from goal data, not project income_target sum
+- [x] **UI:** Goal configuration in a modal (title, amount, currency, timeframe)
+- [ ] **UI:** Link projects to goals with contribution amounts (Manual contributions implemented)
+- [x] Remove all hardcoded `£`, `GBP`, `3000`, `THAILAND` references — read from goal/user config
 - **Done when:** A new user can set their own financial goal in any currency and track projects against it
 
-### 1.2 [EXTENSIBLE] Template system `[DB]` `[API]` `[UI]`
+### 1.2 [EXTENSIBLE] Template system `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
 
 Make project structure configurable rather than one-size-fits-all.
 
-- [ ] **Schema:** Create `templates` table:
+- [x] **Schema:** Create `templates` table:
   ```
   id, user_id (null = system template), name, description,
   icon, category,
@@ -179,21 +179,21 @@ Make project structure configurable rather than one-size-fits-all.
   is_system (boolean),
   created_at
   ```
-- [ ] **Seed system templates:**
+- [x] **Seed system templates:**
   - BUIDL Framework (current default — phases, all folders, all skills)
   - Software Project (phases: planning/dev/testing/deployed, code-focused folders)
   - Content Project (phases: research/draft/review/published, content-focused folders)
   - Business / Revenue (phases: validate/build/launch/grow, marketing + analytics folders)
   - Personal Goal (phases: define/plan/execute/maintain, minimal folders)
   - Blank (no phases, no default files beyond PROJECT_OVERVIEW.md)
-- [ ] **API:** CRUD routes for templates (`/api/templates`)
-- [ ] **API:** "Save as template" endpoint — takes a project ID, extracts its structure into a template
-- [ ] **UI:** Template selector in New Project modal (before Bootstrap Wizard)
-- [ ] **UI:** "Save as Template" button in project Meta tab
-- [ ] **Refactor:** `makeProject()` and `makeDefaultFiles()` read from template config instead of hardcoded constants
-- [ ] **Refactor:** `BUIDL_PHASES` becomes `template.config.phases` — if template has no phases, phase UI is hidden
-- [ ] **Refactor:** `STANDARD_FOLDERS` becomes `template.config.standard_folders`
-- [ ] **Validation:** Use Zod (or simple runtime checks) to validate template config JSON before saving — prevents malformed templates from breaking project creation
+- [x] **API:** CRUD routes for templates (`/api/templates`)
+- [x] **API:** "Save as template" logic — UI extracts project structure into a new template
+- [x] **UI:** Template selector in New Project modal (before Bootstrap Wizard)
+- [x] **UI:** "Save as Template" button in project Meta tab
+- [x] **Refactor:** `makeProject()` and `makeDefaultFiles()` read from template config instead of hardcoded constants
+- [x] **Refactor:** `BUIDL_PHASES` becomes `template.config.phases` — if template has no phases, phase UI is hidden
+- [x] **Refactor:** `STANDARD_FOLDERS` becomes `template.config.standard_folders`
+- [x] **Validation:** Simple runtime checks for configuration JSON.
 - **Done when:** Creating a new project lets you pick a template, and projects without BUIDL phases work correctly with no phase-related UI showing
 
 ### 1.3 [EXTENSIBLE] Tagging and linking system `[DB]` `[API]`
@@ -529,7 +529,7 @@ _Make it work everywhere, reliably._
 
 ## PHASE 5 — Future / Parking Lot
 
-_Documented for completeness. Don't build until Phases 0-4 are solid._
+_Don't build until Phases 0-4 are solid._
 
 ### 5.1 Real-time collaboration
 - [ ] WebSocket or SSE for live updates
