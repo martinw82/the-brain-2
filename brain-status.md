@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 6.1 (Pre-Release)
+**Version:** 6.2 (Phase 1 Beta)
 **Live URL:** the-brain-2.vercel.app
-**Last Updated:** 2026-03-08
-**Status:** Beta — deployed, functional, bugs to fix before daily use
+**Last Updated:** 2026-03-09
+**Status:** Beta — Phase 0 bugs fixed, Phase 1.0–1.2 foundations live, Phase 1.3 next
 
 ---
 
@@ -29,64 +29,80 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 
 | Layer | Technology | Notes |
 |-------|-----------|-------|
-| Frontend | React 18 + Vite 5 | Single JSX component (TheBrain.jsx, 1,227 lines) |
+| Frontend | React 18 + Vite 5 | Single JSX component (TheBrain.jsx, ~1,525 lines) |
 | Styling | Inline styles, dark monospace UI | JetBrains Mono / Fira Code |
-| API | Vercel serverless functions | Also configured for Netlify Functions |
+| API | Vercel serverless functions | `api/ai.js`, `api/auth.js`, `api/data.js`, `api/projects.js` |
 | Database | TiDB Cloud Serverless (MySQL-compatible) | Free tier, EU-central-1 |
 | Auth | JWT + bcrypt | Register/login/sessions |
-| AI | Anthropic API (Claude Sonnet) | Called from frontend currently |
+| AI | Anthropic API (Claude Sonnet) | Proxied server-side via `/api/ai` — key not exposed |
+| Migrations | `scripts/migrate.js` | Versioned schema migrations, `schema_migrations` table |
 | Deployment | Vercel (primary) | Netlify config also present |
 
 ---
 
-## 3. Database Schema (8 tables)
+## 3. Database Schema (14 tables)
 
+**Core (original):**
 - **users** — email, password_hash, name, goal, monthly_target, currency, timezone
-- **projects** — slug IDs, phase, priority, health, momentum, revenue_ready, blockers/tags/skills (JSON), active_file
+- **projects** — slug IDs, phase, priority, health, momentum, revenue_ready, blockers/tags/skills (JSON), active_file, `life_area_id` FK
 - **project_custom_folders** — per-project folder structure
-- **project_files** — LONGTEXT content, full-text search indexed
+- **project_files** — LONGTEXT content, full-text search indexed, `deleted_at` for soft deletes
 - **staging** — review pipeline items, tagged, linked to projects
 - **ideas** — scored idea bank (1-10)
 - **sessions** — work session logging with duration and notes
 - **comments** — per-file comments with resolved flag
 - **refresh_tokens** — auth token store
 
+**Phase 1 additions:**
+- **schema_migrations** — versioned migration tracking
+- **life_areas** — "Parts" entities (Business, Health, Relationships, Creative, Personal) with health_score
+- **goals** — configurable financial/personal goals (title, target_amount, currency, timeframe, status)
+- **goal_contributions** — project contributions toward a goal (amount, date, notes)
+- **templates** — project structure templates with JSON config (phases, folders, files, skills)
+
 ---
 
 ## 4. What's Built & Working
 
 ### Brain-Level Features (10 tabs)
-- **Command Centre** — today's focus selector, priority stack, health alerts, income goal progress bar
-- **Projects** — full CRUD with optimistic updates + DB persistence
+- **Command Centre** — today's focus selector, priority stack, health alerts, goal progress bar (configurable), life area filter pills
+- **Projects** — full CRUD with optimistic updates + DB persistence, area assignment, template selection
 - **Bootstrap** — guided 5-step project setup wizard generating briefs, strategy prompts, dev prompts, skill overrides, agent onboarding docs
 - **Staging** — pipeline with tagging (IDEA_, SKETCH_, DRAFT_, etc.), approve/reject/defer
 - **Skills** — 5 agent definitions (Dev, Content, Strategy, Design, Research) with SOPs, permissions, ignore rules, prompt prefixes
 - **Workflows** — 4 templates (Product Launch, Content Sprint, Idea→Brief, Weekly Review)
 - **Integrations** — UI panel for GitHub, Netlify, TiDB, Farcaster, Twitter, Base Chain (UI only — not wired)
 - **Ideas** — bank ideas with score and tags
-- **AI Coach** — calls Anthropic API with full project context, preset prompts
+- **AI Coach** — proxied server-side via `/api/ai`, rate-limited (10/min), full project context, preset prompts
 - **Export** — full JSON context builder, per-agent briefing generator, local file download
 
 ### Hub-Level Features (8 tabs per project)
-- **Editor** — file tree + markdown editor with edit/preview modes
-- **Overview** — status dashboard (phase, health, momentum, income, next action, blockers)
+- **Editor** — file tree + markdown editor with debounced auto-save + manual save, edit/preview modes
+- **Overview** — status dashboard (phase, health, momentum, income, next action, blockers), area + template shown
 - **Folders** — browse all standard + custom folders with file counts
 - **Review** — staging items for this project with drag-and-drop upload
 - **Dev Log** — quick-log entries + rendered DEVLOG.md
 - **Timeline** — Gantt chart parsed from TASKS.md date format
-- **Comments** — per-file comments with resolve/reopen
-- **Meta** — manifest.json viewer + folder summary
+- **Comments** — per-file comments with resolve/reopen, loaded from DB on file switch
+- **Meta** — manifest.json viewer + folder summary, "Save as Template" button
 
 ### Infrastructure
-- File operations: create, save, delete, with optimistic UI + DB persistence
+- File operations: create, save, delete (soft delete — recoverable), with optimistic UI + DB persistence
+- Debounced saves in editor (1.5s) — no per-keystroke DB writes
 - Custom folder creation per project
 - Full-text search across all files (DB-backed with in-memory fallback)
-- Session timer with duration logging to DEVLOG.md and sessions table
+- Session timer with duration logging to DEVLOG.md and sessions table; `beforeunload` saves on tab close
 - Health score auto-calculation (decay by days, blockers, momentum, status)
 - Toast notifications for save confirmations
 - Markdown renderer (headings, bold, code, checkboxes, tables, blockquotes)
 - Project export to local file (BUIDL export format)
 - Drag & drop files into staging
+- Schema migration runner (`scripts/migrate.js`, versioned)
+
+### Phase 1 Foundations
+- **Life Areas (1.0)** — 5 default areas seeded, area health = weighted project average, filter pills in Command Centre, assignment in project create/overview
+- **Goals (1.1)** — configurable goal (any currency/target/timeframe), progress bar reads from DB, goal modal, contributions tracked
+- **Templates (1.2)** — 6 system templates (BUIDL, Software, Content, Business, Personal Goal, Blank), template picker in New Project modal, "Save as Template" in Meta tab, project phases/folders read from template config
 
 ---
 
@@ -114,13 +130,13 @@ These are features that existed in the original Next.js version or are needed fo
 
 ### Tier 1 — Required for core philosophy ("Life > Parts > Things")
 
-**Life Areas ("Parts") as first-class entities.** The core philosophy says Life > Parts > Things, but the data model jumps from users directly to projects. Without Parts (Business, Health, Relationships, Creative, Personal) as real entities, you can't see health per life area, can't do capacity planning across areas, and can't apply different agent rules per area (business = revenue-first, health = consistency-first). This is the most important structural addition.
+✅ **Life Areas ("Parts") as first-class entities** — DONE (Phase 1.0). `life_areas` table, CRUD API, area assignment on projects, health calc, filter pills in Command Centre.
 
-**Hierarchical / Linked project structure.** The old version had parent/sub-projects. But the real need is even more flexible: Things (projects, tasks, ideas) should be taggable and linkable across multiple Parts (life areas). A flat project list doesn't reflect how life actually works. This is THE key structural feature.
+✅ **Project management templates/styles** — DONE (Phase 1.2). `templates` table, 6 system templates, template picker in New Project, "Save as Template" in Meta tab, phases/folders driven by template config.
 
-**Project management templates/styles.** The BUIDL framework phases (BOOTSTRAP, UNLEASH, INNOVATE, etc.) should be one optional template among many. Different projects/users need different management styles. Templates could include: BUIDL Framework, Software Development, Content Creation, Marketing Campaign, Health Tracking, Personal Goal, Custom. Users should be able to save existing project structures as custom templates.
+✅ **Generic financial goal tracking** — DONE (Phase 1.1). `goals` + `goal_contributions` tables, configurable goal in any currency, progress bar reads from DB, goal modal.
 
-**Generic financial goal tracking.** The Thailand £3k/mo tracker is too specific. Replace with a configurable goal system: any currency, any target, any timeframe. Users set their own goal (e.g., "£3,000/mo passive income", "$50k savings", "€1,000/mo freelance"). Projects link to the goal with their contribution amount.
+**Tagging and linking system** — NEXT (Phase 1.3). `tags`, `entity_tags`, `entity_links` tables + API + UI pills. Foundation for "Things belong to multiple Parts." Without this, projects/ideas/staging items are siloed — you can't see all "health" entities across the system.
 
 ### Tier 2 — Required for usable daily tool
 
@@ -219,50 +235,49 @@ At the end of each build session, update this document with:
 
 ## 9. Current Priority Stack
 
+### Completed (Phase 0 + Phase 1.0–1.2)
+- ✅ File loading from DB (0.1)
+- ✅ Comments loading from DB (0.2)
+- ✅ AI Coach proxy — key server-side (0.3)
+- ✅ Rename project stale ref fix (0.4)
+- ✅ Session timer beforeunload (0.5)
+- ✅ Bootstrap wizard null check (0.6)
+- ✅ Soft deletes on project_files (0.7)
+- ✅ Debounced saves in editor (0.8)
+- ✅ AI rate limiting (0.9 partial — caching + token logging still pending)
+- ✅ DB migration versioning
+- ✅ Life Areas / Parts (1.0)
+- ✅ Generic goal system (1.1)
+- ✅ Template system (1.2)
+
 ### Next 3 Actions (in order)
-1. ~~**Fix file loading from DB**~~ ✅ Done (2026-03-08)
-2. ~~**Fix comments loading from DB**~~ ✅ Done (2026-03-08)
-3. ~~**Build AI Coach proxy function**~~ ✅ Done (2026-03-08)
+1. **Phase 1.3 — Tagging & linking system** — DB tables (`tags`, `entity_tags`, `entity_links`), `/api/tags.js`, tag pills on project/idea/staging cards, quick-tag input
+2. **Phase 1.4 — Settings system** — `user_settings` JSON, GET/PUT `/api/settings`, settings modal, theme/font/sidebar prefs persist across devices
+3. **Phase 0.9 complete** — Add prompt caching + token logging to `/api/ai.js`
 
-### Phase 1: Foundations
-4. ~~**Life Areas ("Parts")**~~ ✅ Done (2026-03-08)
-5. ~~**Generic goal system**~~ ✅ Done (2026-03-08)
-6. ~~**Template system**~~ ✅ Done (2026-03-08)
-
-### After that (Phase 0 completion)
-4. ~~Fix rename stale reference bug~~ ✅ Done (2026-03-08)
-5. ~~Add `beforeunload` handler for session timer~~ ✅ Done (2026-03-08)
-6. ~~Bootstrap wizard null check~~ ✅ Done (2026-03-08)
-7. ~~Soft deletes on project_files (safety net against data loss)~~ ✅ Done (2026-03-08)
-8. ~~Debounced saves in markdown editor~~ ✅ Done (2026-03-08)
-9. ~~AI proxy rate limiting + cost controls~~ ✅ Done (2026-03-08)
-10. ~~DB migration versioning~~ ✅ Done (2026-03-08)
-11. Critical path tests (file round-trip, comments, sessions)
-
-### Then (Phase 1 foundations)
-11. **Life Areas** — first-class "Parts" entities (the philosophical foundation)
-12. Generic goal system (replace hardcoded Thailand tracker)
-13. Template system (BUIDL phases become optional)
-14. Tagging and linking system
-15. Settings system
+### Then (Phase 2 core features)
+4. Daily check-in system (2.5) — energy, focus, sleep, training; gates AI task routing
+5. Training log (2.6) — weekly count, correlation with energy
+6. Outreach tracking (2.7) — daily mandatory minimum
+7. Agent system prompt upgrade + context compression (2.8)
+8. Project import (2.1) — BUIDL format, JSON, folder picker
+9. Offline mode / localStorage fallback (2.4)
+10. Weekly review automation (2.9)
 
 ### Parking Lot (good ideas, not now)
-- Parent/sub-project or tagging/linking system (critical but architecturally significant — needs design first)
-- Image handling in editor
-- Metadata editor panel
-- Mermaid diagram rendering
-- Mobile responsive layout
-- Offline localStorage fallback
-- Settings UI (themes, fonts)
-- Local file system sync
-- Script execution
-- Integration connectors actually working
-- Onboarding flow for new users
-- Keyboard shortcuts beyond Cmd+K/S/N
-- Monaco/CodeMirror editor upgrade (enables proper undo/redo)
-- Vector embeddings for semantic search (only when full-text search proves insufficient)
-- Push notifications / email digests (only after in-app notifications work)
-- Notion/Todoist/Linear importers (only if going multi-user)
+- Image handling in editor (Phase 2.2)
+- Metadata editor panel (Phase 2.3)
+- Mermaid diagram rendering (Phase 3.2)
+- Mobile responsive layout (Phase 4.1)
+- Settings UI full (Phase 1.4 → extend later)
+- Local file system sync (Phase 3.4)
+- Script execution (Phase 3.6)
+- Integration connectors actually working (Phase 4.3)
+- Onboarding flow for new users (Phase 4.2)
+- Monaco/CodeMirror editor upgrade
+- Vector embeddings for semantic search
+- Push notifications / email digests
+- Notion/Todoist/Linear importers
 
 ---
 
@@ -299,3 +314,15 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 08/03/26 14:51
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-09 (session 3 — status review):**
+- Doc updated to reflect actual current codebase state (was stale — still showed Phase 0 bugs as open)
+- Version bumped to 6.2 (Phase 1 Beta)
+- Sections 2–6, 9 rewritten to reflect Phase 0.3–0.9 + Phase 1.0–1.2 completions
+- DB schema updated: 14 tables now (added schema_migrations, life_areas, goals, goal_contributions, templates)
+- What's Built section updated with Life Areas, Goals, Templates UI + Infrastructure additions
+- Known Bugs section condensed: all Phase 0 bugs marked fixed, 4 open items remain (import, recently deleted UI, AI caching, token logging)
+- Missing Features Tier 1 updated: Life Areas, Goals, Templates marked done; Tagging/Links noted as next
+- Priority Stack rewritten: clear next-3-actions (1.3 Tags, 1.4 Settings, 0.9 completion), Phase 2 ordered
+- .gitignore added to repo (excludes dist/, node_modules/, .env*, logs)
