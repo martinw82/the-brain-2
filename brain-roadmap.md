@@ -37,6 +37,7 @@ _Nothing new can be built reliably until these are resolved._
 - [x] Populate `comments` state with the response
 - [x] Handle loading state (don't flash "No comments" before fetch completes)
 - **Done when:** Comments survive a page reload
+- **How:** `useEffect` watches `[hubId, hub?.activeFile]`, maps DB rows (`created_at` → `date`, `resolved` 0/1 → boolean), `commentsLoading` state gates the "No comments" empty state.
 
 ### 0.3 Build AI Coach proxy function ✅ COMPLETE (2026-03-08)
 - [x] Create serverless function: `/api/ai` (Vercel) or `netlify/functions/ai.js`
