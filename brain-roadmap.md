@@ -133,11 +133,11 @@ The core philosophy is Life > Parts > Things. Without Parts as first-class entit
 - [ ] **Allow projects to belong to multiple areas** via the tagging system (Phase 1.3) as an alternative to the FK — both paths should work
 - **Done when:** You can see a dashboard that says "Business: 65%, Health: 30%, Creative: 80%" and filter projects by life area
 
-### 1.1 [EXTENSIBLE] Generic goal system `[DB]` `[API]` `[UI]`
+### 1.1 [EXTENSIBLE] Generic goal system `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
 
 Replace the hardcoded Thailand/£3k tracker with a configurable goal engine.
 
-- [ ] **Schema:** Create `goals` table:
+- [x] **Schema:** Create `goals` table:
   ```
   id, user_id, title, target_amount, current_amount,
   currency, timeframe (monthly/yearly/total),
@@ -145,18 +145,18 @@ Replace the hardcoded Thailand/£3k tracker with a configurable goal engine.
   status (active/achieved/paused),
   created_at, updated_at
   ```
-- [ ] **Schema:** Create `goal_contributions` table:
+- [x] **Schema:** Create `goal_contributions` table:
   ```
   id, goal_id, project_id (nullable), source_label,
   amount, date, notes
   ```
-- [ ] **API:** CRUD routes for goals (`/api/goals`)
-- [ ] **API:** CRUD routes for contributions (`/api/goals/:id/contributions`)
-- [ ] **UI:** Replace hardcoded `THAILAND_TARGET` with `user.goals[0]` (or active goal)
-- [ ] **UI:** Progress bar reads from goal data, not project income_target sum
-- [ ] **UI:** Goal configuration in a modal (title, amount, currency, timeframe)
-- [ ] **UI:** Link projects to goals with contribution amounts
-- [ ] Remove all hardcoded `£`, `GBP`, `3000`, `THAILAND` references — read from goal/user config
+- [x] **API:** CRUD routes for goals (`/api/goals`)
+- [x] **API:** CRUD routes for contributions (`/api/goals/:id/contributions`)
+- [x] **UI:** Replace hardcoded `THAILAND_TARGET` with `user.goals[0]` (or active goal)
+- [x] **UI:** Progress bar reads from goal data, not project income_target sum
+- [x] **UI:** Goal configuration in a modal (title, amount, currency, timeframe)
+- [ ] **UI:** Link projects to goals with contribution amounts (Manual contributions implemented)
+- [x] Remove all hardcoded `£`, `GBP`, `3000`, `THAILAND` references — read from goal/user config
 - **Done when:** A new user can set their own financial goal in any currency and track projects against it
 
 ### 1.2 [EXTENSIBLE] Template system `[DB]` `[API]` `[UI]`

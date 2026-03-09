@@ -318,6 +318,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [wfProj,setWfProj]           = useState(initialProjects[0]?.id || "");
   const [newIdea,setNewIdea]         = useState("");
   const [newStaging,setNewStaging]   = useState({name:"",tag:"IDEA_",project:initialProjects[0]?.id||"",notes:""});
+  const [newGoalForm,setNewGoalForm] = useState({title:"",target_amount:3000,currency:"GBP",timeframe:"monthly",category:"income"});
   const [showInt,setShowInt]         = useState(null);
   const [dragOver,setDragOver]       = useState(false);
   const [searchQ,setSearchQ]         = useState("");
@@ -364,7 +365,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   // ── DERIVED ────────────────────────────────────────────────
   const hub          = projects.find(p=>p.id===hubId);
   const focusP       = projects.find(p=>p.id===focusId);
-  const totalIncome  = projects.reduce((s,p)=>s+(p.incomeTarget||0),0);
+  const activeGoal = goals.find(g => g.id === (activeGoalId || (goals.length ? goals[0].id : null)));
+  const totalIncome = activeGoal ? activeGoal.current_amount : projects.reduce((s,p)=>s+(p.incomeTarget||0),0);
   const atRisk       = projects.filter(p=>p.health<50).length;
   const inReview     = staging.filter(s=>s.status==="in-review").length;
   const hubAllFolders= hub?[...STANDARD_FOLDERS,...(hub.customFolders||[])]:STANDARD_FOLDERS;
@@ -797,7 +799,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 <div style={{fontSize:12,fontWeight:700,color:sessionActive?C.green:"#475569",fontVariantNumeric:"tabular-nums"}}>{sessionActive?fmtTime(sessionSecs):"▶ START"}</div>
                 <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>{sessionActive?"End & Log":"Session"}</div>
               </div>
-              {[{v:projects.length,l:"Projects"},{v:`£${totalIncome}`,l:"Potential/mo"},{v:`${Math.round(totalIncome/(user?.monthly_target||THAILAND_TARGET)*100)}%`,l:"🇹🇭"},atRisk>0?{v:atRisk,l:"⚠ At Risk",c:C.amber}:null].filter(Boolean).map(s=>(
+              {[{v:projects.length,l:"Projects"},{v:`${activeGoal?.currency==='USD'?'$':activeGoal?.currency==='EUR'?'€':'£'}${totalIncome}`,l:activeGoal?.title||"Goal"},{v:`${Math.round(totalIncome/(activeGoal?.target_amount||3000)*100)}%`,l:"Status"},atRisk>0?{v:atRisk,l:"⚠ At Risk",c:C.amber}:null].filter(Boolean).map(s=>(
                 <div key={s.l} style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:s.c||C.blue2}}>{s.v}</div><div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>{s.l}</div></div>
               ))}
               <button style={{...S.btn("ghost"),fontSize:9}} onClick={onLogout}>Sign Out</button>
@@ -896,6 +898,55 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
       {bootstrapWizardId&&<BootstrapWizard project={projects.find(p=>p.id===bootstrapWizardId)} onComplete={brief=>completeBootstrap(bootstrapWizardId,brief)} onClose={()=>{setBootstrapWiz(null);openHub(bootstrapWizardId);}}/>}
 
+      {modal==="manage-goals" && (
+        <Modal title="Manage Goals" onClose={()=>setModal(null)} width={500}>
+          <div style={{marginBottom:16}}>
+            <span style={S.label()}>Active Goal</span>
+            <select style={S.sel} value={activeGoalId||""} onChange={e=>setActiveGoalId(e.target.value)}>
+              {goals.map(g=><option key={g.id} value={g.id}>{g.title} ({g.currency})</option>)}
+            </select>
+          </div>
+
+          <div style={{borderTop:`1px solid ${C.border}`, paddingTop:16, marginBottom:16}}>
+            <span style={S.label()}>Create New Goal</span>
+            <input style={{...S.input, marginBottom:8}} placeholder="Goal Title (e.g. Save for House)" value={newGoalForm.title} onChange={e=>setNewGoalForm({...newGoalForm, title: e.target.value})}/>
+            <div style={{display:"flex", gap:8, marginBottom:8}}>
+              <input style={S.input} type="number" placeholder="Target Amount" value={newGoalForm.target_amount} onChange={e=>setNewGoalForm({...newGoalForm, target_amount: parseInt(e.target.value)})}/>
+              <select style={S.sel} value={newGoalForm.currency} onChange={e=>setNewGoalForm({...newGoalForm, currency: e.target.value})}>
+                <option value="GBP">GBP (£)</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+              </select>
+            </div>
+            <button style={S.btn("primary")} onClick={async ()=>{
+              if(!newGoalForm.title) return;
+              try {
+                const res = await goalsApi.create(newGoalForm);
+                const updated = await goalsApi.list();
+                setGoals(updated.goals || []);
+                if(res.id) setActiveGoalId(res.id);
+                setNewGoalForm({title:"",target_amount:3000,currency:"GBP",timeframe:"monthly",category:"income"});
+              } catch(e) { showToast("Failed to create goal"); }
+            }}>Create Goal</button>
+          </div>
+
+          <div style={{borderTop:`1px solid ${C.border}`, paddingTop:16}}>
+            <span style={S.label()}>Existing Goals</span>
+            {goals.map(g => (
+              <div key={g.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:`1px solid ${C.border}`}}>
+                <div style={{fontSize:11}}>{g.title} ({g.currency}{g.current_amount}/{g.target_amount})</div>
+                <button style={{...S.btn("danger"), padding:"2px 6px", fontSize:8}} onClick={async ()=>{
+                  if(!confirm("Delete this goal?")) return;
+                  await goalsApi.delete(g.id);
+                  const updated = await goalsApi.list();
+                  setGoals(updated.goals || []);
+                }}>Delete</button>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+
       {/* ── BODY ── */}
       <div style={{maxWidth:1200,margin:"0 auto",padding:"16px 20px"}}>
 
@@ -936,7 +987,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 <div style={S.card(true)}>
                   <span style={S.label()}>Status</span>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10}}>
-                    {[{l:"Phase",v:hub.phase},{l:"Status",v:<BadgeStatus status={hub.status}/>},{l:"Priority",v:`#${hub.priority}`},{l:"Health",v:<HealthBar score={hub.health}/>},{l:"Momentum",v:<Dots n={hub.momentum}/>},{l:"Income",v:`£${hub.incomeTarget||0}/mo`}].map(r=>(
+                    {[{l:"Phase",v:hub.phase},{l:"Status",v:<BadgeStatus status={hub.status}/>},{l:"Priority",v:`#${hub.priority}`},{l:"Health",v:<HealthBar score={hub.health}/>},{l:"Momentum",v:<Dots n={hub.momentum}/>},{l:"Income",v:`${activeGoal?.currency==='USD'?'$':activeGoal?.currency==='EUR'?'€':'£'}${hub.incomeTarget||0}/mo`}].map(r=>(
                       <div key={r.l} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:5,padding:"7px 10px"}}>
                         <div style={{fontSize:8,color:C.dim,textTransform:"uppercase",marginBottom:3}}>{r.l}</div>
                         <div style={{fontSize:11}}>{r.v}</div>
@@ -1144,15 +1195,18 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                       <div style={{fontSize:8,color:C.dim}}>{p.phase} · {p.lastTouched}</div>
                     </div>
                     <HealthBar score={p.health}/><Dots n={p.momentum}/><BadgeStatus status={p.status}/>
-                    {p.revenueReady&&<span style={S.badge(C.green)}>£</span>}
+                {p.revenueReady&&<span style={S.badge(C.green)}>{activeGoal?.currency==='GBP'?'£':activeGoal?.currency==='USD'?'$':activeGoal?.currency==='EUR'?'€':activeGoal?.currency||'£'}</span>}
                     {staging.filter(s=>s.project===p.id&&s.status==="in-review").length>0&&<span style={S.badge(C.amber)}>{staging.filter(s=>s.project===p.id&&s.status==="in-review").length}⏳</span>}
                   </div>
                 ))}
               </div>
-              <div style={{height:6,background:C.border,borderRadius:3,overflow:"hidden",marginBottom:4}}>
-                <div style={{width:`${Math.min(100,Math.round(totalIncome/(user?.monthly_target||THAILAND_TARGET)*100))}%`,height:"100%",background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:3}}/>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4,cursor:"pointer"}} onClick={()=>setModal("manage-goals")}>
+             <div style={{fontSize:9,color:C.dim}}>{activeGoal?.title || "Goal"}: {activeGoal?.currency==='USD'?'$':activeGoal?.currency==='EUR'?'€':activeGoal?.currency==='GBP'?'£':activeGoal?.currency||'£'}{totalIncome} / {activeGoal?.currency==='USD'?'$':activeGoal?.currency==='EUR'?'€':activeGoal?.currency==='GBP'?'£':activeGoal?.currency||'£'}{activeGoal?.target_amount || 3000} ({Math.round(totalIncome/(activeGoal?.target_amount||3000)*100)}%)</div>
+             <div style={{fontSize:9,color:C.blue}}>⚙️ Manage</div>
+          </div>
+          <div style={{height:6,background:C.border,borderRadius:3,overflow:"hidden",marginBottom:4}} onClick={()=>setModal("manage-goals")}>
+            <div style={{width:`${Math.min(100,Math.round(totalIncome/(activeGoal?.target_amount||3000)*100))}%`,height:"100%",background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:3}}/>
               </div>
-              <div style={{fontSize:9,color:C.dim,textAlign:"center"}}>🇹🇭 Goal: £{totalIncome} / £{user?.monthly_target||THAILAND_TARGET}/mo ({Math.round(totalIncome/(user?.monthly_target||THAILAND_TARGET)*100)}%)</div>
             </div>
           )}
 

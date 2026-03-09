@@ -95,6 +95,29 @@ export const areas = {
     del(`${BASE}/api/data?resource=areas&id=${id}`),
 };
 
+export const goals = {
+  list: () =>
+    get(`${BASE}/api/data?resource=goals`),
+
+  create: (goal) =>
+    post(`${BASE}/api/data?resource=goals`, goal),
+
+  update: (id, data) =>
+    put(`${BASE}/api/data?resource=goals&id=${id}`, data),
+
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=goals&id=${id}`),
+
+  listContributions: (goalId) =>
+    get(`${BASE}/api/data?resource=contributions&goal_id=${goalId}`),
+
+  addContribution: (contribution) =>
+    post(`${BASE}/api/data?resource=contributions`, contribution),
+
+  deleteContribution: (id) =>
+    del(`${BASE}/api/data?resource=contributions&id=${id}`),
+};
+
 // ── STAGING ───────────────────────────────────────────────────
 export const staging = {
   list: (projectId) =>

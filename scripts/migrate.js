@@ -50,6 +50,38 @@ const migrations = [
         version: 4,
         name: 'add_life_area_id_to_projects',
         sql: 'ALTER TABLE projects ADD COLUMN IF NOT EXISTS life_area_id VARCHAR(36) DEFAULT NULL AFTER user_id;'
+    },
+    {
+        version: 5,
+        name: 'create_goals_table',
+        sql: `CREATE TABLE IF NOT EXISTS goals (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          target_amount INT NOT NULL,
+          current_amount INT DEFAULT 0,
+          currency VARCHAR(8) DEFAULT 'GBP',
+          timeframe VARCHAR(32) DEFAULT 'monthly',
+          category VARCHAR(32) DEFAULT 'income',
+          status VARCHAR(32) DEFAULT 'active',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        );`
+    },
+    {
+        version: 6,
+        name: 'create_goal_contributions_table',
+        sql: `CREATE TABLE IF NOT EXISTS goal_contributions (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          goal_id VARCHAR(36) NOT NULL,
+          user_id VARCHAR(36) NOT NULL,
+          project_id VARCHAR(64) DEFAULT NULL,
+          source_label VARCHAR(255),
+          amount INT NOT NULL,
+          date VARCHAR(10),
+          notes TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );`
     }
 ];
 
