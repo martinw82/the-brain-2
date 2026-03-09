@@ -93,21 +93,39 @@ const calcHealth = (p) => {
   return Math.max(0,Math.round(s));
 };
 
-const makeDefaultFiles = (name) => ({
-  "PROJECT_OVERVIEW.md":`# ${name}\n\n## What is this?\n\n> One sentence description here.\n\n## Problem\n\n## Solution\n\n## Target User\n\n## Revenue Model\n\n## Current Status\n\n## Next Milestone\n`,
-  "DEVLOG.md":`# Dev Log — ${name}\n\n## ${new Date().toISOString().slice(0,10)}\n\n- Project initialised\n`,
-  "TASKS.md":`# Tasks — ${name}\n\n## In Progress\n- [ ] Define MVP scope\n\n## Backlog\n- [ ] Set up repo\n\n## Done\n`,
-  "CONTENT_CALENDAR.md":`# Content Calendar — ${name}\n\n| Date | Platform | Type | Topic | Status |\n|------|----------|------|-------|--------|\n`,
-  "REVIEW_QUEUE.md":`# Review Queue — ${name}\n\n| Item | Tag | Added | Status | Notes |\n|------|-----|-------|--------|-------|\n`,
-  "SYSTEM_INDEX.md":`# System Index — ${name}\n\n## Standard Folders\n${STANDARD_FOLDERS.map(f=>`- **${f.label}**: ${f.desc}`).join("\n")}\n`,
-  "system/agent.ignore":`# agent.ignore\nlegal/\ninfrastructure/\nsystem/agent.ignore\nmanifest.json\n`,
-  "system/SKILL.md":`# Project Skill Overrides — ${name}\n\n## Dev Agent Overrides\n# - Custom rules here\n`,
-  "staging/.gitkeep":"",
-});
+const makeDefaultFiles = (name, templateConfig=null) => {
+  const folders = templateConfig?.folders || STANDARD_FOLDERS.map(f=>f.id);
+  const showFolder = (id) => folders.includes(id);
 
-const makeProject = (id,name,emoji,phase,status,priority,revenueReady,desc,nextAction,blockers,tags,momentum,lastTouched,incomeTarget,skills=[],customFolders=[]) => {
-  const files={...makeDefaultFiles(name),"manifest.json":JSON.stringify(makeManifest({id,name,emoji,phase,status,priority,revenueReady,incomeTarget,momentum,lastTouched,desc,nextAction,blockers,tags,skills,customFolders}),null,2)};
-  customFolders.forEach(f=>{files[`${f.id}/.gitkeep`]="";});
+  const files = {
+    "PROJECT_OVERVIEW.md":`# ${name}\n\n## What is this?\n\n> One sentence description here.\n\n## Problem\n\n## Solution\n\n## Target User\n\n## Revenue Model\n\n## Current Status\n\n## Next Milestone\n`,
+    "DEVLOG.md":`# Dev Log — ${name}\n\n## ${new Date().toISOString().slice(0,10)}\n\n- Project initialised\n`,
+    "TASKS.md":`# Tasks — ${name}\n\n## In Progress\n- [ ] Define MVP scope\n\n## Backlog\n- [ ] Set up repo\n\n## Done\n`,
+    "SYSTEM_INDEX.md":`# System Index — ${name}\n\n## Folders\n${STANDARD_FOLDERS.filter(f=>folders.includes(f.id)).map(f=>`- **${f.label}**: ${f.desc}`).join("\n")}\n`,
+    "system/agent.ignore":`# agent.ignore\nlegal/\ninfrastructure/\nsystem/agent.ignore\nmanifest.json\n`,
+    "system/SKILL.md":`# Project Skill Overrides — ${name}\n\n## Dev Agent Overrides\n# - Custom rules here\n`,
+  };
+
+  if (showFolder("marketing")) files["CONTENT_CALENDAR.md"] = `# Content Calendar — ${name}\n\n| Date | Platform | Type | Topic | Status |\n|------|----------|------|-------|--------|\n`;
+  if (showFolder("staging")) {
+      files["REVIEW_QUEUE.md"] = `# Review Queue — ${name}\n\n| Item | Tag | Added | Status | Notes |\n|------|-----|-------|--------|-------|\n`;
+      files["staging/.gitkeep"] = "";
+  }
+
+  return files;
+};
+
+  const makeProject = (id,name,emoji,phase,status,priority,revenueReady,desc,nextAction,blockers,tags,momentum,lastTouched,incomeTarget,skills=[],customFolders=[], templateConfig=null) => {
+  const files={...makeDefaultFiles(name, templateConfig),"manifest.json":JSON.stringify(makeManifest({id,name,emoji,phase,status,priority,revenueReady,incomeTarget,momentum,lastTouched,desc,nextAction,blockers,tags,skills,customFolders}),null,2)};
+
+  if (templateConfig?.folders) {
+      templateConfig.folders.forEach(fId => {
+          files[`${fId}/.gitkeep`] = "";
+      });
+  } else {
+      customFolders.forEach(f=>{files[`${f.id}/.gitkeep`]="";});
+  }
+
   const p={id,name,emoji,phase,status,priority,revenueReady,desc,nextAction,blockers,tags,momentum,lastTouched,incomeTarget,skills:skills.length?skills:["dev","strategy"],customFolders,integrations:{},files,activeFile:"PROJECT_OVERVIEW.md",created:new Date().toISOString()};
   p.health=calcHealth(p); return p;
 };
@@ -282,13 +300,15 @@ const buildZipExport=(project)=>{
 // ══════════════════════════════════════════════════════════════
 // MAIN COMPONENT — accepts props from App.jsx (auth gate)
 // ══════════════════════════════════════════════════════════════
-export default function TheBrain({ user, initialProjects=[], initialStaging=[], initialIdeas=[], initialAreas=[], onLogout }) {
+export default function TheBrain({ user, initialProjects=[], initialStaging=[], initialIdeas=[], initialAreas=[], initialGoals=[], initialTemplates=[], onLogout }) {
 
   // ── STATE ──────────────────────────────────────────────────
   const [projects,setProjects]       = useState(initialProjects.map(p=>({...p,health:calcHealth(p)})));
   const [staging,setStaging]         = useState(initialStaging);
   const [ideas,setIdeas]             = useState(initialIdeas);
   const [areas,setAreas]             = useState(initialAreas);
+  const [goals,setGoals]             = useState(initialGoals || []);
+  const [templates,setTemplates]     = useState(initialTemplates || []);
 
   // UI navigation
   const [view,setView]               = useState("brain");
@@ -301,6 +321,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [sessionActive,setSessionOn] = useState(false);
   const [sessionSecs,setSessionSecs] = useState(0);
   const [sessionLog,setSessionLog]   = useState("");
+  const [templateId, setTemplateId] = useState("");
   const timerRef                     = useRef(null);
   const sessionStart                 = useRef(null);
 
@@ -330,7 +351,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   // Modals
   const [modal,setModal]                     = useState(null);
   const [bootstrapWizardId,setBootstrapWiz]  = useState(null);
-  const [newProjForm,setNewProjForm]         = useState({name:"",emoji:"📁",phase:"BOOTSTRAP",desc:"",areaId:""});
+  const [newProjForm,setNewProjForm]         = useState({name:"",emoji:"📁",phase:"BOOTSTRAP",desc:"",areaId:"",incomeTarget:0,templateId:""});
   const [newFileName,setNewFileName]         = useState("");
   const [newFileFolder,setNewFileFolder]     = useState("staging");
   const [customFolderForm,setCFForm]         = useState({id:"",label:"",icon:"📁",desc:""});
@@ -346,7 +367,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
   const showToast = (msg) => setToast({msg});
 
-  // ── SEED DEFAULTS — called if areas are empty ─────────────
+  // ── SEED DEFAULTS — called if areas, goals or templates are empty ─────────────
   useEffect(() => {
     if (areas.length === 0 && user) {
       const defaults = [
@@ -360,7 +381,27 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
         areasApi.list().then(data => setAreas(data.areas || []));
       });
     }
-  }, [areas.length, user]);
+    if (goals.length === 0 && user) {
+        const defaultGoal = { title: "Bootstrap → Thailand", target_amount: 3000, currency: "GBP", category: "income" };
+        goalsApi.create(defaultGoal).then(() => {
+            goalsApi.list().then(data => {
+                setGoals(data.goals || []);
+                if (data.goals?.length) setActiveGoalId(data.goals[0].id);
+            });
+        });
+    }
+    if (templates.length === 0 && user) {
+      const defaults = [
+        { name: "BUIDL Framework", icon: "🚀", category: "software", description: "The core BUIDL framework with all phases and standard folders.", config: { phases: ["BOOTSTRAP","UNLEASH","INNOVATE","DECENTRALIZE","LEARN","SHIP"], folders: STANDARD_FOLDERS.map(f=>f.id) }, is_system: true },
+        { name: "Software Project", icon: "🛠", category: "software", description: "Code-focused project with planning, dev, and testing phases.", config: { phases: ["PLANNING", "DEVELOPMENT", "TESTING", "DEPLOYED"], folders: ["code-modules", "project-artifacts", "qa", "infrastructure", "system"] }, is_system: true },
+        { name: "Content Project", icon: "✍️", category: "creative", description: "Content creation workflow from research to publishing.", config: { phases: ["RESEARCH", "DRAFTING", "REVIEW", "PUBLISHED"], folders: ["content-assets", "design-assets", "marketing", "system"] }, is_system: true },
+        { name: "Blank", icon: "📄", category: "custom", description: "A minimal starting point with only core files.", config: { phases: [], folders: ["system"] }, is_system: true }
+      ];
+      Promise.all(defaults.map(d => templatesApi.create(d))).then(() => {
+        templatesApi.list().then(data => setTemplates(data.templates || []));
+      });
+    }
+  }, [areas.length, goals.length, templates.length, user]);
 
   // ── DERIVED ────────────────────────────────────────────────
   const hub          = projects.find(p=>p.id===hubId);
@@ -521,7 +562,10 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   // ── PROJECT CRUD — persisted ───────────────────────────────
   const createProject=async(form)=>{
     const id=form.name.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"")+"-"+Date.now().toString(36);
-    const proj=makeProject(id,form.name,form.emoji,form.phase,"active",projects.length+1,false,form.desc,"Run Bootstrap Protocol → define scope with agents",[],["new"],3,new Date().toISOString().slice(0,7),0,["dev","strategy"],[]);
+    const template = templates.find(t=>t.id===form.templateId);
+    const phase = template?.config?.phases?.[0] || form.phase || "BOOTSTRAP";
+
+    const proj=makeProject(id,form.name,form.emoji,phase,"active",projects.length+1,false,form.desc,"Run Bootstrap Protocol → define scope with agents",[],["new"],3,new Date().toISOString().slice(0,7),form.incomeTarget||0,["dev","strategy"],[], template?.config);
     proj.areaId = form.areaId || null;
     // Optimistic
     setProjects(prev=>[...prev,proj]);
@@ -831,9 +875,15 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             <input style={{...S.input,width:60}} placeholder="🚀" value={newProjForm.emoji} onChange={e=>setNewProjForm(f=>({...f,emoji:e.target.value}))}/>
             <input style={S.input} placeholder="Project name..." value={newProjForm.name} onChange={e=>setNewProjForm(f=>({...f,name:e.target.value}))} autoFocus/>
           </div>
-          <select style={{...S.sel,marginBottom:8}} value={newProjForm.phase} onChange={e=>setNewProjForm(f=>({...f,phase:e.target.value}))}>
-            {BUIDL_PHASES.map(p=><option key={p}>{p}</option>)}
+          <select style={{...S.sel,marginBottom:8}} value={newProjForm.templateId} onChange={e=>setNewProjForm(f=>({...f,templateId:e.target.value}))}>
+            <option value="">Select Template...</option>
+            {templates.map(t=><option key={t.id} value={t.id}>{t.icon} {t.name}</option>)}
           </select>
+          {(!newProjForm.templateId || templates.find(t=>t.id===newProjForm.templateId)?.config?.phases?.length > 0) && (
+            <select style={{...S.sel,marginBottom:8}} value={newProjForm.phase} onChange={e=>setNewProjForm(f=>({...f,phase:e.target.value}))}>
+                {newProjForm.templateId ? templates.find(t=>t.id===newProjForm.templateId).config.phases.map(p=><option key={p}>{p}</option>) : BUIDL_PHASES.map(p=><option key={p}>{p}</option>)}
+            </select>
+          )}
           <textarea style={{...S.input,height:60,resize:"vertical",marginBottom:8}} placeholder="One sentence description..." value={newProjForm.desc} onChange={e=>setNewProjForm(f=>({...f,desc:e.target.value}))}/>
           <select style={{...S.sel,marginBottom:12}} value={newProjForm.areaId} onChange={e=>setNewProjForm(f=>({...f,areaId:e.target.value}))}>
             <option value="">Assign to Area (Optional)</option>
@@ -1128,6 +1178,26 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                       <span style={{color:count>0?C.blue2:C.dim}}>{count}</span>
                     </div>;
                   })}
+                  <div style={{marginTop:16}}>
+                    <button style={S.btn("ghost")} onClick={async ()=>{
+                        const manifest = JSON.parse(hub.files["manifest.json"] || "{}");
+                        const template = {
+                            name: `${hub.name} Template`,
+                            description: `Extracted from project: ${hub.name}`,
+                            icon: hub.emoji,
+                            config: {
+                                phases: BUIDL_PHASES.includes(hub.phase) ? BUIDL_PHASES : [hub.phase],
+                                folders: Object.keys(hub.files).map(p=>p.split('/')[0]).filter(f=>f && f!=='.gitkeep' && !f.endsWith('.md') && !f.endsWith('.json'))
+                            }
+                        };
+                        try {
+                            await templatesApi.create(template);
+                            showToast("✓ Saved as template");
+                            const data = await templatesApi.list();
+                            setTemplates(data.templates || []);
+                        } catch(e) { showToast("Failed to save template"); }
+                    }}>Save as Template</button>
+                  </div>
                 </div>
               </div>
             )}
