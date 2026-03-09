@@ -12,12 +12,14 @@ node_modules/
 # Logs
 *.log
 npm-debug.log*
+dev_server.log
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
-# Editor
+# Editor files
 .vscode/
 .idea/
 *.swp
+*.swo
