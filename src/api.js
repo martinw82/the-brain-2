@@ -118,6 +118,20 @@ export const goals = {
     del(`${BASE}/api/data?resource=contributions&id=${id}`),
 };
 
+export const templates = {
+  list: () =>
+    get(`${BASE}/api/data?resource=templates`),
+
+  create: (template) =>
+    post(`${BASE}/api/data?resource=templates`, template),
+
+  update: (id, data) =>
+    put(`${BASE}/api/data?resource=templates&id=${id}`, data),
+
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=templates&id=${id}`),
+};
+
 // ── STAGING ───────────────────────────────────────────────────
 export const staging = {
   list: (projectId) =>

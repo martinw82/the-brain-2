@@ -205,3 +205,19 @@ CREATE TABLE IF NOT EXISTS goal_contributions (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_goal_contributions (goal_id, date)
 );
+
+-- ── TEMPLATES ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS templates (
+  id              VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
+  user_id         VARCHAR(36)   DEFAULT NULL, -- NULL means system-wide
+  name            VARCHAR(255)  NOT NULL,
+  description     TEXT,
+  icon            VARCHAR(8)    DEFAULT '📄',
+  category        VARCHAR(32)   DEFAULT 'custom',
+  config          JSON          NOT NULL,
+  is_system       TINYINT(1)    DEFAULT 0,
+  created_at      DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user_templates (user_id, category)
+);

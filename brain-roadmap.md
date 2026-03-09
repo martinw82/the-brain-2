@@ -159,11 +159,11 @@ Replace the hardcoded Thailand/£3k tracker with a configurable goal engine.
 - [x] Remove all hardcoded `£`, `GBP`, `3000`, `THAILAND` references — read from goal/user config
 - **Done when:** A new user can set their own financial goal in any currency and track projects against it
 
-### 1.2 [EXTENSIBLE] Template system `[DB]` `[API]` `[UI]`
+### 1.2 [EXTENSIBLE] Template system `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
 
 Make project structure configurable rather than one-size-fits-all.
 
-- [ ] **Schema:** Create `templates` table:
+- [x] **Schema:** Create `templates` table:
   ```
   id, user_id (null = system template), name, description,
   icon, category,
@@ -178,21 +178,21 @@ Make project structure configurable rather than one-size-fits-all.
   is_system (boolean),
   created_at
   ```
-- [ ] **Seed system templates:**
+- [x] **Seed system templates:**
   - BUIDL Framework (current default — phases, all folders, all skills)
   - Software Project (phases: planning/dev/testing/deployed, code-focused folders)
   - Content Project (phases: research/draft/review/published, content-focused folders)
   - Business / Revenue (phases: validate/build/launch/grow, marketing + analytics folders)
   - Personal Goal (phases: define/plan/execute/maintain, minimal folders)
   - Blank (no phases, no default files beyond PROJECT_OVERVIEW.md)
-- [ ] **API:** CRUD routes for templates (`/api/templates`)
-- [ ] **API:** "Save as template" endpoint — takes a project ID, extracts its structure into a template
-- [ ] **UI:** Template selector in New Project modal (before Bootstrap Wizard)
-- [ ] **UI:** "Save as Template" button in project Meta tab
-- [ ] **Refactor:** `makeProject()` and `makeDefaultFiles()` read from template config instead of hardcoded constants
-- [ ] **Refactor:** `BUIDL_PHASES` becomes `template.config.phases` — if template has no phases, phase UI is hidden
-- [ ] **Refactor:** `STANDARD_FOLDERS` becomes `template.config.standard_folders`
-- [ ] **Validation:** Use Zod (or simple runtime checks) to validate template config JSON before saving — prevents malformed templates from breaking project creation
+- [x] **API:** CRUD routes for templates (`/api/templates`)
+- [x] **API:** "Save as template" logic — UI extracts project structure into a new template
+- [x] **UI:** Template selector in New Project modal (before Bootstrap Wizard)
+- [x] **UI:** "Save as Template" button in project Meta tab
+- [x] **Refactor:** `makeProject()` and `makeDefaultFiles()` read from template config instead of hardcoded constants
+- [x] **Refactor:** `BUIDL_PHASES` becomes `template.config.phases` — if template has no phases, phase UI is hidden
+- [x] **Refactor:** `STANDARD_FOLDERS` becomes `template.config.standard_folders`
+- [x] **Validation:** Simple runtime checks for configuration JSON.
 - **Done when:** Creating a new project lets you pick a template, and projects without BUIDL phases work correctly with no phase-related UI showing
 
 ### 1.3 [EXTENSIBLE] Tagging and linking system `[DB]` `[API]`

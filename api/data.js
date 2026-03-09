@@ -219,6 +219,46 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── TEMPLATES ───────────────────────────────────────────────
+    if (resource === 'templates') {
+      if (req.method === 'GET') {
+        try {
+          const [rows] = await db.execute('SELECT * FROM templates WHERE user_id IS NULL OR user_id = ? ORDER BY is_system DESC, name ASC', [auth.userId]);
+          return ok(res, { templates: rows.map(r => ({ ...r, config: safeJson(r.config, {}) })) });
+        } catch (e) {
+          if (e.message.includes('Table') && e.message.includes('doesn\'t exist')) {
+            return ok(res, { templates: [] });
+          } else {
+            throw e;
+          }
+        }
+      }
+      if (req.method === 'POST') {
+        const { id, name, description, icon, category, config, is_system } = req.body || {};
+        if (!name || !config) return err(res, 'name and config required');
+        const newId = id || crypto.randomUUID();
+        await db.execute('INSERT INTO templates (id, user_id, name, description, icon, category, config, is_system) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [newId, auth.userId, name, description || '', icon || '📄', category || 'custom', JSON.stringify(config), is_system ? 1 : 0]);
+        return ok(res, { success: true, id: newId }, 201);
+      }
+      if (req.method === 'PUT' && resourceId) {
+        const data = req.body || {};
+        const fields = [], values = [];
+        const map = { name:'name', description:'description', icon:'icon', category:'category', config:'config', is_system:'is_system' };
+        for (const [k, col] of Object.entries(map)) {
+            if (data[k] !== undefined) {
+                fields.push(`${col} = ?`);
+                values.push(k === 'config' ? JSON.stringify(data[k]) : data[k]);
+            }
+        }
+        if (fields.length) { values.push(resourceId, auth.userId); await db.execute(`UPDATE templates SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`, values); }
+        return ok(res, { success: true });
+      }
+      if (req.method === 'DELETE' && resourceId) {
+        await db.execute('DELETE FROM templates WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+        return ok(res, { success: true });
+      }
+    }
+
     // ── GOAL CONTRIBUTIONS ──────────────────────────────────────
     if (resource === 'contributions') {
       if (req.method === 'GET') {

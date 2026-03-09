@@ -82,6 +82,22 @@ const migrations = [
           notes TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );`
+    },
+    {
+        version: 7,
+        name: 'create_templates_table',
+        sql: `CREATE TABLE IF NOT EXISTS templates (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) DEFAULT NULL,
+          name VARCHAR(255) NOT NULL,
+          description TEXT,
+          icon VARCHAR(8) DEFAULT '📄',
+          category VARCHAR(32) DEFAULT 'custom',
+          config JSON NOT NULL,
+          is_system TINYINT(1) DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        );`
     }
 ];
 

@@ -227,7 +227,7 @@ At the end of each build session, update this document with:
 ### Phase 1: Foundations
 4. ~~**Life Areas ("Parts")**~~ ✅ Done (2026-03-08)
 5. ~~**Generic goal system**~~ ✅ Done (2026-03-08)
-6. **Template system** (BUIDL phases become optional)
+6. ~~**Template system**~~ ✅ Done (2026-03-08)
 
 ### After that (Phase 0 completion)
 4. ~~Fix rename stale reference bug~~ ✅ Done (2026-03-08)
