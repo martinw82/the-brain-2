@@ -136,7 +136,7 @@ These are features that existed in the original Next.js version or are needed fo
 
 ✅ **Generic financial goal tracking** — DONE (Phase 1.1). `goals` + `goal_contributions` tables, configurable goal in any currency, progress bar reads from DB, goal modal.
 
-**Tagging and linking system** — NEXT (Phase 1.3). `tags`, `entity_tags`, `entity_links` tables + API + UI pills. Foundation for "Things belong to multiple Parts." Without this, projects/ideas/staging items are siloed — you can't see all "health" entities across the system.
+✅ **Tagging and linking system** — DONE (Phase 1.3). `tags`, `entity_tags`, `entity_links` tables + API + UI pills on project/idea/staging cards. QuickTagRow: type to create/search, Enter to attach, × to remove. Persists to DB.
 
 ### Tier 2 — Required for usable daily tool
 
@@ -250,10 +250,13 @@ At the end of each build session, update this document with:
 - ✅ Generic goal system (1.1)
 - ✅ Template system (1.2)
 
+### Completed (cont.)
+- ✅ Tagging & linking system (1.3) — QuickTagRow + TagPill on project/idea/staging, DB tables v8–v10, API handlers, attach/detach/persist
+
 ### Next 3 Actions (in order)
-1. **Phase 1.3 — Tagging & linking system** — DB tables (`tags`, `entity_tags`, `entity_links`), `/api/tags.js`, tag pills on project/idea/staging cards, quick-tag input
-2. **Phase 1.4 — Settings system** — `user_settings` JSON, GET/PUT `/api/settings`, settings modal, theme/font/sidebar prefs persist across devices
-3. **Phase 0.9 complete** — Add prompt caching + token logging to `/api/ai.js`
+1. **Phase 1.4 — Settings system** — `user_settings` JSON, GET/PUT `/api/settings`, settings modal, theme/font/sidebar prefs persist across devices
+2. **Phase 0.9 complete** — Add prompt caching + token logging to `/api/ai.js`
+3. **Phase 2.5 — Daily check-in** — energy, sleep, gut, training fields; gates AI task routing
 
 ### Then (Phase 2 core features)
 4. Daily check-in system (2.5) — energy, focus, sleep, training; gates AI task routing
@@ -314,6 +317,16 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 08/03/26 14:51
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-10 (session 4 — Phase 1.3 bug fix):**
+- Phase 1.3 (Tagging & Linking) code confirmed deployed: migrations v8–v10, API handlers, QuickTagRow/TagPill UI on project/idea/staging cards
+- Version bumped to 6.3 (Phase 1.3 Deployed)
+- **Bug found & fixed:** POST `/api/data?resource=entity-tags` was returning `{success,tag_id}` only — missing `name`, `color`, `entity_type`, `entity_id`. TheBrain.jsx `attachTag()` spreads the response into `entityTags` state; without those fields, `getEntityTags()` (which filters by `entity_type`+`entity_id`) never found the new tag, so tag pills never appeared. Fixed by fetching tag name/color from DB after insert and returning the full record.
+- DB tables confirmed present in production (migrations ran successfully)
+- Phase 1.3 now fully operational — tags attach/detach/persist on projects, ideas, staging items
+- **Next priorities:** Phase 1.4 (Settings system), Phase 0.9 completion (AI prompt caching + token logging)
+- Priority stack updated below
 
 ---
 **Edit 2026-03-09 (session 3 — status review):**
