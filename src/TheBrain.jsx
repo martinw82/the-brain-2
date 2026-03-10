@@ -314,6 +314,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   // entityTags: flat array of {id,tag_id,entity_type,entity_id,name,color,category}
   const [entityTags,setEntityTags]   = useState(initialEntityTags || []);
   const [tagInput,setTagInput]       = useState({}); // {[entityKey]: inputValue}
+  const [selectedTagId,setSelectedTagId] = useState(null); // for Tags brain tab
+
+  // Hub links
+  const [hubLinks,setHubLinks]       = useState([]);
+  const [newLinkForm,setNewLinkForm] = useState({targetType:"project",targetId:"",relationship:"related"});
 
   // UI navigation
   const [view,setView]               = useState("brain");
@@ -539,6 +544,14 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       .catch(() => { /* silently ignore — existing UI still works */ })
       .finally(() => setCommentsLoading(false));
   }, [hubId, hub?.activeFile]);
+
+  // ── HUB LINKS — reload when hub changes ─────────────────────
+  useEffect(() => {
+    if (!hubId) return;
+    linksApi.query('project', hubId)
+      .then(d => setHubLinks(d.links || []))
+      .catch(() => {});
+  }, [hubId]);
 
   // ── NAVIGATION — lazy-loads files on first hub open ────────
   const openHub = async (id, file) => {
@@ -863,8 +876,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   ]);
 
   // ── TAB DEFINITIONS ────────────────────────────────────────
-  const BRAIN_TABS=[{id:"command",label:"⚡ Command"},{id:"projects",label:"🗂 Projects"},{id:"bootstrap",label:"🚀 Bootstrap"},{id:"staging",label:`🌀 Staging${inReview>0?` (${inReview})`:""}`},{id:"skills",label:"🤖 Skills"},{id:"workflows",label:"⚙️ Workflows"},{id:"integrations",label:"🔌 Connect"},{id:"ideas",label:"💡 Ideas"},{id:"ai",label:"💬 AI Coach"},{id:"export",label:"📤 Export"}];
-  const HUB_TABS=[{id:"editor",label:"📝 Editor"},{id:"overview",label:"📊 Overview"},{id:"folders",label:"📁 Folders"},{id:"review",label:`🔄 Review${hub?staging.filter(s=>s.project===hubId&&s.status==="in-review").length>0?` (${staging.filter(s=>s.project===hubId&&s.status==="in-review").length})`:"":""}`},{id:"devlog",label:"📓 Dev Log"},{id:"gantt",label:"📅 Timeline"},{id:"comments",label:"💬 Comments"},{id:"meta",label:"🔧 Meta"}];
+  const BRAIN_TABS=[{id:"command",label:"⚡ Command"},{id:"projects",label:"🗂 Projects"},{id:"bootstrap",label:"🚀 Bootstrap"},{id:"staging",label:`🌀 Staging${inReview>0?` (${inReview})`:""}`},{id:"skills",label:"🤖 Skills"},{id:"workflows",label:"⚙️ Workflows"},{id:"integrations",label:"🔌 Connect"},{id:"ideas",label:"💡 Ideas"},{id:"tags",label:`🏷 Tags${userTags.length>0?` (${userTags.length})`:""}`},{id:"ai",label:"💬 AI Coach"},{id:"export",label:"📤 Export"}];
+  const HUB_TABS=[{id:"editor",label:"📝 Editor"},{id:"overview",label:"📊 Overview"},{id:"folders",label:"📁 Folders"},{id:"review",label:`🔄 Review${hub?staging.filter(s=>s.project===hubId&&s.status==="in-review").length>0?` (${staging.filter(s=>s.project===hubId&&s.status==="in-review").length})`:"":""}`},{id:"devlog",label:"📓 Dev Log"},{id:"gantt",label:"📅 Timeline"},{id:"comments",label:"💬 Comments"},{id:"links",label:`🔗 Links${hubLinks.length>0?` (${hubLinks.length})`:""}`},{id:"meta",label:"🔧 Meta"}];
 
   // ══════════════════════════════════════════════════════════
   // RENDER
@@ -1047,14 +1060,17 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
           <div style={{borderTop:`1px solid ${C.border}`, paddingTop:16}}>
             <span style={S.label()}>Existing Goals</span>
             {goals.map(g => (
-              <div key={g.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:`1px solid ${C.border}`}}>
-                <div style={{fontSize:11}}>{g.title} ({g.currency}{g.current_amount}/{g.target_amount})</div>
-                <button style={{...S.btn("danger"), padding:"2px 6px", fontSize:8}} onClick={async ()=>{
-                  if(!confirm("Delete this goal?")) return;
-                  await goalsApi.delete(g.id);
-                  const updated = await goalsApi.list();
-                  setGoals(updated.goals || []);
-                }}>Delete</button>
+              <div key={g.id} style={{padding:"8px 0", borderBottom:`1px solid ${C.border}`}}>
+                <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4}}>
+                  <div style={{fontSize:11}}>{g.title} ({g.currency}{g.current_amount}/{g.target_amount})</div>
+                  <button style={{...S.btn("danger"), padding:"2px 6px", fontSize:8}} onClick={async ()=>{
+                    if(!confirm("Delete this goal?")) return;
+                    await goalsApi.delete(g.id);
+                    const updated = await goalsApi.list();
+                    setGoals(updated.goals || []);
+                  }}>Delete</button>
+                </div>
+                <QuickTagRow entityType="goal" entityId={g.id}/>
               </div>
             ))}
           </div>
@@ -1091,6 +1107,10 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 <div style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative"}}
                   onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>handleDrop(e,hubId)}>
                   {dragOver&&<div style={{position:"absolute",inset:0,background:"rgba(26,79,214,0.12)",border:`2px dashed ${C.blue}`,borderRadius:8,zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}><span style={{fontSize:14,color:C.blue}}>Drop to stage →</span></div>}
+                  {hub.activeFile&&<div style={{padding:"4px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",background:C.bg}}>
+                    <span style={{fontSize:8,color:C.dim,textTransform:"uppercase",letterSpacing:"0.1em",flexShrink:0}}>tags</span>
+                    <QuickTagRow entityType="file" entityId={`${hubId}/${hub.activeFile}`}/>
+                  </div>}
                   <MarkdownEditor path={hub.activeFile} content={(hub.files||{})[hub.activeFile]||""} onChange={()=>{}} onSave={handleHubSave} saving={saving}/>
                 </div>
               </div>
@@ -1262,6 +1282,82 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                         } catch(e) { showToast("Failed to save template"); }
                     }}>Save as Template</button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {hubTab==="links"&&(
+              <div>
+                <div style={S.card(false)}>
+                  <span style={S.label()}>🔗 Link this project to another entity</span>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"flex-end",marginTop:8}}>
+                    <div>
+                      <span style={S.label()}>Type</span>
+                      <select style={S.sel} value={newLinkForm.targetType} onChange={e=>setNewLinkForm(f=>({...f,targetType:e.target.value,targetId:""}))}>
+                        <option value="project">Project</option>
+                        <option value="idea">Idea</option>
+                        <option value="staging">Staging Item</option>
+                        <option value="goal">Goal</option>
+                      </select>
+                    </div>
+                    <div>
+                      <span style={S.label()}>Entity</span>
+                      <select style={S.sel} value={newLinkForm.targetId} onChange={e=>setNewLinkForm(f=>({...f,targetId:e.target.value}))}>
+                        <option value="">Select...</option>
+                        {newLinkForm.targetType==="project"&&projects.filter(p=>p.id!==hubId).map(p=><option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}
+                        {newLinkForm.targetType==="idea"&&ideas.map(i=><option key={i.id} value={i.id}>{i.title}</option>)}
+                        {newLinkForm.targetType==="staging"&&staging.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                        {newLinkForm.targetType==="goal"&&goals.map(g=><option key={g.id} value={g.id}>{g.title}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <span style={S.label()}>Relationship</span>
+                      <select style={S.sel} value={newLinkForm.relationship} onChange={e=>setNewLinkForm(f=>({...f,relationship:e.target.value}))}>
+                        <option value="related">Related</option>
+                        <option value="parent">Parent of</option>
+                        <option value="child">Child of</option>
+                        <option value="supports">Supports</option>
+                        <option value="blocks">Blocks</option>
+                      </select>
+                    </div>
+                    <button style={S.btn("primary")} onClick={async ()=>{
+                      if(!newLinkForm.targetId){showToast("Select an entity first");return;}
+                      try{
+                        const res = await linksApi.create('project',hubId,newLinkForm.targetType,newLinkForm.targetId,newLinkForm.relationship);
+                        setHubLinks(prev=>[...prev,{id:res.id,source_type:'project',source_id:hubId,target_type:newLinkForm.targetType,target_id:newLinkForm.targetId,relationship:newLinkForm.relationship,created_at:new Date().toISOString()}]);
+                        setNewLinkForm(f=>({...f,targetId:""}));
+                        showToast("✓ Link created");
+                      }catch(e){showToast("Failed to create link");}
+                    }}>Link</button>
+                  </div>
+                </div>
+                <div style={S.card(false)}>
+                  <span style={S.label()}>Existing Links ({hubLinks.length})</span>
+                  {hubLinks.length===0
+                    ? <div style={{fontSize:10,color:C.dim,padding:"8px 0"}}>No links yet. Link this project to related ideas, goals, or other projects.</div>
+                    : hubLinks.map(link=>{
+                        const isSource = link.source_type==='project'&&String(link.source_id)===String(hubId);
+                        const otherType = isSource?link.target_type:link.source_type;
+                        const otherId   = isSource?link.target_id:link.source_id;
+                        const rel       = isSource?link.relationship:`← ${link.relationship}`;
+                        let otherLabel="";
+                        if(otherType==="project"){const p=projects.find(p=>String(p.id)===String(otherId));otherLabel=p?`${p.emoji} ${p.name}`:otherId;}
+                        else if(otherType==="idea"){const i=ideas.find(i=>String(i.id)===String(otherId));otherLabel=i?`💡 ${i.title}`:otherId;}
+                        else if(otherType==="staging"){const s=staging.find(s=>String(s.id)===String(otherId));otherLabel=s?`🌀 ${s.name}`:otherId;}
+                        else if(otherType==="goal"){const g=goals.find(g=>String(g.id)===String(otherId));otherLabel=g?`🎯 ${g.title}`:otherId;}
+                        return <div key={link.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}`}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8,fontSize:10}}>
+                            <span style={{color:C.blue2,textTransform:"capitalize"}}>{rel}</span>
+                            <span style={{color:C.text}}>{otherLabel||otherId}</span>
+                            <span style={S.badge(C.purple)}>{otherType}</span>
+                          </div>
+                          <button style={{...S.btn("danger"),padding:"2px 6px",fontSize:8}} onClick={async ()=>{
+                            await linksApi.delete(link.id);
+                            setHubLinks(prev=>prev.filter(l=>l.id!==link.id));
+                          }}>✕</button>
+                        </div>;
+                      })
+                  }
                 </div>
               </div>
             )}
@@ -1577,6 +1673,53 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 </div>
                 <pre style={{fontSize:8,color:C.dim,background:C.bg,border:`1px solid ${C.border}`,borderRadius:5,padding:12,overflow:"auto",maxHeight:280,lineHeight:1.6,margin:0}}>{buildCtx()}</pre>
               </div>
+            </div>
+          )}
+
+          {mainTab==="tags"&&(
+            <div>
+              <div style={S.card(false)}>
+                <span style={S.label()}>🏷 Tag Cloud</span>
+                {userTags.length===0
+                  ? <div style={{fontSize:10,color:C.dim,padding:"8px 0"}}>No tags yet. Tag a project, idea, staging item, goal, or file to get started.</div>
+                  : <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:6}}>
+                      {userTags.map(t=>{
+                        const count=entityTags.filter(et=>et.tag_id===t.id).length;
+                        const isSel=selectedTagId===t.id;
+                        return <span key={t.id} onClick={()=>setSelectedTagId(isSel?null:t.id)}
+                          style={{padding:"3px 10px",borderRadius:12,border:`1px solid ${isSel?t.color||C.blue:C.border}`,background:isSel?(t.color||C.blue)+"22":"transparent",color:t.color||C.blue,fontSize:10,cursor:"pointer",userSelect:"none"}}>
+                          {t.name} <span style={{fontSize:8,color:C.muted}}>{count}</span>
+                        </span>;
+                      })}
+                    </div>
+                }
+              </div>
+              {selectedTagId&&(()=>{
+                const tag=userTags.find(t=>t.id===selectedTagId);
+                if(!tag)return null;
+                const matches=entityTags.filter(et=>et.tag_id===selectedTagId);
+                const byType={};
+                matches.forEach(et=>{if(!byType[et.entity_type])byType[et.entity_type]=[];byType[et.entity_type].push(et);});
+                const TYPE_LABELS={project:"Projects",idea:"Ideas",staging:"Staging",goal:"Goals",file:"Files"};
+                const renderEntity=(type,et)=>{
+                  if(type==="project"){const p=projects.find(p=>String(p.id)===String(et.entity_id));if(!p)return null;return<div key={et.id} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:`1px solid ${C.border}`,cursor:"pointer"}} onClick={()=>{openHub(p.id);setView("hub");}}><span>{p.emoji}</span><span style={{fontSize:10}}>{p.name}</span><BadgeStatus status={p.status}/></div>;}
+                  if(type==="idea"){const i=ideas.find(i=>String(i.id)===String(et.entity_id));if(!i)return null;return<div key={et.id} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:`1px solid ${C.border}`}}><span style={{fontSize:10}}>💡 {i.title}</span><span style={{fontSize:9,color:C.dim}}>{i.score}/10</span></div>;}
+                  if(type==="staging"){const s=staging.find(s=>String(s.id)===String(et.entity_id));if(!s)return null;const proj=projects.find(p=>p.id===s.project);return<div key={et.id} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:`1px solid ${C.border}`}}><span style={{fontSize:10}}>🌀 {s.name}</span><span style={{fontSize:8,color:C.muted}}>{proj?.emoji} {proj?.name}</span></div>;}
+                  if(type==="goal"){const g=goals.find(g=>String(g.id)===String(et.entity_id));if(!g)return null;return<div key={et.id} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:`1px solid ${C.border}`}}><span style={{fontSize:10}}>🎯 {g.title}</span><span style={{fontSize:8,color:C.muted}}>{g.currency}{g.current_amount}/{g.target_amount}</span></div>;}
+                  if(type==="file"){const[projectId,...rest]=et.entity_id.split("/");const filePath=rest.join("/");const p=projects.find(p=>String(p.id)===String(projectId));return<div key={et.id} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:`1px solid ${C.border}`,cursor:"pointer"}} onClick={()=>{openHub(projectId,filePath);setView("hub");}}><span style={{fontSize:10}}>📝 {filePath}</span><span style={{fontSize:8,color:C.muted}}>{p?.emoji} {p?.name}</span></div>;}
+                  return null;
+                };
+                return<div style={S.card(false)}>
+                  <span style={S.label()}>All entities tagged <span style={{color:tag.color||C.blue}}>{tag.name}</span> ({matches.length})</span>
+                  {matches.length===0&&<div style={{fontSize:10,color:C.dim}}>No entities tagged with this yet.</div>}
+                  {["project","idea","staging","goal","file"].filter(type=>byType[type]).map(type=>(
+                    <div key={type} style={{marginBottom:12}}>
+                      <div style={{fontSize:8,color:C.dim,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4}}>{TYPE_LABELS[type]} ({byType[type].length})</div>
+                      {byType[type].map(et=>renderEntity(type,et))}
+                    </div>
+                  ))}
+                </div>;
+              })()}
             </div>
           )}
 
