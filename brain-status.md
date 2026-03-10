@@ -244,7 +244,7 @@ At the end of each build session, update this document with:
 - ✅ Bootstrap wizard null check (0.6)
 - ✅ Soft deletes on project_files (0.7)
 - ✅ Debounced saves in editor (0.8)
-- ✅ AI rate limiting (0.9 partial — caching + token logging still pending)
+- ✅ AI rate limiting + prompt caching + token logging (0.9 complete)
 - ✅ DB migration versioning
 - ✅ Life Areas / Parts (1.0)
 - ✅ Generic goal system (1.1)
@@ -255,8 +255,8 @@ At the end of each build session, update this document with:
 
 ### Next 3 Actions (in order)
 1. **Phase 1.4 — Settings system** ← CURRENT — `settings` JSON column on `users` table, GET/PUT `resource=settings` in `api/data.js`, settings modal (gear icon in header), font family + font size prefs persist to DB across devices
-2. **Phase 0.9 complete** — Add prompt caching + token logging to `/api/ai.js`
-3. **Phase 2.5 — Daily check-in** — energy, sleep, gut, training fields; gates AI task routing
+2. **Phase 2.5 — Daily check-in** — energy, sleep, gut, training fields; gates AI task routing
+3. **Phase 2.1 — Project import** — BUIDL format, JSON, folder picker
 
 ### Then (Phase 2 core features)
 4. Daily check-in system (2.5) — energy, focus, sleep, training; gates AI task routing
