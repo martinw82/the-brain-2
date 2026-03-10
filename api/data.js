@@ -367,7 +367,9 @@ export default async function handler(req, res) {
           if (!tid) return err(res, 'tag_id or tag_name required');
           const id = crypto.randomUUID();
           await db.execute('INSERT IGNORE INTO entity_tags (id, tag_id, user_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?)', [id, tid, auth.userId, entity_type, entity_id]);
-          return ok(res, { success: true, tag_id: tid }, 201);
+          const [tagRows] = await db.execute('SELECT name, color FROM tags WHERE id = ?', [tid]);
+          const tag = tagRows[0] || {};
+          return ok(res, { id, tag_id: tid, name: tag.name || tag_name, color: tag.color || tag_color || '#3b82f6', entity_type, entity_id, user_id: auth.userId }, 201);
         }
         if (req.method === 'DELETE') {
           // Detach: ?tag_id=X&entity_type=Y&entity_id=Z
