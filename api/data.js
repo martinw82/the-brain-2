@@ -298,6 +298,21 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── SETTINGS ──────────────────────────────────────────────
+    if (resource === 'settings') {
+      if (req.method === 'GET') {
+        const [rows] = await db.execute('SELECT settings FROM users WHERE id = ?', [auth.userId]);
+        let parsed = {};
+        try { parsed = JSON.parse(rows[0]?.settings || '{}'); } catch(_) {}
+        return ok(res, { settings: parsed });
+      }
+      if (req.method === 'PUT') {
+        const settingsJson = JSON.stringify(req.body || {});
+        await db.execute('UPDATE users SET settings = ? WHERE id = ?', [settingsJson, auth.userId]);
+        return ok(res, { success: true });
+      }
+    }
+
     // ── TAGS ──────────────────────────────────────────────────
     if (resource === 'tags') {
       try {

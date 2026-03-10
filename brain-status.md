@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 6.2 (Phase 1 Beta)
+**Version:** 6.4 (Phase 1.3 Complete)
 **Live URL:** the-brain-2.vercel.app
-**Last Updated:** 2026-03-09
-**Status:** Beta — Phase 0 bugs fixed, Phase 1.0–1.2 foundations live, Phase 1.3 next
+**Last Updated:** 2026-03-10
+**Status:** Beta — Phase 1.3 fully complete (all entity types tagged, Tags tab, Links tab); Phase 1.4 (Settings) next
 
 ---
 
@@ -136,7 +136,7 @@ These are features that existed in the original Next.js version or are needed fo
 
 ✅ **Generic financial goal tracking** — DONE (Phase 1.1). `goals` + `goal_contributions` tables, configurable goal in any currency, progress bar reads from DB, goal modal.
 
-✅ **Tagging and linking system** — DONE (Phase 1.3). `tags`, `entity_tags`, `entity_links` tables + API + UI pills on project/idea/staging cards. QuickTagRow: type to create/search, Enter to attach, × to remove. Persists to DB.
+✅ **Tagging and linking system** — DONE (Phase 1.3). `tags`, `entity_tags`, `entity_links` tables + API + UI. Tags on all entity types (projects, ideas, staging, goals, individual files). 🏷 Tags brain tab: tag cloud + cross-entity query. 🔗 Links hub tab: entity relationships (parent/child/supports/blocks/related). QuickTagRow: type to create/search, Enter to attach, × to remove. All persists to DB.
 
 ### Tier 2 — Required for usable daily tool
 
@@ -251,10 +251,10 @@ At the end of each build session, update this document with:
 - ✅ Template system (1.2)
 
 ### Completed (cont.)
-- ✅ Tagging & linking system (1.3) — QuickTagRow + TagPill on project/idea/staging, DB tables v8–v10, API handlers, attach/detach/persist
+- ✅ Tagging & linking system (1.3) — full: QuickTagRow on projects/ideas/staging/goals/files; 🏷 Tags brain tab (cross-entity query); 🔗 Links hub tab (create/view/delete entity relationships); DB tables v8–v10; API handlers; attach/detach/persist
 
 ### Next 3 Actions (in order)
-1. **Phase 1.4 — Settings system** — `user_settings` JSON, GET/PUT `/api/settings`, settings modal, theme/font/sidebar prefs persist across devices
+1. **Phase 1.4 — Settings system** ← CURRENT — `settings` JSON column on `users` table, GET/PUT `resource=settings` in `api/data.js`, settings modal (gear icon in header), font family + font size prefs persist to DB across devices
 2. **Phase 0.9 complete** — Add prompt caching + token logging to `/api/ai.js`
 3. **Phase 2.5 — Daily check-in** — energy, sleep, gut, training fields; gates AI task routing
 
@@ -319,7 +319,21 @@ Last edited 08/03/26 14:51
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
 
 ---
-**Edit 2026-03-10 (session 4 — Phase 1.3 bug fix):**
+**Edit 2026-03-10 (session 5 — Phase 1.3 fully complete, Phase 1.4 starts):**
+- Version bumped to **6.4** (Phase 1.3 Complete)
+- Phase 1.3 scope was broader than previously recorded — full completion includes:
+  - **Goal tagging** — QuickTagRow on each goal in Manage Goals modal (`entity_type='goal'`)
+  - **File tagging** — QuickTagRow in Hub editor header bar for active file (`entity_type='file'`, `entity_id='${projectId}/${filePath}'`)
+  - **🏷 Tags brain tab** — tag cloud with entity counts; click any tag to see ALL entities tagged with it across every type (projects, ideas, staging, goals, files) with click-to-navigate
+  - **🔗 Links hub tab** — per-project: create/view/delete entity relationships (parent/child/supports/blocks/related) linking to projects/ideas/staging/goals; auto-loads when hub opens
+  - **BRAIN_TABS** updated: Tags tab added with count badge
+  - **HUB_TABS** updated: Links tab added with count badge
+- Commit: `72fdfb9` — all Phase 1.3 completion code
+- Phase 1.3 done-condition met: tag "health" on a project → Tags tab → see all entities tagged "health" across every type. Link Project A as parent of Project B via Hub → Links tab.
+- **Phase 1.4 (Settings system) is now next**
+- Priority stack section 9 updated:
+  - Phase 1.3 entry updated to reflect full completion
+  - Phase 1.4 is #1 next action
 - Phase 1.3 (Tagging & Linking) code confirmed deployed: migrations v8–v10, API handlers, QuickTagRow/TagPill UI on project/idea/staging cards
 - Version bumped to 6.3 (Phase 1.3 Deployed)
 - **Bug found & fixed:** POST `/api/data?resource=entity-tags` was returning `{success,tag_id}` only — missing `name`, `color`, `entity_type`, `entity_id`. TheBrain.jsx `attachTag()` spreads the response into `entityTags` state; without those fields, `getEntityTags()` (which filters by `entity_type`+`entity_id`) never found the new tag, so tag pills never appeared. Fixed by fetching tag name/color from DB after insert and returning the full record.

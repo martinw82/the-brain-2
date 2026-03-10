@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, token } from "./api.js";
+import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, token } from "./api.js";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -315,6 +315,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [entityTags,setEntityTags]   = useState(initialEntityTags || []);
   const [tagInput,setTagInput]       = useState({}); // {[entityKey]: inputValue}
   const [selectedTagId,setSelectedTagId] = useState(null); // for Tags brain tab
+  const [userSettings,setUserSettings]   = useState({font:"JetBrains Mono",fontSize:11});
+  const [settingsForm,setSettingsForm]   = useState({font:"JetBrains Mono",fontSize:11});
 
   // Hub links
   const [hubLinks,setHubLinks]       = useState([]);
@@ -552,6 +554,19 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       .then(d => setHubLinks(d.links || []))
       .catch(() => {});
   }, [hubId]);
+
+  // ── USER SETTINGS — load once on login ──────────────────────
+  useEffect(() => {
+    if (!user) return;
+    settingsApi.get()
+      .then(d => {
+        if (d.settings && Object.keys(d.settings).length) {
+          setUserSettings(s => ({...s, ...d.settings}));
+          setSettingsForm(s => ({...s, ...d.settings}));
+        }
+      })
+      .catch(() => {});
+  }, [user?.id]);
 
   // ── NAVIGATION — lazy-loads files on first hub open ────────
   const openHub = async (id, file) => {
@@ -883,7 +898,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   // RENDER
   // ══════════════════════════════════════════════════════════
   return (
-    <div style={S.root}>
+    <div style={{...S.root,fontFamily:`'${userSettings.font}','JetBrains Mono','Fira Code',monospace`,fontSize:userSettings.fontSize}}>
       {toast&&<Toast msg={toast.msg} onDone={()=>setToast(null)}/>}
 
       {/* ── TOP BAR ── */}
@@ -915,6 +930,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             </div>
 
             <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
+              {/* Settings gear */}
+              <button style={{...S.btn("ghost"),padding:"5px 8px",fontSize:14}} title="Settings" onClick={()=>{setSettingsForm({...userSettings});setModal("settings");}}>🔧</button>
               {/* Session timer */}
               <div onClick={()=>{if(!sessionActive)setSessionOn(true);else endSession();}} style={{background:sessionActive?"rgba(16,185,129,0.08)":C.surface,border:`1px solid ${sessionActive?"#10b98140":C.border}`,borderRadius:6,padding:"5px 11px",textAlign:"center",cursor:"pointer"}}>
                 <div style={{fontSize:12,fontWeight:700,color:sessionActive?C.green:"#475569",fontVariantNumeric:"tabular-nums"}}>{sessionActive?fmtTime(sessionSecs):"▶ START"}</div>
@@ -1073,6 +1090,39 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 <QuickTagRow entityType="goal" entityId={g.id}/>
               </div>
             ))}
+          </div>
+        </Modal>
+      )}
+
+      {modal==="settings"&&(
+        <Modal title="⚙ Settings" onClose={()=>setModal(null)} width={420}>
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div>
+              <span style={S.label()}>Font Family</span>
+              <select style={S.sel} value={settingsForm.font} onChange={e=>setSettingsForm(f=>({...f,font:e.target.value}))}>
+                <option value="JetBrains Mono">JetBrains Mono</option>
+                <option value="Fira Code">Fira Code</option>
+                <option value="Courier New">Courier New</option>
+                <option value="monospace">System Monospace</option>
+              </select>
+            </div>
+            <div>
+              <span style={S.label()}>Font Size</span>
+              <select style={S.sel} value={settingsForm.fontSize} onChange={e=>setSettingsForm(f=>({...f,fontSize:Number(e.target.value)}))}>
+                {[11,12,13,14].map(n=><option key={n} value={n}>{n}px</option>)}
+              </select>
+            </div>
+            <div style={{padding:"10px 12px",background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,fontFamily:`'${settingsForm.font}',monospace`,fontSize:settingsForm.fontSize,color:C.muted}}>
+              Preview: THE BRAIN v6 · Wired Edition · Bootstrap → Thailand
+            </div>
+            <button style={S.btn("primary")} onClick={async ()=>{
+              try{
+                await settingsApi.put(settingsForm);
+                setUserSettings({...settingsForm});
+                setModal(null);
+                showToast("✓ Settings saved");
+              }catch(e){showToast("Failed to save settings");}
+            }}>Save Settings</button>
           </div>
         </Modal>
       )}
