@@ -206,6 +206,48 @@ CREATE TABLE IF NOT EXISTS goal_contributions (
   INDEX idx_goal_contributions (goal_id, date)
 );
 
+-- ── TAGS ─────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS tags (
+  id          VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
+  user_id     VARCHAR(36)   NOT NULL,
+  name        VARCHAR(128)  NOT NULL,
+  color       VARCHAR(16)   DEFAULT '#3b82f6',
+  category    VARCHAR(32)   DEFAULT 'custom', -- area/skill/status/custom
+  created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_user_tag (user_id, name),
+  INDEX idx_user_tags (user_id)
+);
+
+-- ── ENTITY TAGS ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS entity_tags (
+  id          VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
+  tag_id      VARCHAR(36)   NOT NULL,
+  user_id     VARCHAR(36)   NOT NULL,
+  entity_type VARCHAR(32)   NOT NULL, -- project/idea/staging/goal
+  entity_id   VARCHAR(64)   NOT NULL,
+  created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_entity_tag (tag_id, entity_type, entity_id),
+  INDEX idx_entity_tags (user_id, entity_type, entity_id)
+);
+
+-- ── ENTITY LINKS ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS entity_links (
+  id              VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
+  user_id         VARCHAR(36)   NOT NULL,
+  source_type     VARCHAR(32)   NOT NULL,
+  source_id       VARCHAR(64)   NOT NULL,
+  target_type     VARCHAR(32)   NOT NULL,
+  target_id       VARCHAR(64)   NOT NULL,
+  relationship    VARCHAR(32)   DEFAULT 'related', -- parent/child/related/blocks/supports
+  created_at      DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_link (user_id, source_type, source_id, target_type, target_id),
+  INDEX idx_entity_links_source (user_id, source_type, source_id),
+  INDEX idx_entity_links_target (user_id, target_type, target_id)
+);
+
 -- ── TEMPLATES ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS templates (
   id              VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),

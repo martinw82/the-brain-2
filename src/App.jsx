@@ -3,7 +3,7 @@
 // Also handles the initial "load all user data from API" on login.
 
 import { useState, useEffect } from "react";
-import { token, auth as authApi, projects as projectsApi, staging as stagingApi, ideas as ideasApi, areas as areasApi, goals as goalsApi, templates as templatesApi } from "./api.js";
+import { token, auth as authApi, projects as projectsApi, staging as stagingApi, ideas as ideasApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi } from "./api.js";
 import AuthScreen from "./AuthScreen.jsx";
 import TheBrain from "./TheBrain.jsx";
 
@@ -39,22 +39,26 @@ export default function App() {
         }
       };
 
-      const [projRes, stagingRes, ideasRes, areasRes, goalsRes, templatesRes] = await Promise.all([
+      const [projRes, stagingRes, ideasRes, areasRes, goalsRes, templatesRes, tagsRes, entityTagsRes] = await Promise.all([
         safeFetch(() => projectsApi.list(), { projects: [] }),
         safeFetch(() => stagingApi.list(), { staging: [] }),
         safeFetch(() => ideasApi.list(), { ideas: [] }),
         safeFetch(() => areasApi.list(), { areas: [] }),
         safeFetch(() => goalsApi.list(), { goals: [] }),
         safeFetch(() => templatesApi.list(), { templates: [] }),
+        safeFetch(() => tagsApi.list(), { tags: [] }),
+        safeFetch(() => tagsApi.listEntityTags(), { entity_tags: [] }),
       ]);
 
       setAppData({
-        projects: projRes.projects || [],
-        staging:  stagingRes.staging || [],
-        ideas:    ideasRes.ideas || [],
-        areas:    areasRes.areas || [],
-        goals:    goalsRes.goals || [],
-        templates: templatesRes.templates || [],
+        projects:    projRes.projects || [],
+        staging:     stagingRes.staging || [],
+        ideas:       ideasRes.ideas || [],
+        areas:       areasRes.areas || [],
+        goals:       goalsRes.goals || [],
+        templates:   templatesRes.templates || [],
+        tags:        tagsRes.tags || [],
+        entityTags:  entityTagsRes.entity_tags || [],
       });
     } catch (e) {
       // Token expired or invalid — clear it
@@ -110,6 +114,8 @@ export default function App() {
       initialAreas={appData?.areas || []}
       initialGoals={appData?.goals || []}
       initialTemplates={appData?.templates || []}
+      initialTags={appData?.tags || []}
+      initialEntityTags={appData?.entityTags || []}
       onLogout={handleLogout}
     />
   );
