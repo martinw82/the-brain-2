@@ -192,6 +192,46 @@ export const search = {
     get(`${BASE}/api/data?resource=search&q=${encodeURIComponent(q)}`),
 };
 
+// ── TAGS ──────────────────────────────────────────────────────
+export const tags = {
+  list: () =>
+    get(`${BASE}/api/data?resource=tags`),
+
+  create: (name, color, category) =>
+    post(`${BASE}/api/data?resource=tags`, { name, color, category }),
+
+  update: (id, data) =>
+    put(`${BASE}/api/data?resource=tags&id=${id}`, data),
+
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=tags&id=${id}`),
+
+  // Entity tag operations
+  listEntityTags: () =>
+    get(`${BASE}/api/data?resource=entity-tags`),
+
+  attach: (tagId, entityType, entityId) =>
+    post(`${BASE}/api/data?resource=entity-tags`, { tag_id: tagId, entity_type: entityType, entity_id: entityId }),
+
+  attachByName: (tagName, entityType, entityId, color) =>
+    post(`${BASE}/api/data?resource=entity-tags`, { tag_name: tagName, tag_color: color, entity_type: entityType, entity_id: entityId }),
+
+  detach: (tagId, entityType, entityId) =>
+    del(`${BASE}/api/data?resource=entity-tags&tag_id=${tagId}&entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}`),
+};
+
+// ── LINKS ─────────────────────────────────────────────────────
+export const links = {
+  query: (entityType, entityId) =>
+    get(`${BASE}/api/data?resource=links&entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}`),
+
+  create: (sourceType, sourceId, targetType, targetId, relationship) =>
+    post(`${BASE}/api/data?resource=links`, { source_type: sourceType, source_id: sourceId, target_type: targetType, target_id: targetId, relationship }),
+
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=links&id=${id}`),
+};
+
 // ── AI ────────────────────────────────────────────────────────
 export const ai = {
   ask: (prompt, system) =>

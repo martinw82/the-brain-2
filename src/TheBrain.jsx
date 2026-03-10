@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, token } from "./api.js";
+import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, tags as tagsApi, links as linksApi, token } from "./api.js";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -26,6 +26,7 @@ const S = {
 
 // ── SMALL COMPONENTS ─────────────────────────────────────────
 const AreaPill=({area,active,onClick})=> <button onClick={onClick} style={{...S.btn(active?"primary":"ghost"),background:active?area.color:C.surface,border:active?`1px solid ${area.color}`:`1px solid ${C.border}`,color:active?"#fff":C.text,fontSize:9,display:"flex",alignItems:"center",gap:4}}><span style={{fontSize:12}}>{area.icon}</span> {area.name}</button>;
+const TagPill=({tag,onRemove})=><span style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:9,padding:"2px 6px",borderRadius:10,background:`${tag.color}22`,color:tag.color,border:`1px solid ${tag.color}55`,letterSpacing:"0.06em",whiteSpace:"nowrap"}}>{tag.name}{onRemove&&<span onClick={e=>{e.stopPropagation();onRemove(tag);}} style={{cursor:"pointer",marginLeft:1,opacity:0.7,fontWeight:700}}>×</span>}</span>;
 const Dots=({n=0,max=5,size=5})=><div style={{display:"flex",gap:3}}>{Array.from({length:max}).map((_,i)=><div key={i} style={{width:size,height:size,borderRadius:"50%",background:i<n?C.blue2:C.border}}/>)}</div>;
 const HealthBar=({score})=>{const col=score>70?C.green:score>40?C.amber:C.red;return <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:60,height:4,background:C.border,borderRadius:2,overflow:"hidden"}}><div style={{width:`${score}%`,height:"100%",background:col,borderRadius:2}}/></div><span style={{fontSize:9,color:col,fontWeight:700}}>{score}</span></div>;};
 const STATUS_MAP={active:{l:"ACTIVE",c:C.green},stalled:{l:"STALLED",c:C.amber},paused:{l:"PAUSED",c:C.purple},done:{l:"DONE",c:C.blue2},idea:{l:"IDEA",c:"#94a3b8"}};
@@ -300,7 +301,7 @@ const buildZipExport=(project)=>{
 // ══════════════════════════════════════════════════════════════
 // MAIN COMPONENT — accepts props from App.jsx (auth gate)
 // ══════════════════════════════════════════════════════════════
-export default function TheBrain({ user, initialProjects=[], initialStaging=[], initialIdeas=[], initialAreas=[], initialGoals=[], initialTemplates=[], onLogout }) {
+export default function TheBrain({ user, initialProjects=[], initialStaging=[], initialIdeas=[], initialAreas=[], initialGoals=[], initialTemplates=[], initialTags=[], initialEntityTags=[], onLogout }) {
 
   // ── STATE ──────────────────────────────────────────────────
   const [projects,setProjects]       = useState(initialProjects.map(p=>({...p,health:calcHealth(p)})));
@@ -309,6 +310,10 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [areas,setAreas]             = useState(initialAreas);
   const [goals,setGoals]             = useState(initialGoals || []);
   const [templates,setTemplates]     = useState(initialTemplates || []);
+  const [userTags,setUserTags]       = useState(initialTags || []);
+  // entityTags: flat array of {id,tag_id,entity_type,entity_id,name,color,category}
+  const [entityTags,setEntityTags]   = useState(initialEntityTags || []);
+  const [tagInput,setTagInput]       = useState({}); // {[entityKey]: inputValue}
 
   // UI navigation
   const [view,setView]               = useState("brain");
@@ -340,6 +345,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [newIdea,setNewIdea]         = useState("");
   const [newStaging,setNewStaging]   = useState({name:"",tag:"IDEA_",project:initialProjects[0]?.id||"",notes:""});
   const [newGoalForm,setNewGoalForm] = useState({title:"",target_amount:3000,currency:"GBP",timeframe:"monthly",category:"income"});
+  const [activeGoalId,setActiveGoalId] = useState(initialGoals?.[0]?.id || null);
   const [showInt,setShowInt]         = useState(null);
   const [dragOver,setDragOver]       = useState(false);
   const [searchQ,setSearchQ]         = useState("");
@@ -366,6 +372,64 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [commentsLoading, setCommentsLoading] = useState(false); // comments loading indicator
 
   const showToast = (msg) => setToast({msg});
+
+  // ── TAG HELPERS ───────────────────────────────────────────
+  const getEntityTags = (type, id) =>
+    entityTags.filter(et => et.entity_type === type && String(et.entity_id) === String(id));
+
+  const attachTag = async (entityType, entityId, tagName, color="#3b82f6") => {
+    try {
+      const res = await tagsApi.attachByName(tagName.trim(), entityType, entityId, color);
+      setEntityTags(prev => [...prev.filter(et => !(et.tag_id===res.tag_id&&et.entity_type===entityType&&String(et.entity_id)===String(entityId))), res]);
+      setUserTags(prev => prev.find(t=>t.id===res.tag_id) ? prev : [...prev, {id:res.tag_id,name:res.name,color:res.color}]);
+    } catch(e) { showToast("Failed to attach tag"); }
+  };
+
+  const detachTag = async (entityType, entityId, tagId) => {
+    try {
+      await tagsApi.detach(tagId, entityType, entityId);
+      setEntityTags(prev => prev.filter(et => !(et.tag_id===tagId&&et.entity_type===entityType&&String(et.entity_id)===String(entityId))));
+    } catch(e) { showToast("Failed to remove tag"); }
+  };
+
+  const QuickTagRow = ({entityType, entityId}) => {
+    const key = `${entityType}:${entityId}`;
+    const tags = getEntityTags(entityType, entityId);
+    const inputVal = tagInput[key] || "";
+    const suggestions = inputVal.length >= 1
+      ? userTags.filter(t => t.name.toLowerCase().includes(inputVal.toLowerCase()) && !tags.find(et=>et.tag_id===t.id))
+      : [];
+    return (
+      <div style={{display:"flex",flexWrap:"wrap",gap:3,alignItems:"center",marginTop:4}}>
+        {tags.map(t=><TagPill key={t.id} tag={t} onRemove={()=>detachTag(entityType,entityId,t.tag_id)}/>)}
+        <div style={{position:"relative",display:"inline-flex"}}>
+          <input
+            style={{...S.input,width:90,padding:"1px 5px",fontSize:9,height:18}}
+            placeholder="+ tag"
+            value={inputVal}
+            onChange={e=>setTagInput(prev=>({...prev,[key]:e.target.value}))}
+            onKeyDown={e=>{
+              if(e.key==="Enter"&&inputVal.trim()){
+                attachTag(entityType,entityId,inputVal.trim());
+                setTagInput(prev=>({...prev,[key]:""}));
+                e.preventDefault();
+              }
+            }}
+          />
+          {suggestions.length>0&&(
+            <div style={{position:"absolute",top:20,left:0,zIndex:50,background:C.surface,border:`1px solid ${C.border}`,borderRadius:4,minWidth:120}}>
+              {suggestions.slice(0,5).map(t=>(
+                <div key={t.id} style={{padding:"3px 8px",fontSize:9,cursor:"pointer",color:t.color}}
+                  onMouseDown={e=>{e.preventDefault();attachTag(entityType,entityId,t.name,t.color);setTagInput(prev=>({...prev,[key]:""}))}}>
+                  {t.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // ── SEED DEFAULTS — called if areas, goals or templates are empty ─────────────
   useEffect(() => {
@@ -1303,6 +1367,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   </div>
                   <div style={{fontSize:10,color:C.muted,lineHeight:1.5,marginBottom:4}}>{p.desc}</div>
                   <div style={{fontSize:10,color:C.green}}>→ {p.nextAction}</div>
+                  <QuickTagRow entityType="project" entityId={p.id}/>
                 </div>
               ))}
               {projects.length===0&&<div style={{fontSize:11,color:C.dim,textAlign:"center",padding:"40px 0"}}>No projects yet. Create your first one above.</div>}
@@ -1382,7 +1447,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                         <span style={{fontSize:8,color:C.muted}}>{proj?.emoji} {proj?.name} · {item.added}</span>
                       </div>
                       {item.notes&&<div style={{fontSize:9,color:C.muted,marginBottom:5}}>{item.notes}</div>}
-                      <div style={{display:"flex",gap:4}}>
+                      <QuickTagRow entityType="staging" entityId={item.id}/>
+                      <div style={{display:"flex",gap:4,marginTop:4}}>
                         {["approved","rejected","deferred"].filter(s=>s!==sk).map(s=>(
                           <button key={s} style={{...S.btn(s==="approved"?"success":s==="rejected"?"danger":"ghost"),padding:"2px 7px",fontSize:8}} onClick={()=>updateStagingStatus(item.id,s)}>{REVIEW_STATUSES[s].icon} {s}</button>
                         ))}
@@ -1470,7 +1536,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 <div key={idea.id} style={{...S.card(false),display:"flex",alignItems:"center",gap:10}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:11,color:C.text}}>{idea.title}</div>
-                    <div style={{display:"flex",gap:3,marginTop:3}}>{(idea.tags||[]).map(t=><span key={t} style={{fontSize:8,padding:"1px 5px",borderRadius:8,background:C.border,color:C.muted}}>{t}</span>)}<span style={{fontSize:8,padding:"1px 5px",borderRadius:8,background:C.border,color:C.muted}}>{idea.added}</span></div>
+                    <div style={{display:"flex",gap:3,marginTop:3,flexWrap:"wrap",alignItems:"center"}}><QuickTagRow entityType="idea" entityId={idea.id}/><span style={{fontSize:8,padding:"1px 5px",borderRadius:8,background:C.border,color:C.muted}}>{idea.added}</span></div>
                   </div>
                   <div style={{fontSize:15,fontWeight:700,color:idea.score>=7?C.green:idea.score>=5?C.amber:C.red}}>{idea.score}/10</div>
                 </div>

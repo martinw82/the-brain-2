@@ -298,6 +298,122 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── TAGS ──────────────────────────────────────────────────
+    if (resource === 'tags') {
+      try {
+        if (req.method === 'GET') {
+          const [rows] = await db.execute('SELECT * FROM tags WHERE user_id = ? ORDER BY name ASC', [auth.userId]);
+          return ok(res, { tags: rows });
+        }
+        if (req.method === 'POST') {
+          const { name, color, category } = req.body || {};
+          if (!name?.trim()) return err(res, 'name required');
+          // Upsert — return existing tag if name already exists
+          const [existing] = await db.execute('SELECT * FROM tags WHERE user_id = ? AND name = ?', [auth.userId, name.trim()]);
+          if (existing.length) return ok(res, { success: true, id: existing[0].id, tag: existing[0] }, 200);
+          const id = crypto.randomUUID();
+          await db.execute('INSERT INTO tags (id, user_id, name, color, category) VALUES (?, ?, ?, ?, ?)', [id, auth.userId, name.trim(), color || '#3b82f6', category || 'custom']);
+          return ok(res, { success: true, id, tag: { id, user_id: auth.userId, name: name.trim(), color: color || '#3b82f6', category: category || 'custom' } }, 201);
+        }
+        if (req.method === 'PUT' && resourceId) {
+          const { name, color, category } = req.body || {};
+          const fields = [], values = [];
+          if (name) { fields.push('name = ?'); values.push(name.trim()); }
+          if (color) { fields.push('color = ?'); values.push(color); }
+          if (category) { fields.push('category = ?'); values.push(category); }
+          if (fields.length) { values.push(resourceId, auth.userId); await db.execute(`UPDATE tags SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`, values); }
+          return ok(res, { success: true });
+        }
+        if (req.method === 'DELETE' && resourceId) {
+          await db.execute('DELETE FROM entity_tags WHERE tag_id = ? AND user_id = ?', [resourceId, auth.userId]);
+          await db.execute('DELETE FROM tags WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+          return ok(res, { success: true });
+        }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) return ok(res, { tags: [] });
+        throw e;
+      }
+    }
+
+    // ── ENTITY TAGS ───────────────────────────────────────────
+    if (resource === 'entity-tags') {
+      try {
+        if (req.method === 'GET') {
+          // List all entity_tags for this user (joined with tag data)
+          const [rows] = await db.execute(
+            `SELECT et.id, et.tag_id, et.entity_type, et.entity_id, et.created_at,
+                    t.name, t.color, t.category
+             FROM entity_tags et JOIN tags t ON t.id = et.tag_id
+             WHERE et.user_id = ? ORDER BY et.entity_type, et.entity_id, t.name`,
+            [auth.userId]
+          );
+          return ok(res, { entity_tags: rows });
+        }
+        if (req.method === 'POST') {
+          // Attach tag to entity — body: { tag_id OR tag_name, entity_type, entity_id }
+          const { tag_id, tag_name, tag_color, entity_type, entity_id } = req.body || {};
+          if (!entity_type || !entity_id) return err(res, 'entity_type and entity_id required');
+          let tid = tag_id;
+          if (!tid && tag_name) {
+            // Auto-create tag if not found
+            const [existing] = await db.execute('SELECT id FROM tags WHERE user_id = ? AND name = ?', [auth.userId, tag_name.trim()]);
+            if (existing.length) {
+              tid = existing[0].id;
+            } else {
+              tid = crypto.randomUUID();
+              await db.execute('INSERT INTO tags (id, user_id, name, color, category) VALUES (?, ?, ?, ?, ?)', [tid, auth.userId, tag_name.trim(), tag_color || '#3b82f6', 'custom']);
+            }
+          }
+          if (!tid) return err(res, 'tag_id or tag_name required');
+          const id = crypto.randomUUID();
+          await db.execute('INSERT IGNORE INTO entity_tags (id, tag_id, user_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?)', [id, tid, auth.userId, entity_type, entity_id]);
+          return ok(res, { success: true, tag_id: tid }, 201);
+        }
+        if (req.method === 'DELETE') {
+          // Detach: ?tag_id=X&entity_type=Y&entity_id=Z
+          const { tag_id: tid, entity_type, entity_id } = req.query;
+          if (!tid || !entity_type || !entity_id) return err(res, 'tag_id, entity_type, entity_id required');
+          await db.execute('DELETE FROM entity_tags WHERE tag_id = ? AND entity_type = ? AND entity_id = ? AND user_id = ?', [tid, entity_type, entity_id, auth.userId]);
+          return ok(res, { success: true });
+        }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) return ok(res, { entity_tags: [] });
+        throw e;
+      }
+    }
+
+    // ── ENTITY LINKS ──────────────────────────────────────────
+    if (resource === 'links') {
+      try {
+        if (req.method === 'GET') {
+          // Get all links for an entity: ?entity_type=X&entity_id=Y
+          const { entity_type, entity_id } = req.query;
+          if (!entity_type || !entity_id) return err(res, 'entity_type and entity_id required');
+          const [rows] = await db.execute(
+            `SELECT * FROM entity_links WHERE user_id = ? AND (
+              (source_type = ? AND source_id = ?) OR (target_type = ? AND target_id = ?)
+            ) ORDER BY created_at DESC`,
+            [auth.userId, entity_type, entity_id, entity_type, entity_id]
+          );
+          return ok(res, { links: rows });
+        }
+        if (req.method === 'POST') {
+          const { source_type, source_id, target_type, target_id, relationship } = req.body || {};
+          if (!source_type || !source_id || !target_type || !target_id) return err(res, 'source and target required');
+          const id = crypto.randomUUID();
+          await db.execute('INSERT IGNORE INTO entity_links (id, user_id, source_type, source_id, target_type, target_id, relationship) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, auth.userId, source_type, source_id, target_type, target_id, relationship || 'related']);
+          return ok(res, { success: true, id }, 201);
+        }
+        if (req.method === 'DELETE' && resourceId) {
+          await db.execute('DELETE FROM entity_links WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+          return ok(res, { success: true });
+        }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) return ok(res, { links: [] });
+        throw e;
+      }
+    }
+
     // ── SEARCH ────────────────────────────────────────────────
     if (resource === 'search') {
       if (!q?.trim()) return ok(res, { results: [] });

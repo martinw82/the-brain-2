@@ -98,6 +98,46 @@ const migrations = [
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         );`
+    },
+    {
+        version: 8,
+        name: 'create_tags_table',
+        sql: `CREATE TABLE IF NOT EXISTS tags (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          name VARCHAR(128) NOT NULL,
+          color VARCHAR(16) DEFAULT '#3b82f6',
+          category VARCHAR(32) DEFAULT 'custom',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );`
+    },
+    {
+        version: 9,
+        name: 'create_entity_tags_table',
+        sql: `CREATE TABLE IF NOT EXISTS entity_tags (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          tag_id VARCHAR(36) NOT NULL,
+          user_id VARCHAR(36) NOT NULL,
+          entity_type VARCHAR(32) NOT NULL,
+          entity_id VARCHAR(64) NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY unique_entity_tag (tag_id, entity_type, entity_id)
+        );`
+    },
+    {
+        version: 10,
+        name: 'create_entity_links_table',
+        sql: `CREATE TABLE IF NOT EXISTS entity_links (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          source_type VARCHAR(32) NOT NULL,
+          source_id VARCHAR(64) NOT NULL,
+          target_type VARCHAR(32) NOT NULL,
+          target_id VARCHAR(64) NOT NULL,
+          relationship VARCHAR(32) DEFAULT 'related',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY unique_link (user_id, source_type, source_id, target_type, target_id)
+        );`
     }
 ];
 
