@@ -138,6 +138,11 @@ const migrations = [
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           UNIQUE KEY unique_link (user_id, source_type, source_id, target_type, target_id)
         );`
+    },
+    {
+        version: 11,
+        name: 'add_settings_to_users',
+        sql: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS settings TEXT DEFAULT NULL;'
     }
 ];
 
