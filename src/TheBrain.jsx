@@ -931,8 +931,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
             <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
               {/* Settings gear */}
-              <button style={{...S.btn("ghost"),padding:"5px 8px",fontSize:13}} title="Settings" onClick={()=>{setSettingsForm({...userSettings});setModal("settings");}}>⚙</button>
-              {/* Session timer */}
+              <button style={{...S.btn("ghost"),padding:"5px 8px",fontSize:13}} title="Settings" onClick={...}>⚙️</button>
+            {/* Session timer */}
               <div onClick={()=>{if(!sessionActive)setSessionOn(true);else endSession();}} style={{background:sessionActive?"rgba(16,185,129,0.08)":C.surface,border:`1px solid ${sessionActive?"#10b98140":C.border}`,borderRadius:6,padding:"5px 11px",textAlign:"center",cursor:"pointer"}}>
                 <div style={{fontSize:12,fontWeight:700,color:sessionActive?C.green:"#475569",fontVariantNumeric:"tabular-nums"}}>{sessionActive?fmtTime(sessionSecs):"▶ START"}</div>
                 <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>{sessionActive?"End & Log":"Session"}</div>
