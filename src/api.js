@@ -388,6 +388,16 @@ export const settings = {
   put: (data) => put(`${BASE}/api/data?resource=settings`, data),
 };
 
+// ── DAILY CHECKINS (Phase 2.5) ────────────────────────────────
+export const dailyCheckins = {
+  save: (checkin) =>
+    post(`${BASE}/api/data?resource=daily-checkins`, checkin),
+  get: (date) =>
+    get(`${BASE}/api/data?resource=daily-checkins&date=${date}`),
+  getRecent: (days = 7) =>
+    get(`${BASE}/api/data?resource=daily-checkins&days=${days}`),
+};
+
 // ── AI ────────────────────────────────────────────────────────
 export const ai = {
   ask: (prompt, system) =>

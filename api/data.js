@@ -538,6 +538,74 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── DAILY CHECKINS (Phase 2.5) ────────────────────────────
+    if (resource === 'daily-checkins') {
+      const { date, days } = req.query;
+
+      if (req.method === 'GET') {
+        // Get single date or range of dates
+        if (date) {
+          // Get specific date
+          const [rows] = await db.execute(
+            'SELECT * FROM daily_checkins WHERE user_id = ? AND date = ?',
+            [auth.userId, date]
+          );
+          return ok(res, { checkin: rows[0] || null });
+        } else if (days) {
+          // Get last N days
+          const numDays = parseInt(days) || 7;
+          const [rows] = await db.execute(
+            `SELECT * FROM daily_checkins WHERE user_id = ? ORDER BY date DESC LIMIT ?`,
+            [auth.userId, numDays]
+          );
+          return ok(res, { checkins: rows });
+        } else {
+          // Get all
+          const [rows] = await db.execute(
+            'SELECT * FROM daily_checkins WHERE user_id = ? ORDER BY date DESC',
+            [auth.userId]
+          );
+          return ok(res, { checkins: rows });
+        }
+      }
+
+      if (req.method === 'POST') {
+        const { date: checkDate, sleep_hours, energy_level, gut_symptoms, training_done, notes } = req.body || {};
+        if (!checkDate) return err(res, 'date required');
+
+        const id = crypto.randomUUID();
+        try {
+          await db.execute(
+            `INSERT INTO daily_checkins (id, user_id, date, sleep_hours, energy_level, gut_symptoms, training_done, notes)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, auth.userId, checkDate, sleep_hours || null, energy_level || null, gut_symptoms || null, training_done || 0, notes || null]
+          );
+          return ok(res, { success: true, id }, 201);
+        } catch (e) {
+          // Handle duplicate key (upsert): update instead
+          if (e.code === 'ER_DUP_ENTRY') {
+            await db.execute(
+              `UPDATE daily_checkins SET sleep_hours = ?, energy_level = ?, gut_symptoms = ?, training_done = ?, notes = ?, updated_at = NOW()
+               WHERE user_id = ? AND date = ?`,
+              [sleep_hours || null, energy_level || null, gut_symptoms || null, training_done || 0, notes || null, auth.userId, checkDate]
+            );
+            return ok(res, { success: true, updated: true });
+          }
+          throw e;
+        }
+      }
+
+      if (req.method === 'PUT' && resourceId) {
+        const { sleep_hours, energy_level, gut_symptoms, training_done, notes } = req.body || {};
+        await db.execute(
+          `UPDATE daily_checkins SET sleep_hours = ?, energy_level = ?, gut_symptoms = ?, training_done = ?, notes = ?, updated_at = NOW()
+           WHERE id = ? AND user_id = ?`,
+          [sleep_hours || null, energy_level || null, gut_symptoms || null, training_done || 0, notes || null, resourceId, auth.userId]
+        );
+        return ok(res, { success: true });
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e);
