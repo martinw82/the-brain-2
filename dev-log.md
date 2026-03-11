@@ -4,6 +4,33 @@
 
 ---
 
+## Session 036 — 2026-03-11
+**Branch:** `session-036-mermaid-diagrams`
+**Task:** Phase 3.2 — Mermaid Diagram Rendering
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented Mermaid diagram rendering in markdown preview with dark theme support.
+
+**CDN Integration (`index.html`):**
+- Added `mermaid@10` CDN script
+
+**UI Changes (`src/TheBrain.jsx`):**
+- `MermaidRenderer` component: Renders mermaid charts as SVG; dark theme configuration; error handling with friendly messages; uses `window.mermaid.render()` API
+- `MarkdownPreview` component: Splits markdown content by mermaid blocks; renders HTML segments with `renderMd()`; renders mermaid blocks with `MermaidRenderer`; interleaves content in order
+- `MarkdownEditor` updates: Shows MERMAID badge when file contains `\`\`\`mermaid`; Uses `MarkdownPreview` in preview mode
+
+**Template:**
+- Default `system/DEPENDENCY_GRAPH.md` with 3 example diagrams:
+  1. System architecture (flowchart TB)
+  2. Data flow (sequenceDiagram)
+  3. Project dependencies (graph LR)
+
+### Done When
+✅ Mermaid diagrams render visually in markdown preview
+
+---
+
 ## Session 035 — 2026-03-11
 **Branch:** `session-035-ai-metadata-suggestions`
 **Task:** Phase 3.1 — AI Metadata Suggestions
