@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 6.4 (Phase 1.3 Complete)
+**Version:** 6.5 (Phase 1 Complete)
 **Live URL:** the-brain-2.vercel.app
-**Last Updated:** 2026-03-10
-**Status:** Beta — Phase 1.3 fully complete (all entity types tagged, Tags tab, Links tab); Phase 1.4 (Settings) next
+**Last Updated:** 2026-03-11
+**Status:** Beta — All Phase 1 complete (1.0–1.4 + Phase 0 fixes); Phase 2 starting — next is 2.1 (Project import), following roadmap order through 2.10
 
 ---
 
@@ -43,7 +43,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 ## 3. Database Schema (14 tables)
 
 **Core (original):**
-- **users** — email, password_hash, name, goal, monthly_target, currency, timezone
+- **users** — email, password_hash, name, goal, monthly_target, currency, timezone, `settings` JSON (theme, font_family, font_size, sidebar_width, default_template_id, etc.)
 - **projects** — slug IDs, phase, priority, health, momentum, revenue_ready, blockers/tags/skills (JSON), active_file, `life_area_id` FK
 - **project_custom_folders** — per-project folder structure
 - **project_files** — LONGTEXT content, full-text search indexed, `deleted_at` for soft deletes
@@ -103,6 +103,8 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **Life Areas (1.0)** — 5 default areas seeded, area health = weighted project average, filter pills in Command Centre, assignment in project create/overview
 - **Goals (1.1)** — configurable goal (any currency/target/timeframe), progress bar reads from DB, goal modal, contributions tracked
 - **Templates (1.2)** — 6 system templates (BUIDL, Software, Content, Business, Personal Goal, Blank), template picker in New Project modal, "Save as Template" in Meta tab, project phases/folders read from template config
+- **Tagging & Linking (1.3)** — `tags`/`entity_tags`/`entity_links` tables + API + UI; QuickTagRow on projects/ideas/staging/goals/files; 🏷 Tags brain tab (cross-entity query); 🔗 Links hub tab (create/view/delete entity relationships)
+- **Settings (1.4)** — `settings` JSON column on `users`, GET/PUT `/api/settings`, settings modal (⚙ gear icon in header), font family + font size persist to DB across devices, localStorage cache for speed
 
 ---
 
@@ -148,7 +150,7 @@ These are features that existed in the original Next.js version or are needed fo
 
 **Offline mode / localStorage fallback.** The old version worked without auth via localStorage. V6 requires DB connection. For a tool you'll use daily (including on phone with bad signal), offline resilience is essential.
 
-**Settings UI.** The old version had theme (light/dark/system), font selection, editor font size, sidebar width. V6 is hardcoded dark mode with no settings.
+✅ **Settings UI (1.4)** — DONE. Settings modal with font family + size, persists to DB via `settings` JSON column on users. Theme/sidebar-width extension deferred to Phase 2 (not blocking anything).
 
 **Mobile responsive layout.** V6 is desktop-first with no responsive breakpoints. Needs to work on phone for low-energy days (the agent ruleset routes phone-only tasks on those days).
 
@@ -235,7 +237,7 @@ At the end of each build session, update this document with:
 
 ## 9. Current Priority Stack
 
-### Completed (Phase 0 + Phase 1.0–1.2)
+### Completed (Phase 0)
 - ✅ File loading from DB (0.1)
 - ✅ Comments loading from DB (0.2)
 - ✅ AI Coach proxy — key server-side (0.3)
@@ -244,41 +246,52 @@ At the end of each build session, update this document with:
 - ✅ Bootstrap wizard null check (0.6)
 - ✅ Soft deletes on project_files (0.7)
 - ✅ Debounced saves in editor (0.8)
-- ✅ AI rate limiting (0.9 partial — caching + token logging still pending)
-- ✅ DB migration versioning
+- ⚠️ AI rate limiting (0.9 PARTIAL) — rate limiting ✅, frontend error display ✅; prompt caching + token logging still TODO
+- ✅ DB migration versioning (schema_migrations table)
+
+### Completed (Phase 1)
 - ✅ Life Areas / Parts (1.0)
 - ✅ Generic goal system (1.1)
 - ✅ Template system (1.2)
+- ✅ Tagging & linking system (1.3) — QuickTagRow on projects/ideas/staging/goals/files; 🏷 Tags brain tab; 🔗 Links hub tab; DB tables v8–v10; API handlers; attach/detach/persist
+- ✅ Settings system (1.4) — `settings` JSON on users, GET/PUT API, settings modal, font family + size, localStorage cache
 
-### Completed (cont.)
-- ✅ Tagging & linking system (1.3) — full: QuickTagRow on projects/ideas/staging/goals/files; 🏷 Tags brain tab (cross-entity query); 🔗 Links hub tab (create/view/delete entity relationships); DB tables v8–v10; API handlers; attach/detach/persist
+### Next Up — Phase 2 (roadmap order)
+1. **Phase 2.1 — Project import** ← NEXT — BUIDL format paste, JSON file upload, folder picker (File System Access API); wire existing `importText`/`importError` state to new UI
+2. **Phase 2.2 — Image & binary file handling** — image viewer in editor pane, binary detection, base64 upload, download link for non-text files
+3. **Phase 2.3 — Metadata editor panel** — per-file category/status/tags/custom fields, collapsible right panel, JSON column on project_files
 
-### Next 3 Actions (in order)
-1. **Phase 1.4 — Settings system** ← CURRENT — `settings` JSON column on `users` table, GET/PUT `resource=settings` in `api/data.js`, settings modal (gear icon in header), font family + font size prefs persist to DB across devices
-2. **Phase 0.9 complete** — Add prompt caching + token logging to `/api/ai.js`
-3. **Phase 2.5 — Daily check-in** — energy, sleep, gut, training fields; gates AI task routing
+### Then (Phase 2 continued — in order)
+4. **Phase 2.4 — Offline mode / localStorage fallback** — cache full state to localStorage, DB-first with offline fallback, sync on reconnect
+5. **Phase 2.5 — Daily check-in system** — `daily_checkins` table, energy/sleep/gut/training fields, check-in prompt on first visit of day, today's state in top bar; gates AI task routing
+6. **Phase 2.6 — Training log** — `training_log` table, quick-log UI, weekly count, correlation with check-in energy scores
+7. **Phase 2.7 — Outreach tracking** — `outreach_log` table, daily outreach indicator, AI coach enforces mandatory minimum
+8. **Phase 2.8 — Agent system prompt upgrade + context compression** — `agent-config.json`, dynamic system prompt from real data (check-in + goals + projects + rules), state-based task routing, token budget < 4k
+9. **Phase 2.9 — Weekly review automation** — `/api/review/weekly` aggregation, review dashboard UI, AI-generated analysis, persists to sessions/reviews table
+10. **Phase 2.10 — Drift detection** — background checks on training/outreach/energy/session minimums, alerts in Command Centre, included in AI coach context
 
-### Then (Phase 2 core features)
-4. Daily check-in system (2.5) — energy, focus, sleep, training; gates AI task routing
-5. Training log (2.6) — weekly count, correlation with energy
-6. Outreach tracking (2.7) — daily mandatory minimum
-7. Agent system prompt upgrade + context compression (2.8)
-8. Project import (2.1) — BUIDL format, JSON, folder picker
-9. Offline mode / localStorage fallback (2.4)
-10. Weekly review automation (2.9)
+### Parking Lot (after Phase 2 — not now)
+**Phase 3:**
+- AI metadata suggestions (3.1) — auto-suggest tags/category on file save
+- Mermaid diagram rendering (3.2)
+- Search improvements — Cmd+K, cross-project, highlighted excerpts (3.3)
+- Local file system sync via File System Access API (3.4)
+- File validity checker — missing required files, orphaned entries (3.5)
+- Script execution — /tools/ folder, sandboxed JS/Python/shell (3.6)
 
-### Parking Lot (good ideas, not now)
-- Image handling in editor (Phase 2.2)
-- Metadata editor panel (Phase 2.3)
-- Mermaid diagram rendering (Phase 3.2)
-- Mobile responsive layout (Phase 4.1)
-- Settings UI full (Phase 1.4 → extend later)
-- Local file system sync (Phase 3.4)
-- Script execution (Phase 3.6)
-- Integration connectors actually working (Phase 4.3)
-- Onboarding flow for new users (Phase 4.2)
+**Phase 4:**
+- Mobile responsive layout (4.1)
+- Onboarding flow for new users (4.2)
+- Integration connectors actually working — GitHub, Netlify, Farcaster (4.3)
+- Notification / reminder system — in-app bell, drift alerts, training reminders (4.4)
+
+**Phase 5 / Future:**
 - Monaco/CodeMirror editor upgrade
 - Vector embeddings for semantic search
+- Real-time collaboration (CRDTs)
+- Version history per file with revert
+- Plugin system
+- Full GitHub two-way sync
 - Push notifications / email digests
 - Notion/Todoist/Linear importers
 
@@ -317,6 +330,19 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 08/03/26 14:51
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 6 — docs alignment: Phase 1 complete, Phase 2 roadmap corrected):**
+- Version bumped to **6.5** (Phase 1 Complete)
+- Phase 1.4 (Settings) confirmed complete — added to completed list, DB schema, What's Built, Missing Features sections
+- 0.9 corrected from "complete" to "PARTIAL" — rate limiting done, prompt caching + token logging still TODO
+- **Priority Stack completely rewritten to match brain-roadmap.md:**
+  - All Phase 2 tasks now listed in roadmap order (2.1 → 2.2 → 2.3 → 2.4 → 2.5 → 2.6 → 2.7 → 2.8 → 2.9 → 2.10)
+  - 2.2 (Image handling) and 2.3 (Metadata editor) were wrongly in Parking Lot — moved back into active Phase 2 queue
+  - Phase 2.10 (Drift detection) was missing entirely — added
+  - Previous "Then" section had 2.5 before 2.1 and was missing 2.2, 2.3, 2.10 — fixed
+- **Parking Lot restructured** by phase (3, 4, 5/Future) — removed all active Phase 2 items from it, removed stale "Settings UI full" entry (1.4 done)
+- Status doc now accurately mirrors brain-roadmap.md build order cheat sheet
 
 ---
 **Edit 2026-03-10 (session 5 — Phase 1.3 fully complete, Phase 1.4 starts):**

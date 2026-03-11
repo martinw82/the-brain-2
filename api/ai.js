@@ -60,11 +60,12 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
         'x-api-key': ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'prompt-caching-2024-07-31',
       },
       body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20240620',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
-        system: system || '',
+        system: system ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] : undefined,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
@@ -74,6 +75,9 @@ export default async function handler(req, res) {
         console.error('Anthropic API error:', data);
         return err(res, data.error?.message || 'AI Proxy Error', response.status);
     }
+
+    const { usage } = data;
+    console.log(`[AI] user=${auth.userId} input=${usage?.input_tokens} output=${usage?.output_tokens} cache_create=${usage?.cache_creation_input_tokens||0} cache_read=${usage?.cache_read_input_tokens||0}`);
 
     return res.status(200).json(data);
   } catch (e) {
