@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 7.4 (Phase 3.2 Complete — Mermaid Diagram Rendering)
+**Version:** 7.5 (Phase 3.3 Complete — Search Improvements)
 **Live URL:** the-brain-2.vercel.app
 **Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, and Phase 3.1–3.2 complete; next is Phase 3.3 (Search Improvements)
+**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, and Phase 3.1–3.3 complete; next is Phase 3.4 (Local File System Sync)
 
 ---
 
@@ -73,6 +73,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **drift_detection** — computed on-demand via `resource=drift-check` API, no table needed (Phase 2.10)
 - **ai_metadata_suggestions** — computed on-demand via `resource=ai-metadata-suggestions` API, no table needed (Phase 3.1)
 - **mermaid_diagrams** — rendered client-side via CDN, no table needed (Phase 3.2)
+- **search_improvements** — enhanced search modal with highlighting, filters, recent searches; localStorage only (Phase 3.3)
 
 ---
 
@@ -136,6 +137,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 ### Phase 3 Features
 - **AI Metadata Suggestions (3.1)** — `resource=ai-metadata-suggestions` API endpoint; AI analyzes file content and suggests category, status, tags; suggestions shown in MetadataEditor panel as purple dashed pills; click to accept; ignores files matching patterns (node_modules, .git, etc.); content truncated to 3000 chars; confidence score displayed
 - **Mermaid Diagram Rendering (3.2)** — Mermaid loaded via CDN in index.html; `MermaidRenderer` component renders diagrams as SVG; `MarkdownPreview` component splits content and renders mermaid blocks; `renderMd` detects and extracts mermaid code blocks; default `system/DEPENDENCY_GRAPH.md` template with example diagrams (system architecture, data flow, project dependencies); MERMAID badge shown in editor when file contains diagrams
+- **Search Improvements (3.3)** — Enhanced search API with filters (project, folder, file type), highlighted excerpts, grouped results by project; `SearchModal` component with Cmd+K shortcut, recent searches (localStorage), filter dropdowns, highlighted match terms; search button with keyboard shortcut hint; debounced search with loading indicator
 
 ---
 
@@ -305,14 +307,16 @@ At the end of each build session, update this document with:
 ### Completed (Phase 3 — so far)
 - ✅ **Phase 3.1 — AI metadata suggestions** (2026-03-11) — `resource=ai-metadata-suggestions` API endpoint; AI analyzes file content and suggests category, status, tags; suggestions shown in MetadataEditor panel as purple dashed pills; click to accept; ignores files matching patterns (node_modules, .git, etc.); content truncated to 3000 chars; confidence score displayed
 - ✅ **Phase 3.2 — Mermaid diagram rendering** (2026-03-11) — Mermaid loaded via CDN; `MermaidRenderer` component renders diagrams as SVG; `MarkdownPreview` component splits content and renders mermaid blocks; default `system/DEPENDENCY_GRAPH.md` template with example diagrams
+- ✅ **Phase 3.3 — Search improvements** (2026-03-11) — Enhanced search API with filters (project, folder, file type), highlighted excerpts, grouped results by project; `SearchModal` component with Cmd+K shortcut, recent searches (localStorage), filter dropdowns, highlighted match terms
 
 ### Next Up — Phase 3
-1. **Phase 3.3 — Search improvements** ← NEXT — Cmd+K, cross-project, highlighted excerpts
+1. **Phase 3.4 — Local file system sync** ← NEXT — File System Access API, two-way sync
 
 ### Parking Lot (after Phase 2 — not now)
 **Phase 3:**
 - ✅ AI metadata suggestions (3.1) — DONE
 - ✅ Mermaid diagram rendering (3.2) — DONE
+- ✅ Search improvements (3.3) — DONE
 - Search improvements — Cmd+K, cross-project, highlighted excerpts (3.3)
 - Local file system sync via File System Access API (3.4)
 - File validity checker — missing required files, orphaned entries (3.5)
@@ -369,6 +373,17 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 11/03/26 session
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 16 — Phase 3.3 Search Improvements complete):**
+- Version bumped to **7.5** (Phase 3.3 Complete — Search Improvements)
+- No new DB table — search uses existing `project_files` table
+- API: Enhanced `resource=search` endpoint in `api/data.js` with filters (project_id, folder, file_type), highlighted excerpts, grouped results by project
+- Client: `searchApi.query()` updated to accept filter object; `runSearch()` uses new API
+- UI: New `SearchModal` component (Cmd+K shortcut, recent searches from localStorage, filter dropdowns, highlighted match terms, grouped results); search button with ⌘K hint
+- Keyboard shortcuts: Cmd/Ctrl+K opens search; ESC closes; debounced search with loading indicator
+- Priority Stack: 3.3 moved to Completed (Phase 3 Features section); Next Up now Phase 3.4 (Local File System Sync)
+- Next: **Phase 3.4 — Local File System Sync**
 
 ---
 **Edit 2026-03-11 (session 15 — Phase 3.2 Mermaid Diagram Rendering complete):**
