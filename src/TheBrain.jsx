@@ -8,6 +8,7 @@ import SyncReviewModal from "./components/SyncReviewModal.jsx";
 import DailyCheckinModal from "./components/DailyCheckinModal.jsx";
 import TrainingLogModal from "./components/TrainingLogModal.jsx";
 import OutreachLogModal from "./components/OutreachLogModal.jsx";
+import WeeklyReviewPanel from "./components/WeeklyReviewPanel.jsx";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -1346,7 +1347,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   ]);
 
   // ── TAB DEFINITIONS ────────────────────────────────────────
-  const BRAIN_TABS=[{id:"command",label:"⚡ Command"},{id:"projects",label:"🗂 Projects"},{id:"bootstrap",label:"🚀 Bootstrap"},{id:"staging",label:`🌀 Staging${inReview>0?` (${inReview})`:""}`},{id:"skills",label:"🤖 Skills"},{id:"workflows",label:"⚙️ Workflows"},{id:"integrations",label:"🔌 Connect"},{id:"ideas",label:"💡 Ideas"},{id:"tags",label:`🏷 Tags${userTags.length>0?` (${userTags.length})`:""}`},{id:"ai",label:"💬 AI Coach"},{id:"export",label:"📤 Export"}];
+  const BRAIN_TABS=[{id:"command",label:"⚡ Command"},{id:"projects",label:"🗂 Projects"},{id:"bootstrap",label:"🚀 Bootstrap"},{id:"staging",label:`🌀 Staging${inReview>0?` (${inReview})`:""}`},{id:"skills",label:"🤖 Skills"},{id:"workflows",label:"⚙️ Workflows"},{id:"integrations",label:"🔌 Connect"},{id:"ideas",label:"💡 Ideas"},{id:"tags",label:`🏷 Tags${userTags.length>0?` (${userTags.length})`:""}`},{id:"ai",label:"💬 AI Coach"},{id:"review",label:"📋 Review"},{id:"export",label:"📤 Export"}];
   const HUB_TABS=[{id:"editor",label:"📝 Editor"},{id:"overview",label:"📊 Overview"},{id:"folders",label:"📁 Folders"},{id:"review",label:`🔄 Review${hub?staging.filter(s=>s.project===hubId&&s.status==="in-review").length>0?` (${staging.filter(s=>s.project===hubId&&s.status==="in-review").length})`:"":""}`},{id:"devlog",label:"📓 Dev Log"},{id:"gantt",label:"📅 Timeline"},{id:"comments",label:"💬 Comments"},{id:"links",label:`🔗 Links${hubLinks.length>0?` (${hubLinks.length})`:""}`},{id:"meta",label:"🔧 Meta"}];
 
   // ══════════════════════════════════════════════════════════
@@ -2511,6 +2512,16 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 {aiLoad?<div style={{fontSize:10,color:C.dim}}>Thinking...</div>:<div style={{fontSize:11,color:C.text,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{aiOut}</div>}
               </div>}
             </div>
+          )}
+
+          {mainTab==="review"&&(
+            <WeeklyReviewPanel
+              token={token.get()}
+              onAskAI={async(prompt)=>{
+                const d=await aiApi.ask(prompt);
+                return d.content?.map(b=>b.text||"").join("")||"";
+              }}
+            />
           )}
 
           {mainTab==="export"&&(

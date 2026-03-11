@@ -426,6 +426,16 @@ export const trainingLogs = {
     del(`${BASE}/api/data?resource=training-logs&id=${id}`),
 };
 
+// ── WEEKLY REVIEW (Phase 2.9) ─────────────────────────────────
+export const weeklyReview = {
+  fetch: (weekStart) =>
+    get(`${BASE}/api/data?resource=weekly-review${weekStart ? `&week=${weekStart}` : ''}`),
+  list: (n = 8) =>
+    get(`${BASE}/api/data?resource=weekly-review&list=${n}`),
+  save: (data) =>
+    post(`${BASE}/api/data?resource=weekly-review`, data),
+};
+
 // ── AI ────────────────────────────────────────────────────────
 export const ai = {
   ask: (prompt, system) =>

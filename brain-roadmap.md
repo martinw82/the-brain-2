@@ -364,20 +364,15 @@ Foundation for the agent layer's state-based task routing.
 - [x] **Client simplified:** `askAI()` now sends `{ prompt }` only — no client-side context building; skill briefings still pass their own `systemOverride`
 - **Done when:** ✓ Ask "What should I work on today?" — response references real check-in energy, project health scores, outreach status, enforces the 10 rules
 
-### 2.9 Weekly review automation `[API]` `[UI]`
+### 2.9 Weekly review automation `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **API:** GET `/api/review/weekly` — aggregates:
-  - Sessions logged this week (count, total hours, by project)
-  - Check-in averages (energy, focus, training count)
-  - Outreach count
-  - Staging items processed (approved/rejected/deferred)
-  - Project health changes (improved/declined)
-  - Goal progress delta
-- [ ] **UI:** "Weekly Review" view — summary dashboard with the above data
-- [ ] **UI:** Editable "reflection" fields: what shipped, what blocked, next week's priority
-- [ ] **AI integration:** "Generate review" button that feeds the data to AI coach and gets a structured analysis
-- [ ] **Persist:** Save weekly review to `sessions` table (or new `reviews` table) with type="weekly-review"
-- **Done when:** Every Sunday (or on demand), you can run a weekly review that shows real data and saves an AI-generated analysis
+- [x] **API:** `resource=weekly-review` GET — aggregates sessions, check-in averages, training count, outreach count, staging done, plus loads saved review
+- [x] **DB:** `weekly_reviews` table — `week_start`, `what_shipped`, `what_blocked`, `next_priority`, `ai_analysis`, `data_json` (migration v15)
+- [x] **UI:** "📋 Review" tab — week nav (prev/next), 7 stat cards, sessions list, reflection fields
+- [x] **UI:** Editable reflection fields: what shipped, what blocked, next week's priority
+- [x] **AI integration:** "Generate AI Review" button feeds week data + reflections to AI coach; result populates `ai_analysis` field
+- [x] **Persist:** POST upserts to `weekly_reviews` table per user + week_start; "Save Review" button
+- **Done when:** Every Sunday (or on demand), you can run a weekly review that shows real data and saves an AI-generated analysis ✅
 
 ### 2.10 Drift detection `[API]`
 

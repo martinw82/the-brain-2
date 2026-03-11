@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 7.0 (Phase 2.8 Complete — Agent Upgrade)
+**Version:** 7.1 (Phase 2.9 Complete — Weekly Review Automation)
 **Live URL:** the-brain-2.vercel.app
 **Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 0, Phase 1, and Phase 2.1–2.8 complete; next is 2.9 (Weekly Review Automation)
+**Status:** Beta — All Phase 0, Phase 1, and Phase 2.1–2.9 complete; next is 2.10 (Drift Detection)
 
 ---
 
@@ -69,12 +69,13 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **daily_checkins** — daily user state: sleep_hours, energy_level, gut_symptoms, training_done, notes (Phase 2.5; migration v12)
 - **training_logs** — training sessions: date, duration_minutes, type (solo/class/sparring/conditioning/other), notes, energy_after (Phase 2.6; migration v13)
 - **outreach_log** — outreach actions: date, type (message/post/call/email/other), target, project_id, notes (Phase 2.7; migration v14)
+- **weekly_reviews** — weekly review snapshots: week_start, what_shipped, what_blocked, next_priority, ai_analysis, data_json (Phase 2.9; migration v15)
 
 ---
 
 ## 4. What's Built & Working
 
-### Brain-Level Features (10 tabs)
+### Brain-Level Features (11 tabs)
 - **Command Centre** — today's focus selector, priority stack, health alerts, goal progress bar (configurable), life area filter pills
 - **Projects** — full CRUD with optimistic updates + DB persistence, area assignment, template selection
 - **Bootstrap** — guided 5-step project setup wizard generating briefs, strategy prompts, dev prompts, skill overrides, agent onboarding docs
@@ -237,7 +238,7 @@ The Brain's AI Coach currently has a one-line system prompt. The full agent rule
 - ✅ **Training log** — `training_logs` table, `TrainingLogModal`, weekly count in top bar + Command Centre card (Phase 2.6 DONE)
 - ✅ **Outreach tracking** — `outreach_log` table, `OutreachLogModal`, daily indicator in top bar + Command Centre card, AI coach mandatory enforcement (Phase 2.7 DONE)
 - ✅ **Agent system prompt upgrade + context compression** — `agent-config.json` (10 rules + state routing), `buildSystemPrompt()` in `api/ai.js` queries DB server-side, 4k token budget, Recovery/Steady/Power routing, graceful fallback (Phase 2.8 DONE)
-- **Weekly review automation** — query sessions, projects, check-ins and generate summary (Phase 2.9)
+- ✅ **Weekly review automation** — `weekly_reviews` table, `WeeklyReviewPanel` (week nav, 7 stat cards, sessions list, reflection fields, AI generate, save), upsert API (Phase 2.9 DONE)
 - **Drift detection** — background check on training/outreach/energy minimums (Phase 2.10)
 
 ---
@@ -289,10 +290,10 @@ At the end of each build session, update this document with:
 - ✅ **Phase 2.6 — Training log** (2026-03-11) — `training_logs` table (migration v13), `TrainingLogModal`, Command Centre card, 🥋 top bar indicator, AI Coach context integration
 - ✅ **Phase 2.7 — Outreach tracking** (2026-03-11) — `outreach_log` table (migration v14), `OutreachLogModal`, Command Centre card, 📣 top bar indicator, AI Coach mandatory enforcement
 - ✅ **Phase 2.8 — Agent system prompt upgrade** (2026-03-11) — `agent-config.json`, `buildSystemPrompt()` in `api/ai.js`, DB-driven context, 4k token budget, Recovery/Steady/Power routing
+- ✅ **Phase 2.9 — Weekly review automation** (2026-03-11) — `weekly_reviews` table (migration v15), `resource=weekly-review` API (aggregation + upsert), `WeeklyReviewPanel` (week nav, stats, sessions, reflection, AI generate, save)
 
 ### Next Up — Phase 2 (continued)
-1. **Phase 2.9 — Weekly review automation** ← NEXT — `/api/review/weekly` aggregation, review dashboard UI, AI-generated analysis
-2. **Phase 2.10 — Drift detection** — background checks on training/outreach/energy/session minimums, alerts in Command Centre
+1. **Phase 2.10 — Drift detection** ← NEXT — background checks on training/outreach/energy/session minimums, alerts in Command Centre
 
 ### Parking Lot (after Phase 2 — not now)
 **Phase 3:**
@@ -354,6 +355,14 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 11/03/26 session
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 12 — Phase 2.9 Weekly Review Automation complete):**
+- Version bumped to **7.1** (Phase 2.9 Complete — Weekly Review Automation)
+- DB schema: 20 → 21 tables; added `weekly_reviews` (migration v15)
+- What's Built: added Weekly Reviews entry in Phase 2 additions + Agent Layer section
+- Priority Stack: 2.9 moved to Completed; Next Up now 2.10 (Drift Detection)
+- Next: **Phase 2.10 — Drift Detection**
 
 ---
 **Edit 2026-03-11 (session 11 — Phase 2.8 Agent Upgrade complete):**

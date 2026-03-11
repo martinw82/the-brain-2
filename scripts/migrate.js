@@ -195,6 +195,24 @@ const migrations = [
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
           INDEX idx_outreach_user_date (user_id, date)
         );`
+    },
+    {
+        version: 15,
+        name: 'create_weekly_reviews_table',
+        sql: `CREATE TABLE IF NOT EXISTS weekly_reviews (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          week_start VARCHAR(10) NOT NULL,
+          data_json TEXT,
+          what_shipped TEXT,
+          what_blocked TEXT,
+          next_priority TEXT,
+          ai_analysis TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          INDEX idx_weekly_reviews_user_week (user_id, week_start)
+        );`
     }
 ];
 

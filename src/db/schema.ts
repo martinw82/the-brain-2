@@ -551,3 +551,19 @@ export const outreach_log = mysqlTable(
     userDateIdx: index("idx_outreach_user_date").on(table.user_id, table.date),
   })
 );
+
+export const weekly_reviews = mysqlTable("weekly_reviews", {
+  id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
+  user_id: varchar("user_id", { length: 36 }).notNull(),
+  week_start: varchar("week_start", { length: 10 }).notNull(),
+  data_json: text("data_json"),
+  what_shipped: text("what_shipped"),
+  what_blocked: text("what_blocked"),
+  next_priority: text("next_priority"),
+  ai_analysis: text("ai_analysis"),
+  created_at: datetime("created_at").defaultNow(),
+  updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
+},
+(table) => ({
+  userWeekIdx: index("idx_weekly_reviews_user_week").on(table.user_id, table.week_start),
+}));
