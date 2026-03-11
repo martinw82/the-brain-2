@@ -258,22 +258,23 @@ User preferences stored in DB, with localStorage cache for speed.
 
 _Build out every functional feature discussed. Each one plugs into the Phase 1 foundations._
 
-### 2.1 Project import `[UI]` `[API]`
+### 2.1 Project import `[UI]` `[API]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **BUIDL format import:** Parse the existing export format (MANIFEST_START/FILES_START/etc.)
-  - [ ] Build parser function
-  - [ ] UI: textarea modal for paste import
-  - [ ] On import: create project in DB, save all files
-- [ ] **JSON import:** Accept a JSON file matching the project schema
-  - [ ] UI: file upload in import modal
-  - [ ] Validate structure, create project + files
-- [ ] **Folder import (File System Access API):**
-  - [ ] UI: "Import from folder" button that calls `window.showDirectoryPicker()`
-  - [ ] Recursively read directory contents
-  - [ ] Map to project structure (folder names → folder IDs where possible)
-  - [ ] Create project + files in DB
-- [ ] Wire up existing `importText`/`importError` state to the new UI
-- **Done when:** All three import methods work and create a fully functional project with files in DB
+- [x] **BUIDL format import:** Parse the existing export format (MANIFEST_START/FILES_START/etc.)
+  - [x] Build parser function (`parseBuildlFormat()`)
+  - [x] UI: textarea modal for paste import
+  - [x] On import: create project in DB, save all files
+- [x] **JSON import:** Accept a JSON file matching the project schema
+  - [x] UI: file upload in import modal
+  - [x] Validate structure, create project + files
+- [x] **Folder import (File System Access API):**
+  - [x] UI: "Import from folder" button that calls `window.showDirectoryPicker()`
+  - [x] Recursively read directory contents
+  - [x] Map to project structure (folder names → folder IDs where possible)
+  - [x] Create project + files in DB
+- [x] Wire up existing `importText`/`importError` state to the new UI
+- [x] Conflict resolution: duplicate projectId shows modal with overwrite option
+- **Done when:** All three import methods work and create a fully functional project with files in DB ✓
 
 ### 2.2 Image and binary file handling `[UI]` `[API]`
 
