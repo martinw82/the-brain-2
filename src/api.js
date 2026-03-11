@@ -1,5 +1,7 @@
-// src/api.js — Vercel edition
+// src/api.js — Vercel edition with offline support
 // All API calls in one place. Uses /api/auth, /api/projects, /api/data
+
+import { cache } from './cache.js';
 
 const BASE = '';  // same domain, no prefix needed
 
@@ -17,21 +19,148 @@ function headers() {
   };
 }
 
+/**
+ * Main request wrapper with offline support
+ * - Tries API first
+ * - Falls back to cache on network failure
+ * - Returns cached data if offline
+ */
 async function req(method, url, body) {
-  const res = await fetch(url, {
-    method,
-    headers: headers(),
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: headers(),
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    // Handle different response codes
+    if (!res.ok) {
+      // 401 Unauthorized - don't fallback to cache, bubble up auth error
+      if (res.status === 401) {
+        throw new Error(data.error || 'Unauthorized');
+      }
+      // 409 Conflict - return for offline conflict handling
+      if (res.status === 409) {
+        return { _conflict: true, ...data };
+      }
+      // Other errors - try cache
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+
+    // Success - mark as online and cache response if applicable
+    cache.setOnline(true);
+
+    // Cache response for read operations (implicit from successful response)
+    if (method === 'GET') {
+      const resource = _extractResource(url);
+      if (resource) {
+        // Try to cache the response data
+        _cacheResponse(resource, data);
+      }
+    }
+
+    return data;
+  } catch (e) {
+    // Network error - check if offline
+    if (e.message === 'Failed to fetch' || e.message.includes('NetworkError')) {
+      cache.setOnline(false);
+      console.log('[API] Network error, attempting cache fallback...');
+
+      // Try to return cached data for this URL
+      const cachedData = _getCachedData(url);
+      if (cachedData) {
+        console.log('[API] Returning cached data');
+        return cachedData;
+      }
+    }
+
+    // No cache available or non-network error
+    throw e;
+  }
+}
+
+/**
+ * Extract resource name from API URL
+ * @private
+ */
+function _extractResource(url) {
+  if (url.includes('resource=')) {
+    const match = url.match(/resource=([^&]+)/);
+    return match ? match[1] : null;
+  }
+  return null;
+}
+
+/**
+ * Try to retrieve cached data for a URL
+ * @private
+ */
+function _getCachedData(url) {
+  const resource = _extractResource(url);
+  if (!resource) return null;
+
+  const collection = cache.getCollection(resource);
+  if (collection && collection.data && collection.data.length > 0) {
+    return { [resource]: collection.data };
+  }
+  return null;
+}
+
+/**
+ * Cache response data from successful API call
+ * @private
+ */
+function _cacheResponse(resource, data) {
+  if (!resource || !data) return;
+
+  // Only cache collections (arrays)
+  const resourceData = data[resource];
+  if (Array.isArray(resourceData)) {
+    cache.setCollection(resource, resourceData);
+  }
 }
 
 const get  = (url)        => req('GET',    url);
 const post = (url, body)  => req('POST',   url, body);
 const put  = (url, body)  => req('PUT',    url, body);
 const del  = (url, body)  => req('DELETE', url, body);
+
+/**
+ * Helper: Wrap a write operation with write queue support for offline mode
+ * Usage: writeWithQueue(method, url, body, resource, action, params)
+ * @param {string} method - HTTP method
+ * @param {string} url - API URL
+ * @param {Object} body - Request body
+ * @param {string} resource - Resource type for queue (e.g., "projects")
+ * @param {string} action - Action name for queue (e.g., "save-file")
+ * @param {Object} params - Full parameters to queue (for retry on reconnect)
+ * @returns {Promise<Object>}
+ */
+export async function writeWithQueue(method, url, body, resource, action, params) {
+  // Enqueue before attempting API call
+  const queueId = cache.enqueueWrite(action, resource, action, params);
+
+  try {
+    // Try API call
+    const result = await req(method, url, body);
+    // Success - remove from queue
+    cache.dequeueWrite(queueId);
+    return result;
+  } catch (e) {
+    // Network error - keep in queue for sync later
+    if (e.message === 'Failed to fetch' || e.message.includes('NetworkError')) {
+      cache.setOnline(false);
+      cache.updateWriteStatus(queueId, 'pending');
+      console.log(`[API] Write queued for later sync: ${action}`);
+      // Return optimistic result for UI
+      return { _queued: true, queueId };
+    }
+    // Other error - remove from queue and throw
+    cache.dequeueWrite(queueId);
+    throw e;
+  }
+}
 
 // ── AUTH ──────────────────────────────────────────────────────
 export const auth = {

@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token } from "./api.js";
+import { cache } from "./cache.js";
+import { sync } from "./sync.js";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -502,6 +504,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [loadingFiles,setLoadingFiles] = useState(false);  // hub file loading
   const [commentsLoading, setCommentsLoading] = useState(false); // comments loading indicator
 
+  // Offline mode state (Phase 2.4)
+  const [isOnline, setIsOnline] = useState(true);
+  const [syncStatus, setSyncStatus] = useState("idle"); // "idle", "syncing", "synced", "error"
+  const [queuedWrites, setQueuedWrites] = useState(0);
+
   const showToast = (msg) => setToast({msg});
 
   // ── TAG HELPERS ───────────────────────────────────────────
@@ -597,6 +604,56 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       });
     }
   }, [areas.length, goals.length, templates.length, user]);
+
+  // ── OFFLINE MODE (Phase 2.4) ────────────────────────────────
+  // Sync state changes to cache
+  useEffect(() => {
+    cache.setCollection("projects", projects);
+    cache.setCollection("staging", staging);
+    cache.setCollection("ideas", ideas);
+    cache.setCollection("areas", areas);
+    cache.setCollection("goals", goals);
+    cache.setCollection("templates", templates);
+    cache.setCollection("tags", userTags);
+    cache.setCollection("entityTags", entityTags);
+  }, [projects, staging, ideas, areas, goals, templates, userTags, entityTags]);
+
+  // Check online status and listen to sync events
+  useEffect(() => {
+    const checkOnline = async () => {
+      const online = await sync.isOnline();
+      setIsOnline(online);
+      setQueuedWrites(cache.getWriteQueue().length);
+    };
+
+    checkOnline();
+
+    // Register sync event listeners
+    sync.onStatusChange((status) => {
+      setIsOnline(status === "online");
+      showToast(status === "online" ? "✓ Back online" : "⚠ Offline mode");
+    });
+
+    sync.onSyncStart(() => {
+      setSyncStatus("syncing");
+      showToast("⟳ Syncing changes...");
+    });
+
+    sync.onSyncComplete((count) => {
+      setSyncStatus(count > 0 ? "synced" : "idle");
+      setQueuedWrites(0);
+      if (count > 0) showToast(`✓ Synced ${count} changes`);
+    });
+
+    sync.onSyncError(() => {
+      setSyncStatus("error");
+      showToast("⚠ Sync failed, will retry");
+    });
+
+    // Periodic check every 5 seconds
+    const checkInterval = setInterval(checkOnline, 5000);
+    return () => clearInterval(checkInterval);
+  }, []);
 
   // ── DERIVED ────────────────────────────────────────────────
   const hub          = projects.find(p=>p.id===hubId);
@@ -1173,6 +1230,16 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
               <div onClick={()=>{if(!sessionActive)setSessionOn(true);else endSession();}} style={{background:sessionActive?"rgba(16,185,129,0.08)":C.surface,border:`1px solid ${sessionActive?"#10b98140":C.border}`,borderRadius:6,padding:"5px 11px",textAlign:"center",cursor:"pointer"}}>
                 <div style={{fontSize:12,fontWeight:700,color:sessionActive?C.green:"#475569",fontVariantNumeric:"tabular-nums"}}>{sessionActive?fmtTime(sessionSecs):"▶ START"}</div>
                 <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>{sessionActive?"End & Log":"Session"}</div>
+              </div>
+              {/* Offline Mode Status (Phase 2.4) */}
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:14,fontWeight:700,color:isOnline?C.green:C.amber}}>
+                  {isOnline ? "✓" : "⚠"}
+                </div>
+                <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>
+                  {isOnline ? "Online" : "Offline"}
+                  {queuedWrites > 0 && ` (${queuedWrites})`}
+                </div>
               </div>
               {[{v:projects.length,l:"Projects"},{v:`${activeGoal?.currency==='USD'?'$':activeGoal?.currency==='EUR'?'€':'£'}${totalIncome}`,l:activeGoal?.title||"Goal"},{v:`${Math.round(totalIncome/(activeGoal?.target_amount||3000)*100)}%`,l:"Status"},atRisk>0?{v:atRisk,l:"⚠ At Risk",c:C.amber}:null].filter(Boolean).map(s=>(
                 <div key={s.l} style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:s.c||C.blue2}}>{s.v}</div><div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>{s.l}</div></div>

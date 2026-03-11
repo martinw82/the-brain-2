@@ -8,17 +8,21 @@
     "build": "vite build",
     "preview": "vite preview",
     "db:setup": "node scripts/db-setup.js",
-    "db:migrate": "node scripts/migrate.js"
+    "db:migrate": "node scripts/migrate.js",
+    "drizzle:push": "drizzle-kit push:mysql",
+    "drizzle:generate": "drizzle-kit generate:mysql"
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "mysql2": "^3.11.3",
     "jsonwebtoken": "^9.0.2",
-    "bcryptjs": "^2.4.3"
+    "bcryptjs": "^2.4.3",
+    "drizzle-orm": "^0.29.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.2"
+    "vite": "^5.4.2",
+    "drizzle-kit": "^0.20.11"
   }
 }
