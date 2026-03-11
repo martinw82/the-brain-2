@@ -131,8 +131,15 @@ const makeDefaultFiles = (name, templateConfig=null) => {
   p.health=calcHealth(p); return p;
 };
 
+// ── FILE TYPE DETECTION ────────────────────────────────────────
+const getFileType=(path)=>{const ext=path?.split(".").pop()?.toLowerCase()||"";const textExts=["md","json","js","ts","py","sol","txt","css","html","xml","yaml","yml","env"];const imageExts=["png","jpg","jpeg","gif","svg","webp"];const audioExts=["mp3","wav","ogg","m4a","flac"];const videoExts=["mp4","webm","mov","avi","mkv"];const archiveExts=["zip","tar","gz","rar","7z"];const docExts=["pdf","doc","docx","xls","xlsx","ppt","pptx"];if(textExts.includes(ext))return"text";if(imageExts.includes(ext))return"image";if(audioExts.includes(ext))return"audio";if(videoExts.includes(ext))return"video";if(archiveExts.includes(ext))return"archive";if(docExts.includes(ext))return"document";return"binary";};
+
+// ── FILE SIZE FORMATTER ────────────────────────────────────────
+const formatFileSize=(base64str)=>{const kb=Math.floor(base64str.length/4/1024);return kb>1024?`${(kb/1024).toFixed(1)} MB`:`${kb} KB`;};
+
 // ── MARKDOWN + GANTT ──────────────────────────────────────────
-const renderMd=(md="")=>{if(!md)return"";return md.replace(/^### (.+)$/gm,"<h3 style='color:#e2e8f0;font-size:13px;margin:12px 0 6px'>$1</h3>").replace(/^## (.+)$/gm,"<h2 style='color:#f1f5f9;font-size:15px;margin:16px 0 8px;border-bottom:1px solid #0f1e3a;padding-bottom:4px'>$1</h2>").replace(/^# (.+)$/gm,"<h1 style='color:#f1f5f9;font-size:18px;margin:0 0 16px;font-weight:700'>$1</h1>").replace(/\*\*(.+?)\*\*/g,"<strong style='color:#e2e8f0'>$1</strong>").replace(/`([^`]+)`/g,"<code style='background:#0d1424;border:1px solid #1e293b;padding:1px 5px;border-radius:3px;font-size:11px;color:#10b981'>$1</code>").replace(/^- \[x\] (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#10b981'>✅</span><span>$1</span></div>").replace(/^- \[ \] (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#334155'>⬜</span><span style='color:#94a3b8'>$1</span></div>").replace(/^- (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#1a4fd6'>·</span><span>$1</span></div>").replace(/^\| (.+) \|$/gm,row=>{const cells=row.slice(2,-2).split(" | ");if(cells.every(c=>c.match(/^[-:]+$/)))return"";return`<div style='display:flex;border-bottom:1px solid #0f1e3a'>${cells.map(c=>`<div style='flex:1;padding:4px 8px;font-size:10px;color:#94a3b8'>${c}</div>`).join("")}</div>`;}).replace(/^> (.+)$/gm,"<blockquote style='border-left:3px solid #1a4fd6;margin:8px 0;padding:6px 12px;color:#94a3b8;font-style:italic'>$1</blockquote>").replace(/\n\n/g,"<br/><br/>").replace(/\n/g,"<br/>");};
+const renderMd=(md="", files={})=>{if(!md)return"";let html=md;html=html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,(match, alt, imgPath) => {const fileContent=files[imgPath];if(fileContent&&getFileType(imgPath)==="image"){const src=fileContent.startsWith("data:")?fileContent:`data:image/png;base64,${fileContent}`;return `<img src="${src}" alt="${alt}" style="max-width:100%; max-height:400px; border-radius:4px; margin:8px 0;" />`;}return `[image: ${alt}]`;});return html.replace(/^### (.+)$/gm,"<h3 style='color:#e2e8f0;font-size:13px;margin:12px 0 6px'>$1</h3>").replace(/^## (.+)$/gm,"<h2 style='color:#f1f5f9;font-size:15px;margin:16px 0 8px;border-bottom:1px solid #0f1e3a;padding-bottom:4px'>$1</h2>").replace(/^# (.+)$/gm,"<h1 style='color:#f1f5f9;font-size:18px;margin:0 0 16px;font-weight:700'>$1</h1>").replace(/\*\*(.+?)\*\*/g,"<strong style='color:#e2e8f0'>$1</strong>").replace(/`([^`]+)`/g,"<code style='background:#0d1424;border:1px solid #1e293b;padding:1px 5px;border-radius:3px;font-size:11px;color:#10b981'>$1</code>").replace(/^- \[x\] (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#10b981'>✅</span><span>$1</span></div>").replace(/^- \[ \] (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#334155'>⬜</span><span style='color:#94a3b8'>$1</span></div>").replace(/^- (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#1a4fd6'>·</span><span>$1</span></div>").replace(/^\| (.+) \|$/gm,row=>{const cells=row.slice(2,-2).split(" | ");if(cells.every(c=>c.match(/^[-:]+$/)))return"";return`<div style='display:flex;border-bottom:1px solid #0f1e3a'>${cells.map(c=>`<div style='flex:1;padding:4px 8px;font-size:10px;color:#94a3b8'>${c}</div>`).join("")}</div>`;}).replace(/^> (.+)$/gm,"<blockquote style='border-left:3px solid #1a4fd6;margin:8px 0;padding:6px 12px;color:#94a3b8;font-style:italic'>$1</blockquote>").replace(/\n\n/g,"<br/><br/>").replace(/\n/g,"<br/>");};
+
 const GanttChart=({tasks})=>{const rows=tasks.filter(t=>t.start&&t.end);if(!rows.length)return<div style={{color:C.muted,fontSize:10,padding:"12px 0"}}>Format: <code style={{color:C.green}}>- [ ] Task 2025-01-01 → 2025-01-14</code></div>;const allD=rows.flatMap(r=>[new Date(r.start),new Date(r.end)]);const minD=new Date(Math.min(...allD));const maxD=new Date(Math.max(...allD));const range=maxD-minD||1;return<div style={{overflowX:"auto"}}>{rows.map((r,i)=>{const left=((new Date(r.start)-minD)/range)*100;const width=((new Date(r.end)-new Date(r.start))/range)*100;return<div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}><div style={{width:140,fontSize:10,color:C.text,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.label}</div><div style={{flex:1,height:16,background:C.border,borderRadius:3,position:"relative",minWidth:200}}><div style={{position:"absolute",left:`${left}%`,width:`${Math.max(width,2)}%`,height:"100%",background:r.done?C.green:C.blue,borderRadius:3,opacity:0.85}}/></div></div>;})} </div>;};
 const parseTasks=(md)=>{const rows=[];md?.split("\n").forEach(line=>{const m=line.match(/[-*]\s+\[(.)\]\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s*(?:→|-|to)\s*(\d{4}-\d{2}-\d{2})/);if(m)rows.push({done:m[1]==="x",label:m[2],start:m[3],end:m[4]});});return rows;};
 
@@ -146,9 +153,9 @@ const FileTree=({files,activeFile,onSelect,onNewFile,onDelete,customFolders=[]})
   const renderNode=(node,depth=0,prefix="")=>Object.entries(node).filter(([k])=>!k.startsWith("_")).map(([key,val])=>{
     const fullPath=prefix?`${prefix}/${key}`:key;
     const isDir=!val._file, isActive=val._file===activeFile, isOpen=expanded.has(fullPath);
-    const ext=key.split(".").pop();
+    const ext=key.split(".").pop()?.toLowerCase();
     const folderMeta=isDir?getFolderMeta(key):null;
-    const icon=isDir?(folderMeta?.icon||(isOpen?"📂":"📁")):ext==="md"?"📝":ext==="json"?"🔧":ext==="js"?"⚡":ext==="py"?"🐍":ext==="sol"?"💎":"📄";
+    const icon=isDir?(folderMeta?.icon||(isOpen?"📂":"📁")):ext==="md"?"📝":ext==="json"?"🔧":ext==="js"?"⚡":ext==="py"?"🐍":ext==="sol"?"💎":["png","jpg","jpeg","gif","webp"].includes(ext)?"🖼":ext==="svg"?"🎨":ext==="pdf"?"📕":["zip","tar","gz","rar","7z"].includes(ext)?"📦":["mp4","webm","mov","avi","mkv"].includes(ext)?"🎥":["mp3","wav","ogg","m4a","flac"].includes(ext)?"🎵":"📄";
     if(key===".gitkeep")return null;
     return <div key={fullPath}>
       <div onClick={()=>{if(isDir){setExpanded(e=>{const n=new Set(e);n.has(fullPath)?n.delete(fullPath):n.add(fullPath);return n;});}else onSelect(val._file);}}
@@ -173,7 +180,7 @@ const FileTree=({files,activeFile,onSelect,onNewFile,onDelete,customFolders=[]})
 };
 
 // ── MARKDOWN EDITOR ───────────────────────────────────────────
-const MarkdownEditor=({path,content,onChange,onSave,saving})=>{
+const MarkdownEditor=({path,content,onChange,onSave,saving,files={}})=>{
   const [mode,setMode]=useState("edit");
   const [val,setVal]=useState(content);
   const [dirty,setDirty]=useState(false);
@@ -212,9 +219,45 @@ const MarkdownEditor=({path,content,onChange,onSave,saving})=>{
     </div>
     {mode==="edit"||isJson
       ?<textarea style={{...S.input,flex:1,resize:"none",border:"none",borderRadius:0,fontSize:isJson?11:12,lineHeight:1.7,padding:"14px 16px",background:"#050810"}} value={val} onChange={e=>{setVal(e.target.value);onChange(e.target.value);setDirty(true);}} readOnly={isReadonly} spellCheck={false}/>
-      :<div style={{flex:1,overflowY:"auto",padding:"14px 20px",background:"#050810",fontSize:12,lineHeight:1.8,color:C.text}} dangerouslySetInnerHTML={{__html:renderMd(val)}}/>}
+      :<div style={{flex:1,overflowY:"auto",padding:"14px 20px",background:"#050810",fontSize:12,lineHeight:1.8,color:C.text}} dangerouslySetInnerHTML={{__html:renderMd(val,files)}}/>}
   </div>;
 };
+
+// ── IMAGE VIEWER ──────────────────────────────────────────────
+const ImageViewer=({path,content})=>{const [imgError,setImgError]=useState(false);if(!content)return<div style={{padding:"20px",color:C.muted}}>No image content</div>;const src=content.startsWith("data:")?content:`data:image/png;base64,${content}`;return<div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+  <div style={{padding:"8px 12px",borderBottom:`1px solid ${C.border}`,fontSize:10,color:C.muted}}>📷 {path} • {formatFileSize(content)}</div>
+  <div style={{flex:1,overflowY:"auto",padding:"20px",background:"#050810",display:"flex",alignItems:"center",justifyContent:"center"}}>
+    {imgError?<div style={{color:C.red,textAlign:"center",fontSize:11}}>Failed to load image</div>:<img src={src} alt={path} onError={()=>setImgError(true)} style={{maxWidth:"100%",maxHeight:"80vh",objectFit:"contain",borderRadius:4}}/>}
+  </div>
+</div>;};
+
+// ── AUDIO PLAYER ──────────────────────────────────────────────
+const AudioPlayer=({path,content})=>{if(!content)return<div style={{padding:"20px",color:C.muted}}>No audio content</div>;const src=content.startsWith("data:")?content:`data:audio/mpeg;base64,${content}`;return<div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+  <div style={{padding:"8px 12px",borderBottom:`1px solid ${C.border}`,fontSize:10,color:C.muted}}>🎵 {path} • {formatFileSize(content)}</div>
+  <div style={{flex:1,overflowY:"auto",padding:"20px",background:"#050810",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+    <audio src={src} controls style={{width:"100%",maxWidth:400,marginBottom:16}}/>
+    <a href={src} download={path} style={{...S.btn("ghost"),padding:"6px 14px",fontSize:10}}>⬇ Download</a>
+  </div>
+</div>;};
+
+// ── VIDEO PLAYER ──────────────────────────────────────────────
+const VideoPlayer=({path,content})=>{if(!content)return<div style={{padding:"20px",color:C.muted}}>No video content</div>;const src=content.startsWith("data:")?content:`data:video/mp4;base64,${content}`;return<div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+  <div style={{padding:"8px 12px",borderBottom:`1px solid ${C.border}`,fontSize:10,color:C.muted}}>🎥 {path} • {formatFileSize(content)}</div>
+  <div style={{flex:1,overflowY:"auto",padding:"20px",background:"#050810",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+    <video src={src} controls style={{width:"100%",maxWidth:800,maxHeight:"70vh",marginBottom:16,borderRadius:4}}/>
+    <a href={src} download={path} style={{...S.btn("ghost"),padding:"6px 14px",fontSize:10}}>⬇ Download</a>
+  </div>
+</div>;};
+
+// ── BINARY VIEWER ─────────────────────────────────────────────
+const BinaryViewer=({path,content})=>{if(!content)return<div style={{padding:"20px",color:C.muted}}>No file content</div>;const fileType=getFileType(path);const icons={document:"📕",archive:"📦",unknown:"⚫"};const icon=icons[fileType]||"⚫";const size=formatFileSize(content);const isLarge=content.length>500*1024;const downloadFile=()=>{let mimeType="application/octet-stream";if(content.startsWith("data:"))mimeType=content.split(";")[0].replace("data:","");const blob=new Blob([content.startsWith("data:")?content:content],{type:mimeType});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=path.split("/").pop();a.click();URL.revokeObjectURL(url);};return<div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+  <div style={{padding:"8px 12px",borderBottom:`1px solid ${C.border}`,fontSize:10,color:C.muted}}>{icon} {path} • {size}</div>
+  <div style={{flex:1,overflowY:"auto",padding:"20px",background:"#050810",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
+    <div style={{fontSize:12,color:C.text,textAlign:"center"}}>This file cannot be previewed</div>
+    {isLarge&&<div style={{fontSize:9,color:C.amber,background:"rgba(245,158,11,0.1)",border:`1px solid ${C.amber}30`,borderRadius:4,padding:"8px 12px",maxWidth:300}}>⚠ Large file ({size}) — may load slowly</div>}
+    <button onClick={downloadFile} style={{...S.btn("primary"),padding:"8px 16px",fontSize:11}}>⬇ Download</button>
+  </div>
+</div>;};
 
 // ── SKILLS + WORKFLOWS ────────────────────────────────────────
 const SKILLS={
@@ -857,6 +900,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const handleDrop=useCallback((e,projId)=>{
     e.preventDefault();setDragOver(false);
     Array.from(e.dataTransfer.files).forEach(file=>{
+      const SIZE_LIMIT=5*1024*1024;
+      if(file.size>SIZE_LIMIT){setToast(`⚠ ${file.name} (${(file.size/1024/1024).toFixed(1)}MB) exceeds 5MB — may load slowly`);}
       const reader=new FileReader();
       reader.onload=async(ev)=>{
         const content=ev.target.result;
@@ -1346,7 +1391,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                     <span style={{fontSize:8,color:C.dim,textTransform:"uppercase",letterSpacing:"0.1em",flexShrink:0}}>tags</span>
                     <QuickTagRow entityType="file" entityId={`${hubId}/${hub.activeFile}`}/>
                   </div>}
-                  <MarkdownEditor path={hub.activeFile} content={(hub.files||{})[hub.activeFile]||""} onChange={()=>{}} onSave={handleHubSave} saving={saving}/>
+                  {hub.activeFile&&(() => {const fileType=getFileType(hub.activeFile);const content=(hub.files||{})[hub.activeFile]||"";if(fileType==="image")return <ImageViewer path={hub.activeFile} content={content}/>;if(fileType==="audio")return <AudioPlayer path={hub.activeFile} content={content}/>;if(fileType==="video")return <VideoPlayer path={hub.activeFile} content={content}/>;if(fileType==="binary"||fileType==="document"||fileType==="archive")return <BinaryViewer path={hub.activeFile} content={content}/>;return <MarkdownEditor path={hub.activeFile} content={content} onChange={()=>{}} onSave={handleHubSave} saving={saving} files={hub.files||{}}/>;})()||null}
                 </div>
               </div>
             )}
