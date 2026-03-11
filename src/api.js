@@ -153,6 +153,21 @@ export const staging = {
     put(`${BASE}/api/data?resource=staging&id=${id}&action=moveToFolder`, { folder_id: folderId, filename }),
 };
 
+// ── FILE METADATA (Roadmap 2.3) ────────────────────────────
+export const fileMetadata = {
+  get: (projectId, filePath) =>
+    get(`${BASE}/api/data?resource=file_metadata&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`),
+
+  create: (data) =>
+    post(`${BASE}/api/data?resource=file_metadata`, data),
+
+  update: (id, data) =>
+    put(`${BASE}/api/data?resource=file_metadata&id=${id}`, data),
+
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=file_metadata&id=${id}`),
+};
+
 // ── IDEAS ─────────────────────────────────────────────────────
 export const ideas = {
   list: () =>
