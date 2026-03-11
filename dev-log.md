@@ -4,6 +4,22 @@
 
 ---
 
+## Session 041 — 2026-03-11
+**Branch:** `session-041-phase-4`
+**Task:** Phase 4 — Mobile, Offline, Polish
+**Status:** 🔄 In Progress
+
+### Planned Tasks (choose one to start):
+1. **4.1 Mobile Responsive Layout** — Make the app usable on phones
+2. **4.2 Onboarding Flow** — New user signup → first project in <2 min
+3. **4.3 Integration Connectors** — Wire up GitHub, Netlify, etc.
+4. **4.4 Notification System** — In-app alerts for reminders and health issues
+
+### Status
+Ready to start. Phase 3 (Intelligence & Power Features) complete.
+
+---
+
 ## Session 040 — 2026-03-11
 **Branch:** `session-040-script-execution`
 **Task:** Phase 3.6 — Script Execution
