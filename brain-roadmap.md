@@ -402,14 +402,15 @@ _These make the tool genuinely powerful. Each plugs into the foundations from Ph
 - **Done when:** ✅ Saving a markdown file shows AI-suggested tags that you can accept with one click
 - **How:** `resource=ai-metadata-suggestions` endpoint in `api/data.js`; Anthropic API call server-side; content truncated to 3000 chars; ignore patterns (node_modules, .git, lockfiles); suggestions shown in MetadataEditor as purple dashed pills with ✓ click-to-accept; confidence score displayed
 
-### 3.2 Mermaid diagram rendering `[UI]`
+### 3.2 Mermaid diagram rendering `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [ ] Add `mermaid` library (CDN or npm)
-- [ ] Detect Mermaid code blocks in markdown (```mermaid)
-- [ ] Render as SVG in preview mode
-- [ ] Dedicated "Dependency Graph" file: `/system/DEPENDENCY_GRAPH.md`
-- [ ] Optional: AI-generated diagram from SYSTEM_INDEX.md (as old version had)
-- **Done when:** Mermaid diagrams render visually in markdown preview
+- [x] Add `mermaid` library (CDN or npm)
+- [x] Detect Mermaid code blocks in markdown (```mermaid)
+- [x] Render as SVG in preview mode
+- [x] Dedicated "Dependency Graph" file: `/system/DEPENDENCY_GRAPH.md`
+- [ ] Optional: AI-generated diagram from SYSTEM_INDEX.md (as old version had) — deferred to Phase 4
+- **Done when:** ✅ Mermaid diagrams render visually in markdown preview
+- **How:** Mermaid loaded via CDN in index.html; `MermaidRenderer` component renders SVG with dark theme; `MarkdownPreview` splits content by mermaid blocks; default `system/DEPENDENCY_GRAPH.md` template with example diagrams
 
 ### 3.3 Search improvements `[API]` `[UI]`
 

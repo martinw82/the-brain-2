@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 7.3 (Phase 3.1 Complete — AI Metadata Suggestions)
+**Version:** 7.4 (Phase 3.2 Complete — Mermaid Diagram Rendering)
 **Live URL:** the-brain-2.vercel.app
 **Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, and Phase 3.1 complete; next is Phase 3.2 (Mermaid Diagram Rendering)
+**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, and Phase 3.1–3.2 complete; next is Phase 3.3 (Search Improvements)
 
 ---
 
@@ -72,6 +72,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **weekly_reviews** — weekly review snapshots: week_start, what_shipped, what_blocked, next_priority, ai_analysis, data_json (Phase 2.9; migration v15)
 - **drift_detection** — computed on-demand via `resource=drift-check` API, no table needed (Phase 2.10)
 - **ai_metadata_suggestions** — computed on-demand via `resource=ai-metadata-suggestions` API, no table needed (Phase 3.1)
+- **mermaid_diagrams** — rendered client-side via CDN, no table needed (Phase 3.2)
 
 ---
 
@@ -134,6 +135,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 
 ### Phase 3 Features
 - **AI Metadata Suggestions (3.1)** — `resource=ai-metadata-suggestions` API endpoint; AI analyzes file content and suggests category, status, tags; suggestions shown in MetadataEditor panel as purple dashed pills; click to accept; ignores files matching patterns (node_modules, .git, etc.); content truncated to 3000 chars; confidence score displayed
+- **Mermaid Diagram Rendering (3.2)** — Mermaid loaded via CDN in index.html; `MermaidRenderer` component renders diagrams as SVG; `MarkdownPreview` component splits content and renders mermaid blocks; `renderMd` detects and extracts mermaid code blocks; default `system/DEPENDENCY_GRAPH.md` template with example diagrams (system architecture, data flow, project dependencies); MERMAID badge shown in editor when file contains diagrams
 
 ---
 
@@ -300,13 +302,17 @@ At the end of each build session, update this document with:
 - ✅ **Phase 2.9 — Weekly review automation** (2026-03-11) — `weekly_reviews` table (migration v15), `resource=weekly-review` API (aggregation + upsert), `WeeklyReviewPanel` (week nav, stats, sessions, reflection, AI generate, save)
 - ✅ **Phase 2.10 — Drift detection** (2026-03-11) — `resource=drift-check` API with 5 detection rules, drift alerts in Command Centre with dismiss, drift flags in AI context
 
+### Completed (Phase 3 — so far)
+- ✅ **Phase 3.1 — AI metadata suggestions** (2026-03-11) — `resource=ai-metadata-suggestions` API endpoint; AI analyzes file content and suggests category, status, tags; suggestions shown in MetadataEditor panel as purple dashed pills; click to accept; ignores files matching patterns (node_modules, .git, etc.); content truncated to 3000 chars; confidence score displayed
+- ✅ **Phase 3.2 — Mermaid diagram rendering** (2026-03-11) — Mermaid loaded via CDN; `MermaidRenderer` component renders diagrams as SVG; `MarkdownPreview` component splits content and renders mermaid blocks; default `system/DEPENDENCY_GRAPH.md` template with example diagrams
+
 ### Next Up — Phase 3
-1. **Phase 3.1 — AI metadata suggestions** ← NEXT — auto-suggest tags/category on file save
+1. **Phase 3.3 — Search improvements** ← NEXT — Cmd+K, cross-project, highlighted excerpts
 
 ### Parking Lot (after Phase 2 — not now)
 **Phase 3:**
-- AI metadata suggestions (3.1) — auto-suggest tags/category on file save
-- Mermaid diagram rendering (3.2)
+- ✅ AI metadata suggestions (3.1) — DONE
+- ✅ Mermaid diagram rendering (3.2) — DONE
 - Search improvements — Cmd+K, cross-project, highlighted excerpts (3.3)
 - Local file system sync via File System Access API (3.4)
 - File validity checker — missing required files, orphaned entries (3.5)
@@ -363,6 +369,18 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 11/03/26 session
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 15 — Phase 3.2 Mermaid Diagram Rendering complete):**
+- Version bumped to **7.4** (Phase 3.2 Complete — Mermaid Diagram Rendering)
+- No new DB table — diagrams rendered client-side via Mermaid CDN
+- CDN: Added `mermaid@10` CDN script to index.html
+- Components: `MermaidRenderer` component (SVG rendering, dark theme, error handling); `MarkdownPreview` component (splits content by mermaid blocks, renders interleaved HTML/diagrams)
+- Integration: `MarkdownEditor` shows MERMAID badge when file contains diagrams; Preview mode uses `MarkdownPreview` instead of raw `renderMd`
+- Template: Default `system/DEPENDENCY_GRAPH.md` with 3 example diagrams (system architecture flowchart, data flow sequence diagram, project dependencies graph)
+- Features: Dark theme matching The Brain UI; error handling with helpful messages; supports flowcharts, sequence diagrams, Gantt charts
+- Priority Stack: 3.2 moved to Completed (Phase 3 Features section); Next Up now Phase 3.3 (Search Improvements)
+- Next: **Phase 3.3 — Search Improvements**
 
 ---
 **Edit 2026-03-11 (session 14 — Phase 3.1 AI Metadata Suggestions complete):**

@@ -279,6 +279,7 @@ const makeDefaultFiles = (name, templateConfig=null) => {
     "SYSTEM_INDEX.md":`# System Index — ${name}\n\n## Folders\n${STANDARD_FOLDERS.filter(f=>folders.includes(f.id)).map(f=>`- **${f.label}**: ${f.desc}`).join("\n")}\n`,
     "system/agent.ignore":`# agent.ignore\nlegal/\ninfrastructure/\nsystem/agent.ignore\nmanifest.json\n`,
     "system/SKILL.md":`# Project Skill Overrides — ${name}\n\n## Dev Agent Overrides\n# - Custom rules here\n`,
+    "system/DEPENDENCY_GRAPH.md":`# Dependency Graph — ${name}\n\nVisualise project relationships and architecture.\n\n## System Architecture\n\n\`\`\`mermaid\ngraph TB\n    subgraph Frontend\n        UI[User Interface]\n        State[State Management]\n    end\n    \n    subgraph Backend\n        API[API Layer]\n        DB[(Database)]\n    end\n    \n    subgraph External\n        AI[AI Provider]\n        Storage[File Storage]\n    end\n    \n    UI --> State\n    State --> API\n    API --> DB\n    API --> AI\n    API --> Storage\n\`\`\`\n\n## Data Flow\n\n\`\`\`mermaid\nsequenceDiagram\n    participant U as User\n    participant F as Frontend\n    participant A as API\n    participant D as Database\n    \n    U->>F: Action\n    F->>A: Request\n    A->>D: Query\n    D-->>A: Result\n    A-->>F: Response\n    F-->>U: Update UI\n\`\`\`\n\n## Project Dependencies\n\n\`\`\`mermaid\ngraph LR\n    A[${name}] --> B[Core Feature]\n    A --> C[Integration]\n    A --> D[Documentation]\n    \n    B --> B1[Module 1]\n    B --> B2[Module 2]\n    \n    C --> C1[External API]\n    C --> C2[Service]\n\`\`\`\n\n---\n\n*Edit this file to customise diagrams for your project*\n`,
   };
 
   if (showFolder("marketing")) files["CONTENT_CALENDAR.md"] = `# Content Calendar — ${name}\n\n| Date | Platform | Type | Topic | Status |\n|------|----------|------|-------|--------|\n`;
@@ -311,8 +312,75 @@ const getFileType=(path)=>{const ext=path?.split(".").pop()?.toLowerCase()||"";c
 // ── FILE SIZE FORMATTER ────────────────────────────────────────
 const formatFileSize=(base64str)=>{const kb=Math.floor(base64str.length/4/1024);return kb>1024?`${(kb/1024).toFixed(1)} MB`:`${kb} KB`;};
 
+// ── MERMAID RENDERER (Phase 3.2) ────────────────────────────
+const MermaidRenderer=({chart,id})=>{
+  const [svg,setSvg]=useState('');
+  const [error,setError]=useState(null);
+  const containerRef=useRef(null);
+
+  useEffect(()=>{
+    if(!chart||!window.mermaid)return;
+    
+    const renderChart=async()=>{
+      try{
+        // Generate unique ID if not provided
+        const uniqueId=id||`mermaid-${Math.random().toString(36).slice(2,11)}`;
+        
+        // Configure mermaid with dark theme
+        window.mermaid.initialize({
+          startOnLoad:false,
+          theme:'dark',
+          themeVariables:{
+            primaryColor:'#1a4fd620',
+            primaryTextColor:'#e2e8f0',
+            primaryBorderColor:'#1a4fd6',
+            lineColor:'#3b82f6',
+            secondaryColor:'#0f172a',
+            tertiaryColor:'#1e293b',
+            fontFamily:"'JetBrains Mono', monospace",
+            fontSize:'12px'
+          },
+          flowchart:{useMaxWidth:true,htmlLabels:true,curve:'basis'},
+          sequence:{useMaxWidth:true},
+          gantt:{useMaxWidth:true}
+        });
+        
+        const {svg:renderedSvg}=await window.mermaid.render(uniqueId,chart);
+        setSvg(renderedSvg);
+        setError(null);
+      }catch(e){
+        console.error('Mermaid render error:',e);
+        setError(e.message||'Failed to render diagram');
+        setSvg('');
+      }
+    };
+    
+    renderChart();
+  },[chart,id]);
+  
+  if(error){
+    return<div style={{padding:"12px",background:"#1a0f0f",border:"1px solid #dc2626",borderRadius:6,color:"#ef4444",fontSize:11}}>
+      <div style={{fontWeight:600,marginBottom:4}}>⚠ Diagram Error</div>
+      <div style={{fontFamily:"monospace",whiteSpace:"pre-wrap"}}>{error}</div>
+    </div>;
+  }
+  
+  return<div ref={containerRef} style={{margin:"12px 0",overflow:"auto",background:"#0a0f14",borderRadius:6,padding:12,border:"1px solid #1e293b"}} 
+    dangerouslySetInnerHTML={{__html:svg}}/>;
+};
+
 // ── MARKDOWN + GANTT ──────────────────────────────────────────
-const renderMd=(md="", files={})=>{if(!md)return"";let html=md;html=html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,(match, alt, imgPath) => {const fileContent=files[imgPath];if(fileContent&&getFileType(imgPath)==="image"){const src=fileContent.startsWith("data:")?fileContent:`data:image/png;base64,${fileContent}`;return `<img src="${src}" alt="${alt}" style="max-width:100%; max-height:400px; border-radius:4px; margin:8px 0;" />`;}return `[image: ${alt}]`;});return html.replace(/^### (.+)$/gm,"<h3 style='color:#e2e8f0;font-size:13px;margin:12px 0 6px'>$1</h3>").replace(/^## (.+)$/gm,"<h2 style='color:#f1f5f9;font-size:15px;margin:16px 0 8px;border-bottom:1px solid #0f1e3a;padding-bottom:4px'>$1</h2>").replace(/^# (.+)$/gm,"<h1 style='color:#f1f5f9;font-size:18px;margin:0 0 16px;font-weight:700'>$1</h1>").replace(/\*\*(.+?)\*\*/g,"<strong style='color:#e2e8f0'>$1</strong>").replace(/`([^`]+)`/g,"<code style='background:#0d1424;border:1px solid #1e293b;padding:1px 5px;border-radius:3px;font-size:11px;color:#10b981'>$1</code>").replace(/^- \[x\] (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#10b981'>✅</span><span>$1</span></div>").replace(/^- \[ \] (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#334155'>⬜</span><span style='color:#94a3b8'>$1</span></div>").replace(/^- (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#1a4fd6'>·</span><span>$1</span></div>").replace(/^\| (.+) \|$/gm,row=>{const cells=row.slice(2,-2).split(" | ");if(cells.every(c=>c.match(/^[-:]+$/)))return"";return`<div style='display:flex;border-bottom:1px solid #0f1e3a'>${cells.map(c=>`<div style='flex:1;padding:4px 8px;font-size:10px;color:#94a3b8'>${c}</div>`).join("")}</div>`;}).replace(/^> (.+)$/gm,"<blockquote style='border-left:3px solid #1a4fd6;margin:8px 0;padding:6px 12px;color:#94a3b8;font-style:italic'>$1</blockquote>").replace(/\n\n/g,"<br/><br/>").replace(/\n/g,"<br/>");};
+const renderMd=(md="", files={})=>{if(!md)return"";let html=md;
+// Extract mermaid blocks before other processing
+const mermaidBlocks=[];
+html=html.replace(/```mermaid\n([\s\S]*?)```/g,(match,content)=>{
+  const id=`mermaid-block-${mermaidBlocks.length}`;
+  mermaidBlocks.push({id,content:content.trim()});
+  return `<div class="mermaid-placeholder" data-id="${id}"></div>`;
+});
+// Store mermaid blocks globally for React component to pick up
+if(typeof window!=='undefined'){window.__mermaidBlocks=window.__mermaidBlocks||{};mermaidBlocks.forEach(b=>{window.__mermaidBlocks[b.id]=b.content;});}
+html=html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,(match, alt, imgPath) => {const fileContent=files[imgPath];if(fileContent&&getFileType(imgPath)==="image"){const src=fileContent.startsWith("data:")?fileContent:`data:image/png;base64,${fileContent}`;return `<img src="${src}" alt="${alt}" style="max-width:100%; max-height:400px; border-radius:4px; margin:8px 0;" />`;}return `[image: ${alt}]`;});return html.replace(/^### (.+)$/gm,"<h3 style='color:#e2e8f0;font-size:13px;margin:12px 0 6px'>$1</h3>").replace(/^## (.+)$/gm,"<h2 style='color:#f1f5f9;font-size:15px;margin:16px 0 8px;border-bottom:1px solid #0f1e3a;padding-bottom:4px'>$1</h2>").replace(/^# (.+)$/gm,"<h1 style='color:#f1f5f9;font-size:18px;margin:0 0 16px;font-weight:700'>$1</h1>").replace(/\*\*(.+?)\*\*/g,"<strong style='color:#e2e8f0'>$1</strong>").replace(/`([^`]+)`/g,"<code style='background:#0d1424;border:1px solid #1e293b;padding:1px 5px;border-radius:3px;font-size:11px;color:#10b981'>$1</code>").replace(/^- \[x\] (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#10b981'>✅</span><span>$1</span></div>").replace(/^- \[ \] (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#334155'>⬜</span><span style='color:#94a3b8'>$1</span></div>").replace(/^- (.+)$/gm,"<div style='display:flex;gap:6px;padding:2px 0'><span style='color:#1a4fd6'>·</span><span>$1</span></div>").replace(/^\| (.+) \|$/gm,row=>{const cells=row.slice(2,-2).split(" | ");if(cells.every(c=>c.match(/^[-:]+$/)))return"";return`<div style='display:flex;border-bottom:1px solid #0f1e3a'>${cells.map(c=>`<div style='flex:1;padding:4px 8px;font-size:10px;color:#94a3b8'>${c}</div>`).join("")}</div>`;}).replace(/^> (.+)$/gm,"<blockquote style='border-left:3px solid #1a4fd6;margin:8px 0;padding:6px 12px;color:#94a3b8;font-style:italic'>$1</blockquote>").replace(/\n\n/g,"<br/><br/>").replace(/\n/g,"<br/>");};
 
 const GanttChart=({tasks})=>{const rows=tasks.filter(t=>t.start&&t.end);if(!rows.length)return<div style={{color:C.muted,fontSize:10,padding:"12px 0"}}>Format: <code style={{color:C.green}}>- [ ] Task 2025-01-01 → 2025-01-14</code></div>;const allD=rows.flatMap(r=>[new Date(r.start),new Date(r.end)]);const minD=new Date(Math.min(...allD));const maxD=new Date(Math.max(...allD));const range=maxD-minD||1;return<div style={{overflowX:"auto"}}>{rows.map((r,i)=>{const left=((new Date(r.start)-minD)/range)*100;const width=((new Date(r.end)-new Date(r.start))/range)*100;return<div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}><div style={{width:140,fontSize:10,color:C.text,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.label}</div><div style={{flex:1,height:16,background:C.border,borderRadius:3,position:"relative",minWidth:200}}><div style={{position:"absolute",left:`${left}%`,width:`${Math.max(width,2)}%`,height:"100%",background:r.done?C.green:C.blue,borderRadius:3,opacity:0.85}}/></div></div>;})} </div>;};
 const parseTasks=(md)=>{const rows=[];md?.split("\n").forEach(line=>{const m=line.match(/[-*]\s+\[(.)\]\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s*(?:→|-|to)\s*(\d{4}-\d{2}-\d{2})/);if(m)rows.push({done:m[1]==="x",label:m[2],start:m[3],end:m[4]});});return rows;};
@@ -353,6 +421,53 @@ const FileTree=({files,activeFile,onSelect,onNewFile,onDelete,customFolders=[]})
   </div>;
 };
 
+// ── MARKDOWN PREVIEW WITH MERMAID (Phase 3.2) ───────────────
+const MarkdownPreview=({content,files})=>{
+  const [parts,setParts]=useState([]);
+  
+  useEffect(()=>{
+    if(!content){setParts([]);return;}
+    
+    // Split content by mermaid blocks
+    const segments=[];
+    const mermaidRegex=/```mermaid\n([\s\S]*?)```/g;
+    let lastIndex=0;
+    let match;
+    let blockIndex=0;
+    
+    while((match=mermaidRegex.exec(content))!==null){
+      // Add text before this mermaid block
+      if(match.index>lastIndex){
+        segments.push({type:'html',content:content.slice(lastIndex,match.index)});
+      }
+      // Add mermaid block
+      segments.push({type:'mermaid',content:match[1].trim(),id:`mmd-${blockIndex++}`});
+      lastIndex=match.index+match[0].length;
+    }
+    
+    // Add remaining text
+    if(lastIndex<content.length){
+      segments.push({type:'html',content:content.slice(lastIndex)});
+    }
+    
+    // Render markdown for HTML segments
+    const renderedParts=segments.map(seg=>({
+      ...seg,
+      html:seg.type==='html'?renderMd(seg.content,files):null
+    }));
+    
+    setParts(renderedParts);
+  },[content,files]);
+  
+  return<div style={{flex:1,overflowY:"auto",padding:"14px 20px",background:"#050810",fontSize:12,lineHeight:1.8,color:C.text}}>
+    {parts.map((part,idx)=>(
+      part.type==='html'
+        ?<div key={idx} dangerouslySetInnerHTML={{__html:part.html}}/>
+        :<MermaidRenderer key={idx} chart={part.content} id={part.id}/>
+    ))}
+  </div>;
+};
+
 // ── MARKDOWN EDITOR ───────────────────────────────────────────
 const MarkdownEditor=({path,content,onChange,onSave,saving,files={}})=>{
   const [mode,setMode]=useState("edit");
@@ -378,12 +493,15 @@ const MarkdownEditor=({path,content,onChange,onSave,saving,files={}})=>{
 
   const isJson=path?.endsWith(".json");
   const isReadonly=path==="system/agent.ignore"||path==="manifest.json";
+  const hasMermaid=val.includes('```mermaid');
+  
   return <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 12px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
         <span style={{fontSize:10,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:300}}>{path}</span>
         {isReadonly&&<span style={S.badge(C.amber)}>READONLY</span>}
         {path==="manifest.json"&&<span style={S.badge(C.purple)}>MANIFEST</span>}
+        {hasMermaid&&<span style={S.badge(C.blue)}>MERMAID</span>}
       </div>
       <div style={{display:"flex",gap:4,flexShrink:0,alignItems:"center"}}>
         {dirty && <span style={{fontSize:9,color:C.amber,marginRight:8}}>Unsaved changes...</span>}
@@ -393,7 +511,7 @@ const MarkdownEditor=({path,content,onChange,onSave,saving,files={}})=>{
     </div>
     {mode==="edit"||isJson
       ?<textarea style={{...S.input,flex:1,resize:"none",border:"none",borderRadius:0,fontSize:isJson?11:12,lineHeight:1.7,padding:"14px 16px",background:"#050810"}} value={val} onChange={e=>{setVal(e.target.value);onChange(e.target.value);setDirty(true);}} readOnly={isReadonly} spellCheck={false}/>
-      :<div style={{flex:1,overflowY:"auto",padding:"14px 20px",background:"#050810",fontSize:12,lineHeight:1.8,color:C.text}} dangerouslySetInnerHTML={{__html:renderMd(val,files)}}/>}
+      :<MarkdownPreview content={val} files={files}/>}
   </div>;
 };
 
