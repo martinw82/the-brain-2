@@ -179,6 +179,22 @@ const migrations = [
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
           INDEX idx_training_user_date (user_id, date)
         );`
+    },
+    {
+        version: 14,
+        name: 'create_outreach_log_table',
+        sql: `CREATE TABLE IF NOT EXISTS outreach_log (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          date VARCHAR(10) NOT NULL,
+          type VARCHAR(32) NOT NULL DEFAULT 'message',
+          target VARCHAR(255) DEFAULT NULL,
+          project_id VARCHAR(36) DEFAULT NULL,
+          notes TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          INDEX idx_outreach_user_date (user_id, date)
+        );`
     }
 ];
 

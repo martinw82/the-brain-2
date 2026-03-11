@@ -319,6 +319,21 @@ CREATE TABLE IF NOT EXISTS training_logs (
   INDEX idx_training_user_date (user_id, date)
 );
 
+-- ── OUTREACH LOG (Phase 2.7) ─────────────────────────────────
+-- Track daily outreach actions for AI coach enforcement
+CREATE TABLE IF NOT EXISTS outreach_log (
+  id              VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
+  user_id         VARCHAR(36)   NOT NULL,
+  date            VARCHAR(10)   NOT NULL,          -- YYYY-MM-DD
+  type            VARCHAR(32)   NOT NULL DEFAULT 'message',  -- message/post/call/email/other
+  target          VARCHAR(255)  DEFAULT NULL,      -- person/platform/channel
+  project_id      VARCHAR(36)   DEFAULT NULL,
+  notes           TEXT,
+  created_at      DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_outreach_user_date (user_id, date)
+);
+
 -- ── TEMPLATES ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS templates (
   id              VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),

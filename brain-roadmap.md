@@ -329,20 +329,22 @@ Foundation for the agent layer's state-based task routing.
 - [x] **Correlation:** Weekly training data included in AI Coach context with "BELOW TARGET" flag if < 3 sessions
 - **Done when:** ✓ Log training sessions, see weekly count in top bar and Command Centre card, AI coach references training data
 
-### 2.7 Outreach tracking `[DB]` `[API]` `[UI]`
+### 2.7 Outreach tracking `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **Schema:** Create `outreach_log` table:
+- [x] **Schema:** Create `outreach_log` table (migration v14):
   ```
   id, user_id, date, type (message/post/call/email/other),
   target (person/platform/channel),
-  project_id (nullable), notes,
-  created_at
+  project_id (nullable), notes, created_at
   ```
-- [ ] **API:** CRUD routes (`/api/outreach`)
-- [ ] **API:** GET `/api/outreach/stats?days=7` — daily counts
-- [ ] **UI:** Quick-log in command centre
-- [ ] **UI:** Daily outreach indicator (done/not done)
-- **Done when:** Outreach actions are tracked daily. AI coach can enforce the "outreach is mandatory" rule.
+- [x] **API:** POST/DELETE via `/api/data?resource=outreach-log`
+- [x] **API:** GET `?date=YYYY-MM-DD` (today's entries + count) and `?days=N` (recent with daily_counts map)
+- [x] **Client:** `outreachLog.save/list/today/delete` in `src/api.js`
+- [x] **UI:** `OutreachLogModal.jsx` — type selector (5 types), target input, optional project link, notes
+- [x] **UI:** Outreach card in Command Centre — today's count + weekly total + last 3 entries preview; ⚠ "No outreach yet today" warning when empty
+- [x] **UI:** 📣 indicator in top bar — purple when done, dim when zero; shows count or "none"; click to open log modal
+- [x] **AI context:** Outreach today count + "NOT DONE (mandatory)" flag in AI Coach system prompt when no outreach logged
+- **Done when:** ✓ Log outreach actions, see daily indicator in top bar and card, AI coach enforces mandatory daily minimum
 
 ### 2.8 Agent system prompt upgrade + context compression `[API]` `[CONFIG]`
 

@@ -530,3 +530,24 @@ export const training_logs = mysqlTable(
     userDateIdx: index("idx_training_user_date").on(table.user_id, table.date),
   })
 );
+
+// ────────────────────────────────────────────────────────────────
+// OUTREACH LOG (Phase 2.7 - Daily Outreach Tracking)
+// Log outreach actions for AI coach enforcement + daily indicator
+// ────────────────────────────────────────────────────────────────
+export const outreach_log = mysqlTable(
+  "outreach_log",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
+    user_id: varchar("user_id", { length: 36 }).notNull(),
+    date: varchar("date", { length: 10 }).notNull(),
+    type: varchar("type", { length: 32 }).notNull().default("message"),
+    target: varchar("target", { length: 255 }),
+    project_id: varchar("project_id", { length: 36 }),
+    notes: text("notes"),
+    created_at: datetime("created_at").defaultNow(),
+  },
+  (table) => ({
+    userDateIdx: index("idx_outreach_user_date").on(table.user_id, table.date),
+  })
+);
