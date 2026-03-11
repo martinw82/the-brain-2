@@ -412,14 +412,15 @@ _These make the tool genuinely powerful. Each plugs into the foundations from Ph
 - **Done when:** ✅ Mermaid diagrams render visually in markdown preview
 - **How:** Mermaid loaded via CDN in index.html; `MermaidRenderer` component renders SVG with dark theme; `MarkdownPreview` splits content by mermaid blocks; default `system/DEPENDENCY_GRAPH.md` template with example diagrams
 
-### 3.3 Search improvements `[API]` `[UI]`
+### 3.3 Search improvements `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **Cross-project search:** Current search already queries DB full-text — extend to return results grouped by project
-- [ ] **Better result display:** Show matched line with highlighted search term
-- [ ] **Search filters:** by project, by folder, by file type, by tag
-- [ ] **Keyboard shortcut:** Cmd/Ctrl+K opens search
-- [ ] **Recent searches:** Store last 5 searches in localStorage
-- **Done when:** Cmd+K opens a search that finds content across all projects with highlighted excerpts
+- [x] **Cross-project search:** Current search already queries DB full-text — extend to return results grouped by project
+- [x] **Better result display:** Show matched line with highlighted search term
+- [x] **Search filters:** by project, by folder, by file type, by tag
+- [x] **Keyboard shortcut:** Cmd/Ctrl+K opens search
+- [x] **Recent searches:** Store last 5 searches in localStorage
+- **Done when:** ✅ Cmd+K opens a search that finds content across all projects with highlighted excerpts
+- **How:** Enhanced `resource=search` API with filters and grouped results; `SearchModal` component with Cmd+K shortcut, recent searches, filter dropdowns, highlighted match terms
 
 ### 3.4 Local file system sync `[UI]`
 

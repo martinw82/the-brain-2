@@ -508,33 +508,107 @@ export default async function handler(req, res) {
       }
     }
 
-    // ── SEARCH ────────────────────────────────────────────────
+    // ── SEARCH (Phase 3.3 Enhanced) ───────────────────────────
     if (resource === 'search') {
-      if (!q?.trim()) return ok(res, { results: [] });
+      if (!q?.trim()) return ok(res, { results: [], grouped: {} });
+      
+      const { project_id, folder, file_type, tag } = req.query;
+      
       try {
-        let results;
-        try {
-          [results] = await db.execute(
-            `SELECT pf.project_id, pf.path, LEFT(pf.content, 200) as excerpt, p.name as project_name, p.emoji
-             FROM project_files pf JOIN projects p ON p.id = pf.project_id
-             WHERE pf.user_id = ? AND pf.content LIKE ? AND pf.deleted_at IS NULL LIMIT 15`,
-            [auth.userId, `%${q}%`]
-          );
-        } catch (e) {
-          if (e.message.includes('Unknown column \'pf.deleted_at\'')) {
-            [results] = await db.execute(
-              `SELECT pf.project_id, pf.path, LEFT(pf.content, 200) as excerpt, p.name as project_name, p.emoji
-               FROM project_files pf JOIN projects p ON p.id = pf.project_id
-               WHERE pf.user_id = ? AND pf.content LIKE ? LIMIT 15`,
-              [auth.userId, `%${q}%`]
-            );
-          } else {
-            throw e;
-          }
+        let query = `
+          SELECT pf.project_id, pf.path, p.name as project_name, p.emoji,
+                 LEFT(pf.content, 1000) as content_preview
+          FROM project_files pf 
+          JOIN projects p ON p.id = pf.project_id
+          WHERE pf.user_id = ? AND pf.content LIKE ?
+        `;
+        const params = [auth.userId, `%${q}%`];
+        
+        // Apply filters
+        if (project_id) {
+          query += ` AND pf.project_id = ?`;
+          params.push(project_id);
         }
-        return ok(res, { results });
-      } catch {
-        return ok(res, { results: [] });
+        
+        if (folder) {
+          query += ` AND pf.path LIKE ?`;
+          params.push(`${folder}/%`);
+        }
+        
+        if (file_type) {
+          query += ` AND pf.path LIKE ?`;
+          params.push(`%.${file_type}`);
+        }
+        
+        // Handle soft deletes
+        try {
+          query += ` AND pf.deleted_at IS NULL`;
+        } catch {}
+        
+        query += ` LIMIT 50`;
+        
+        const [rows] = await db.execute(query, params);
+        
+        // Process results with highlighted excerpts
+        const results = rows.map(row => {
+          const content = row.content_preview || '';
+          const lowerContent = content.toLowerCase();
+          const lowerQuery = q.toLowerCase();
+          const idx = lowerContent.indexOf(lowerQuery);
+          
+          // Create highlighted excerpt
+          let excerpt = '';
+          if (idx >= 0) {
+            const start = Math.max(0, idx - 60);
+            const end = Math.min(content.length, idx + q.length + 60);
+            excerpt = content.slice(start, end);
+            // Add ellipsis if truncated
+            if (start > 0) excerpt = '...' + excerpt;
+            if (end < content.length) excerpt = excerpt + '...';
+          } else {
+            excerpt = content.slice(0, 120) + (content.length > 120 ? '...' : '');
+          }
+          
+          // Extract folder from path
+          const folderMatch = row.path.match(/^([^/]+)/);
+          const fileFolder = folderMatch ? folderMatch[1] : 'root';
+          
+          // Extract file extension
+          const extMatch = row.path.match(/\.([^.]+)$/);
+          const extension = extMatch ? extMatch[1].toLowerCase() : '';
+          
+          return {
+            project_id: row.project_id,
+            project_name: row.project_name,
+            emoji: row.emoji,
+            path: row.path,
+            folder: fileFolder,
+            extension,
+            excerpt,
+            // For highlighting
+            match_index: idx,
+            query: q
+          };
+        });
+        
+        // Group by project
+        const grouped = {};
+        results.forEach(r => {
+          if (!grouped[r.project_id]) {
+            grouped[r.project_id] = {
+              project_id: r.project_id,
+              project_name: r.project_name,
+              emoji: r.emoji,
+              matches: []
+            };
+          }
+          grouped[r.project_id].matches.push(r);
+        });
+        
+        return ok(res, { results, grouped });
+      } catch (e) {
+        console.error('Search error:', e);
+        return ok(res, { results: [], grouped: {} });
       }
     }
 

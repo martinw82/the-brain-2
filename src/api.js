@@ -338,8 +338,14 @@ export const comments = {
 
 // ── SEARCH ────────────────────────────────────────────────────
 export const search = {
-  query: (q) =>
-    get(`${BASE}/api/data?resource=search&q=${encodeURIComponent(q)}`),
+  query: (q, filters = {}) => {
+    let url = `${BASE}/api/data?resource=search&q=${encodeURIComponent(q)}`;
+    if (filters.project_id) url += `&project_id=${filters.project_id}`;
+    if (filters.folder) url += `&folder=${encodeURIComponent(filters.folder)}`;
+    if (filters.file_type) url += `&file_type=${filters.file_type}`;
+    if (filters.tag) url += `&tag=${encodeURIComponent(filters.tag)}`;
+    return get(url);
+  },
 };
 
 // ── TAGS ──────────────────────────────────────────────────────

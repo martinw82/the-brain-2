@@ -4,6 +4,41 @@
 
 ---
 
+## Session 037 — 2026-03-11
+**Branch:** `session-037-search-improvements`
+**Task:** Phase 3.3 — Search Improvements
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented enhanced search with Cmd+K shortcut, filters, highlighted results, and recent searches.
+
+**API Changes (`api/data.js`):**
+- Enhanced `resource=search` endpoint
+- Added filter support: `project_id`, `folder`, `file_type`
+- Returns highlighted excerpts with match context
+- Results grouped by project with count
+- Better error handling
+
+**Client Changes (`src/api.js`):**
+- `searchApi.query()` now accepts filters object
+
+**UI Changes (`src/TheBrain.jsx`):**
+- New `SearchModal` component:
+  - Cmd+K / Ctrl+K keyboard shortcut
+  - ESC to close
+  - Recent searches (localStorage, last 5)
+  - Filter dropdowns (project, folder, file type)
+  - Highlighted match terms in excerpts
+  - Results grouped by project with match count
+  - Debounced search with loading indicator
+- Search button in header with ⌘K hint
+- Removed old inline search dropdown
+
+### Done When
+✅ Cmd+K opens a search that finds content across all projects with highlighted excerpts
+
+---
+
 ## Session 036 — 2026-03-11
 **Branch:** `session-036-mermaid-diagrams`
 **Task:** Phase 3.2 — Mermaid Diagram Rendering
