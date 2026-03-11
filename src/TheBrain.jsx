@@ -2,6 +2,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token } from "./api.js";
 import { cache } from "./cache.js";
 import { sync } from "./sync.js";
+import { desktopSync } from "./desktop-sync.js";
+import FolderSyncSetup from "./components/FolderSyncSetup.jsx";
+import SyncReviewModal from "./components/SyncReviewModal.jsx";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -504,10 +507,15 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [loadingFiles,setLoadingFiles] = useState(false);  // hub file loading
   const [commentsLoading, setCommentsLoading] = useState(false); // comments loading indicator
 
-  // Offline mode state (Phase 2.4)
+  // Offline mode state (Phase 2.4A)
   const [isOnline, setIsOnline] = useState(true);
   const [syncStatus, setSyncStatus] = useState("idle"); // "idle", "syncing", "synced", "error"
   const [queuedWrites, setQueuedWrites] = useState(0);
+
+  // Desktop sync state (Phase 2.4B)
+  const [syncState, setSyncState] = useState(null);
+  const [syncChanges, setSyncChanges] = useState(null);
+  const [showSyncReview, setShowSyncReview] = useState(false);
 
   const showToast = (msg) => setToast({msg});
 
@@ -1431,6 +1439,19 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
         </Modal>
       )}
 
+      {showSyncReview && (
+        <SyncReviewModal
+          changes={syncChanges}
+          conflicts={[]}
+          onApprove={(resolutions) => {
+            setShowSyncReview(false);
+            // Sync would be executed here with approved resolutions
+            showToast("✓ Sync approved");
+          }}
+          onCancel={() => setShowSyncReview(false)}
+        />
+      )}
+
       {showImportModal&&(
         <Modal title="📥 Import Project" onClose={()=>{setShowImportModal(false);setImportError("");setImportConflict(null);}} width={500}>
           <div style={{display:"flex",flexDirection:"column",gap:16}}>
@@ -1808,40 +1829,51 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             )}
 
             {hubTab==="meta"&&(
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                <div style={S.card(false)}>
-                  <span style={S.label()}>manifest.json <span style={S.badge(C.purple)}>portability contract</span></span>
-                  <pre style={{fontSize:9,color:C.muted,background:C.bg,border:`1px solid ${C.border}`,borderRadius:5,padding:12,overflow:"auto",maxHeight:300,lineHeight:1.6,margin:0}}>{(hub.files||{})["manifest.json"]||"{}"}</pre>
-                </div>
-                <div style={S.card(false)}>
-                  <span style={S.label()}>Folder Summary</span>
-                  {hubAllFolders.map(f=>{
-                    const count=Object.keys(hub.files||{}).filter(k=>k.startsWith(f.id+"/")&&!k.endsWith(".gitkeep")).length;
-                    const isCustom=!STANDARD_FOLDER_IDS.has(f.id);
-                    return <div key={f.id} style={{display:"flex",justifyContent:"space-between",fontSize:9,padding:"3px 0",borderBottom:`1px solid ${C.border}`,color:count>0?C.text:C.dim}}>
-                      <span>{f.icon} {f.label} {isCustom&&<span style={{color:C.purple}}>·custom</span>}</span>
-                      <span style={{color:count>0?C.blue2:C.dim}}>{count}</span>
-                    </div>;
-                  })}
-                  <div style={{marginTop:16}}>
-                    <button style={S.btn("ghost")} onClick={async ()=>{
-                        const manifest = JSON.parse(hub.files["manifest.json"] || "{}");
-                        const template = {
-                            name: `${hub.name} Template`,
-                            description: `Extracted from project: ${hub.name}`,
-                            icon: hub.emoji,
-                            config: {
-                                phases: BUIDL_PHASES.includes(hub.phase) ? BUIDL_PHASES : [hub.phase],
-                                folders: Object.keys(hub.files).map(p=>p.split('/')[0]).filter(f=>f && f!=='.gitkeep' && !f.endsWith('.md') && !f.endsWith('.json'))
-                            }
-                        };
-                        try {
-                            await templatesApi.create(template);
-                            showToast("✓ Saved as template");
-                            const data = await templatesApi.list();
-                            setTemplates(data.templates || []);
-                        } catch(e) { showToast("Failed to save template"); }
-                    }}>Save as Template</button>
+              <div>
+                {/* Desktop Sync Section */}
+                <FolderSyncSetup
+                  projectId={hubId}
+                  syncState={syncState}
+                  onSyncStateChange={setSyncState}
+                  projectFiles={hub?.files ? Object.entries(hub.files).map(([path, content]) => ({ path, content })) : []}
+                />
+
+                {/* Manifest and Folder Summary */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <div style={S.card(false)}>
+                    <span style={S.label()}>manifest.json <span style={S.badge(C.purple)}>portability contract</span></span>
+                    <pre style={{fontSize:9,color:C.muted,background:C.bg,border:`1px solid ${C.border}`,borderRadius:5,padding:12,overflow:"auto",maxHeight:300,lineHeight:1.6,margin:0}}>{(hub.files||{})["manifest.json"]||"{}"}</pre>
+                  </div>
+                  <div style={S.card(false)}>
+                    <span style={S.label()}>Folder Summary</span>
+                    {hubAllFolders.map(f=>{
+                      const count=Object.keys(hub.files||{}).filter(k=>k.startsWith(f.id+"/")&&!k.endsWith(".gitkeep")).length;
+                      const isCustom=!STANDARD_FOLDER_IDS.has(f.id);
+                      return <div key={f.id} style={{display:"flex",justifyContent:"space-between",fontSize:9,padding:"3px 0",borderBottom:`1px solid ${C.border}`,color:count>0?C.text:C.dim}}>
+                        <span>{f.icon} {f.label} {isCustom&&<span style={{color:C.purple}}>·custom</span>}</span>
+                        <span style={{color:count>0?C.blue2:C.dim}}>{count}</span>
+                      </div>;
+                    })}
+                    <div style={{marginTop:16}}>
+                      <button style={S.btn("ghost")} onClick={async ()=>{
+                          const manifest = JSON.parse(hub.files["manifest.json"] || "{}");
+                          const template = {
+                              name: `${hub.name} Template`,
+                              description: `Extracted from project: ${hub.name}`,
+                              icon: hub.emoji,
+                              config: {
+                                  phases: BUIDL_PHASES.includes(hub.phase) ? BUIDL_PHASES : [hub.phase],
+                                  folders: Object.keys(hub.files).map(p=>p.split('/')[0]).filter(f=>f && f!=='.gitkeep' && !f.endsWith('.md') && !f.endsWith('.json'))
+                              }
+                          };
+                          try {
+                              await templatesApi.create(template);
+                              showToast("✓ Saved as template");
+                              const data = await templatesApi.list();
+                              setTemplates(data.templates || []);
+                          } catch(e) { showToast("Failed to save template"); }
+                      }}>Save as Template</button>
+                    </div>
                   </div>
                 </div>
               </div>

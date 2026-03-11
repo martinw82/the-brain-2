@@ -433,3 +433,54 @@ export const templates = mysqlTable(
     userIdx: index("idx_user_templates").on(table.user_id, table.category),
   })
 );
+
+// ────────────────────────────────────────────────────────────────
+// SYNC STATE (Phase 2.4B - Desktop File Sync)
+// Track which projects have desktop folders connected
+// ────────────────────────────────────────────────────────────────
+export const sync_state = mysqlTable(
+  "sync_state",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    user_id: varchar("user_id", { length: 36 }).notNull(),
+    project_id: varchar("project_id", { length: 64 }).notNull(),
+    folder_handle_key: varchar("folder_handle_key", { length: 255 }),
+    last_sync_at: datetime("last_sync_at"),
+    sync_status: varchar("sync_status", { length: 32 }).default("idle"),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    userProjectIdx: unique("unique_user_project_sync").on(
+      table.user_id,
+      table.project_id
+    ),
+    syncStatusIdx: index("idx_sync_status").on(table.user_id, table.sync_status),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// SYNC FILE STATE (Phase 2.4B - Desktop File Sync)
+// Track file-level sync state: hashes, timestamps, conflict status
+// ────────────────────────────────────────────────────────────────
+export const sync_file_state = mysqlTable(
+  "sync_file_state",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    sync_state_id: int("sync_state_id").notNull(),
+    file_path: varchar("file_path", { length: 512 }).notNull(),
+    desktop_content_hash: varchar("desktop_content_hash", { length: 64 }),
+    cloud_content_hash: varchar("cloud_content_hash", { length: 64 }),
+    last_desktop_modified: datetime("last_desktop_modified"),
+    last_cloud_modified: datetime("last_cloud_modified"),
+    sync_status: varchar("sync_status", { length: 32 }).default("synced"),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    syncStateIdx: index("idx_sync_file_status").on(
+      table.sync_state_id,
+      table.sync_status
+    ),
+  })
+);
