@@ -442,6 +442,18 @@ export const drift = {
     get(`${BASE}/api/data?resource=drift-check`),
 };
 
+// ── AI METADATA SUGGESTIONS (Phase 3.1) ───────────────────────
+export const aiMetadata = {
+  suggest: (projectId, filePath, content, projectName, projectPhase) =>
+    post(`${BASE}/api/data?resource=ai-metadata-suggestions`, {
+      project_id: projectId,
+      file_path: filePath,
+      content,
+      project_name: projectName,
+      project_phase: projectPhase,
+    }),
+};
+
 // ── AI ────────────────────────────────────────────────────────
 export const ai = {
   ask: (prompt, system) =>

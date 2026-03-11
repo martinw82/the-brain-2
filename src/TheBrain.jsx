@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token, drift as driftApi } from "./api.js";
+import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token, drift as driftApi, aiMetadata as aiMetadataApi } from "./api.js";
 import { cache } from "./cache.js";
 import { sync } from "./sync.js";
 import { desktopSync } from "./desktop-sync.js";
@@ -58,14 +58,22 @@ const Toast=({msg,onDone})=>{
   return <div style={{position:"fixed",bottom:24,right:24,background:C.surface,border:`1px solid ${C.green}40`,borderRadius:8,padding:"10px 18px",fontSize:11,color:C.green,zIndex:9999,boxShadow:`0 4px 24px rgba(0,0,0,0.4)`}}>{msg}</div>;
 };
 
-// ── METADATA EDITOR (Roadmap 2.3) ──────────────────────────
-const MetadataEditor=({file,projectId,metadata,onSave,allTags})=>{
+// ── METADATA EDITOR (Roadmap 2.3 + 3.1) ───────────────────
+const MetadataEditor=({file,projectId,metadata,onSave,allTags,aiSuggestions,onRequestSuggestions,loadingSuggestions,onAcceptSuggestion})=>{
   const [category,setCategory]=useState(metadata?.category||'');
   const [status,setStatus]=useState(metadata?.status||'draft');
   const [customFields,setCustomFields]=useState(metadata?.metadata_json?.custom||{});
   const [newFieldKey,setNewFieldKey]=useState('');
   const [newFieldValue,setNewFieldValue]=useState('');
   const [expanded,setExpanded]=useState(false);
+  const [showAiSection,setShowAiSection]=useState(true);
+
+  // Sync local state when metadata prop changes
+  useEffect(()=>{
+    setCategory(metadata?.category||'');
+    setStatus(metadata?.status||'draft');
+    setCustomFields(metadata?.metadata_json?.custom||{});
+  },[metadata]);
 
   const save=async()=>{
     await onSave({category,status,metadata_json:{custom:customFields}});
@@ -79,8 +87,11 @@ const MetadataEditor=({file,projectId,metadata,onSave,allTags})=>{
     }
   };
 
+  const hasSuggestions=aiSuggestions && !aiSuggestions.error && !aiSuggestions.ignored;
+  const suggestions=aiSuggestions?.suggestions;
+
   return(
-    <div style={{borderLeft:`1px solid ${C.border}`,padding:12,minWidth:250,overflowY:"auto"}}>
+    <div style={{borderLeft:`1px solid ${C.border}`,padding:12,minWidth:250,maxWidth:300,overflowY:"auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",marginBottom:expanded?8:0}} onClick={()=>setExpanded(!expanded)}>
         <span style={{fontSize:10,color:C.blue,letterSpacing:"0.1em",textTransform:"uppercase"}}>📋 Metadata</span>
         <span style={{fontSize:12}}>{expanded?'▼':'▶'}</span>
@@ -88,6 +99,87 @@ const MetadataEditor=({file,projectId,metadata,onSave,allTags})=>{
 
       {expanded&&(
         <div>
+          {/* AI Suggestions (Phase 3.1) */}
+          {showAiSection&&(
+            <div style={{marginBottom:12,padding:8,background:C.bg,borderRadius:6,border:`1px solid ${C.border}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <span style={{fontSize:9,color:C.purple,fontWeight:600}}>🤖 AI Suggestions</span>
+                <button style={{...S.btn("ghost"),padding:"2px 6px",fontSize:8}} onClick={()=>onRequestSuggestions?.()} disabled={loadingSuggestions}>
+                  {loadingSuggestions?'⏳':'↻ Refresh'}
+                </button>
+              </div>
+
+              {loadingSuggestions&&(
+                <div style={{fontSize:9,color:C.dim,fontStyle:"italic"}}>Analyzing content...</div>
+              )}
+
+              {aiSuggestions?.ignored&&(
+                <div style={{fontSize:9,color:C.dim}}>{aiSuggestions.reason||'File type not analyzed'}</div>
+              )}
+
+              {aiSuggestions?.error&&(
+                <div style={{fontSize:9,color:C.red}}>{aiSuggestions.error}</div>
+              )}
+
+              {hasSuggestions&&suggestions&&(
+                <div>
+                  {/* Category suggestion */}
+                  {suggestions.category&&suggestions.category!==category&&(
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                      <span style={{fontSize:8,color:C.dim,flexShrink:0}}>Category:</span>
+                      <span style={{fontSize:8,color:C.purple,border:`1px dashed ${C.purple}`,padding:"2px 6px",borderRadius:4,cursor:"pointer"}} 
+                        onClick={()=>{setCategory(suggestions.category);onAcceptSuggestion?.('category',suggestions.category);}}>
+                        {suggestions.category} ✓
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Status suggestion */}
+                  {suggestions.status&&suggestions.status!==status&&(
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                      <span style={{fontSize:8,color:C.dim,flexShrink:0}}>Status:</span>
+                      <span style={{fontSize:8,color:C.purple,border:`1px dashed ${C.purple}`,padding:"2px 6px",borderRadius:4,cursor:"pointer"}}
+                        onClick={()=>{setStatus(suggestions.status);onAcceptSuggestion?.('status',suggestions.status);}}>
+                        {suggestions.status} ✓
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Tag suggestions */}
+                  {suggestions.tags&&suggestions.tags.length>0&&(
+                    <div style={{marginBottom:6}}>
+                      <span style={{fontSize:8,color:C.dim,display:"block",marginBottom:4}}>Suggested tags:</span>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                        {suggestions.tags.map((tag,idx)=>{
+                          const alreadyHas=allTags?.some(t=>t.name?.toLowerCase()===tag.toLowerCase());
+                          return(
+                            <span key={idx} style={{fontSize:8,color:C.purple,border:`1px dashed ${C.purple}`,padding:"2px 6px",borderRadius:4,cursor:"pointer",opacity:alreadyHas?0.5:1}}
+                              onClick={()=>!alreadyHas&&onAcceptSuggestion?.('tag',tag)}>
+                              {tag} {alreadyHas?'(has)':'✓'}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Confidence indicator */}
+                  {suggestions.confidence!==undefined&&(
+                    <div style={{fontSize:8,color:C.dim,marginTop:6}}>
+                      Confidence: {Math.round(suggestions.confidence*100)}%
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!loadingSuggestions&&!hasSuggestions&&!aiSuggestions?.error&&!aiSuggestions?.ignored&&(
+                <div style={{fontSize:9,color:C.dim}}>
+                  Click refresh to analyze file content
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Category */}
           <div style={{marginBottom:10}}>
             <label style={{fontSize:9,color:C.dim}}>Category</label>
@@ -443,6 +535,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [userSettings,setUserSettings]   = useState({font:"JetBrains Mono",fontSize:11});
   const [fileMetadata,setFileMetadata]   = useState(null); // Roadmap 2.3: current file's metadata
   const [loadingMetadata,setLoadingMetadata] = useState(false);
+  const [aiSuggestions,setAiSuggestions] = useState(null); // Phase 3.1: AI metadata suggestions
+  const [loadingAiSuggestions,setLoadingAiSuggestions] = useState(false);
   const [settingsForm,setSettingsForm]   = useState({font:"JetBrains Mono",fontSize:11});
 
   // Hub links
@@ -917,6 +1011,51 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       showToast("⚠ Metadata save failed");
     }
   };
+
+  // ── AI METADATA SUGGESTIONS (Phase 3.1) ─────────────────
+  const requestAiSuggestions=useCallback(async()=>{
+    if(!hubId||!hub?.activeFile) return;
+    const content=hub.files?.[hub.activeFile];
+    if(!content) return;
+
+    setLoadingAiSuggestions(true);
+    try{
+      const project=projects.find(p=>p.id===hubId);
+      const res=await aiMetadataApi.suggest(
+        hubId,
+        hub.activeFile,
+        content,
+        project?.name,
+        project?.phase
+      );
+      setAiSuggestions(res);
+    }catch(e){
+      console.error("AI suggestions failed:",e);
+      setAiSuggestions({error:"Failed to get suggestions"});
+    }finally{
+      setLoadingAiSuggestions(false);
+    }
+  },[hubId,hub?.activeFile,hub?.files,projects]);
+
+  const acceptAiSuggestion=useCallback((type,value)=>{
+    showToast(`✓ Applied ${type}: ${value}`);
+    // Auto-save after accepting suggestion
+    if(type==='tag'){
+      // Tag will be attached via the existing tag system
+      const fileEntityId=`${hubId}/${hub.activeFile}`;
+      tagsApi.attachByName(value,'file',fileEntityId).then(()=>{
+        loadEntityTags();
+      }).catch(()=>{});
+    }
+  },[hubId,hub?.activeFile]);
+
+  // Auto-request suggestions when file changes (if enabled)
+  useEffect(()=>{
+    if(hubId&&hub?.activeFile&&userSettings?.aiMetadataAutoSuggest){
+      const timer=setTimeout(()=>requestAiSuggestions(),500);
+      return()=>clearTimeout(timer);
+    }
+  },[hubId,hub?.activeFile,requestAiSuggestions,userSettings?.aiMetadataAutoSuggest]);
 
   const addCustomFolder=async(projId,folder)=>{
     setProjects(prev=>prev.map(p=>{
@@ -1869,7 +2008,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   </div>
 
                   {/* Metadata panel (right side) */}
-                  {hub.activeFile&&<MetadataEditor file={hub.activeFile} projectId={hubId} metadata={fileMetadata} onSave={data=>saveMetadata(hubId,hub.activeFile,data)} allTags={userTags}/>}
+                  {hub.activeFile&&<MetadataEditor file={hub.activeFile} projectId={hubId} metadata={fileMetadata} onSave={data=>saveMetadata(hubId,hub.activeFile,data)} allTags={userTags} aiSuggestions={aiSuggestions} onRequestSuggestions={requestAiSuggestions} loadingSuggestions={loadingAiSuggestions} onAcceptSuggestion={acceptAiSuggestion}/>}
                 </div>
               </div>
             )}

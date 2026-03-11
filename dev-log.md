@@ -4,6 +4,39 @@
 
 ---
 
+## Session 035 — 2026-03-11
+**Branch:** `session-035-ai-metadata-suggestions`
+**Task:** Phase 3.1 — AI Metadata Suggestions
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented AI-powered metadata suggestions that analyze file content and suggest category, status, and tags.
+
+**API Changes (`api/data.js`):**
+- Added `resource=ai-metadata-suggestions` endpoint
+- Accepts file content, path, and project context
+- Checks ignore patterns (node_modules, .git, lockfiles) before analyzing
+- Truncates content to 3000 chars for efficiency
+- Calls Anthropic API server-side with structured system prompt
+- Returns JSON suggestions: category, status, tags[], related_projects[], confidence
+
+**Client Changes (`src/api.js`):**
+- Added `aiMetadata.suggest()` API method
+
+**UI Changes (`src/TheBrain.jsx`):**
+- Enhanced `MetadataEditor` component with AI suggestions section
+- Shows category/status suggestions as purple dashed pills (click to accept)
+- Shows tag suggestions with "(has)" indicator if already attached
+- Displays confidence score percentage
+- Added refresh button to re-analyze content
+- Auto-request on file change (if `userSettings.aiMetadataAutoSuggest` enabled)
+- Accepting tag suggestion attaches via existing tag system
+
+### Done When
+✅ Saving a markdown file shows AI-suggested tags that you can accept with one click
+
+---
+
 ## Session 034 — 2026-03-11
 **Branch:** `session-034-drift-detection`
 **Task:** Phase 2.10 — Drift Detection
