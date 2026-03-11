@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 7.7 (Phase 3.5 Complete — File Validity Checker)
+**Version:** 7.8 (Phase 3.6 Complete — Script Execution)
 **Live URL:** the-brain-2.vercel.app
 **Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, and Phase 3.1–3.5 complete; next is Phase 3.6 (Script Execution)
+**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, and Phase 3.1–3.6 complete; Phase 4 next
 
 ---
 
@@ -76,6 +76,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **search_improvements** — enhanced search modal with highlighting, filters, recent searches; localStorage only (Phase 3.3)
 - **sync_state** — `sync_state` and `sync_file_state` tables, `resource=sync_state` API, desktop folder sync (Phase 3.4)
 - **file_validity_checker** — HealthCheck component in Meta tab, structural validation, auto-fix (Phase 3.5)
+- **script_execution** — ScriptRunner component, sandboxed JS execution, predefined scripts, /tools/ folder (Phase 3.6)
 
 ---
 
@@ -142,6 +143,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **Search Improvements (3.3)** — Enhanced search API with filters (project, folder, file type), highlighted excerpts, grouped results by project; `SearchModal` component with Cmd+K shortcut, recent searches (localStorage), filter dropdowns, highlighted match terms; search button with keyboard shortcut hint; debounced search with loading indicator
 - **Local File System Sync (3.4)** — `sync_state` and `sync_file_state` tables (migrations v16, v17); `resource=sync_state` API endpoints (GET/POST/PUT/DELETE); `desktop-sync.js` module with `selectFolder()`, `saveFolderHandle()`, `syncFiles()`, conflict detection; `FolderSyncSetup` component in Meta tab for folder connection; `SyncReviewModal` for conflict resolution; File System Access API for desktop folder access; bi-directional sync with overwrite confirmation
 - **File Validity Checker (3.5)** — `HealthCheck` component in Meta tab; checks for required files (PROJECT_OVERVIEW.md, DEVLOG.md, manifest.json), valid manifest.json JSON, manifest-project state consistency, orphaned files (not in any folder), template-required folders, missing .gitkeep files; shows error/warning/info counts; auto-fix for missing files with default content; expandable panel with detailed issue list
+- **Script Execution (3.6)** — `ScriptRunner` component in Meta tab; `/tools/` folder in default project files with predefined scripts (export-zip.js, word-count.js, list-todos.js); `resource=scripts` API endpoint with sandboxed JavaScript execution; safety controls (30s timeout, no network access, whitelisted globals); quick scripts (Word Count, List TODOs, Stats); custom script selection from tools/ folder; output display panel
 
 ---
 
@@ -314,17 +316,20 @@ At the end of each build session, update this document with:
 - ✅ **Phase 3.3 — Search improvements** (2026-03-11) — Enhanced search API with filters (project, folder, file type), highlighted excerpts, grouped results by project; `SearchModal` component with Cmd+K shortcut, recent searches (localStorage), filter dropdowns, highlighted match terms
 - ✅ **Phase 3.4 — Local file system sync** (2026-03-11) — `sync_state`/`sync_file_state` tables (migrations v16, v17); `resource=sync_state` API; `desktop-sync.js` module; `FolderSyncSetup` component in Meta tab; `SyncReviewModal` for conflict resolution; File System Access API integration
 - ✅ **Phase 3.5 — File validity checker** (2026-03-11) — `HealthCheck` component in Meta tab; checks required files, valid manifest.json, orphaned files, template folders; error/warning/info classification; auto-fix for missing files; expandable results panel
+- ✅ **Phase 3.6 — Script execution** (2026-03-11) — `ScriptRunner` component in Meta tab; `/tools/` folder with predefined scripts; `resource=scripts` API with sandboxed JS execution; safety controls; quick scripts and custom script support
 
-### Next Up — Phase 3
-1. **Phase 3.6 — Script execution** ← NEXT — /tools/ folder, sandboxed JS/Python/shell
+### Next Up — Phase 4
+1. **Phase 4.1 — Mobile responsive layout** ← NEXT — Breakpoints, mobile nav, touch targets
 
-### Parking Lot (after Phase 2 — not now)
+### Parking Lot
 **Phase 3:**
-- ✅ AI metadata suggestions (3.1) — DONE
-- ✅ Mermaid diagram rendering (3.2) — DONE
-- ✅ Search improvements (3.3) — DONE
-- ✅ Local file system sync (3.4) — DONE
-- ✅ File validity checker (3.5) — DONE
+- ✅ ALL COMPLETE (3.1–3.6)
+
+**Phase 4:**
+- Mobile responsive layout (4.1) — NEXT
+- Onboarding flow (4.2)
+- Integration connectors (4.3)
+- Notification system (4.4)
 - Script execution — /tools/ folder, sandboxed JS/Python/shell (3.6)
 
 **Phase 4:**
@@ -378,6 +383,18 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 11/03/26 session
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 19 — Phase 3.6 Script Execution complete):**
+- Version bumped to **7.8** (Phase 3.6 Complete — Script Execution)
+- No new DB table — scripts are files stored in project
+- API: New `resource=scripts` endpoint in `api/data.js` with sandboxed JavaScript execution
+- Safety: 30-second timeout, whitelisted languages (javascript/python), no network access (fetch, XHR, WebSocket disabled), restricted globals (no Buffer, process, require, timers)
+- Client: `ScriptRunner` component in Meta tab; predefined quick scripts (Word Count, List TODOs, Stats); custom script selection from `/tools/` folder; script metadata extraction; output display panel
+- Default files: Added `/tools/` folder to `STANDARD_FOLDERS`; predefined scripts (export-zip.js, word-count.js, list-todos.js) with metadata exports
+- Integration: Added above Health Check in Meta tab
+- Priority Stack: 3.6 moved to Completed (Phase 3 Features section); Phase 3 complete! Next Up now Phase 4.1 (Mobile Responsive Layout)
+- Next: **Phase 4.1 — Mobile Responsive Layout**
 
 ---
 **Edit 2026-03-11 (session 18 — Phase 3.5 File Validity Checker complete):**

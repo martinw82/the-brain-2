@@ -1162,6 +1162,114 @@ Provide metadata suggestions as JSON.`;
       }
     }
 
+    // ── SCRIPT EXECUTION (Phase 3.6) ─────────────────────────
+    if (resource === 'scripts' && req.method === 'POST') {
+      const { script, language, project_id, project_files } = req.body || {};
+      
+      if (!script) return err(res, 'script required');
+      if (!language) return err(res, 'language required');
+      
+      // Whitelist allowed languages
+      const allowedLanguages = ['javascript', 'js', 'python', 'py'];
+      if (!allowedLanguages.includes(language.toLowerCase())) {
+        return err(res, `Language "${language}" not allowed. Use: ${allowedLanguages.join(', ')}`, 400);
+      }
+      
+      try {
+        let result = '';
+        let output = [];
+        
+        // Capture console.log output
+        const mockConsole = {
+          log: (...args) => {
+            output.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+          },
+          error: (...args) => {
+            output.push('[ERROR] ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+          }
+        };
+        
+        if (language === 'javascript' || language === 'js') {
+          // Create sandboxed environment
+          const sandbox = {
+            console: mockConsole,
+            projectFiles: project_files || {},
+            projectId: project_id,
+            JSON,
+            Math,
+            Date,
+            Array,
+            Object,
+            String,
+            Number,
+            Boolean,
+            RegExp,
+            Error,
+            Promise,
+            Set,
+            Map,
+            Buffer: undefined, // Disable Buffer for safety
+            process: undefined, // Disable process
+            require: undefined, // Disable require
+            fetch: undefined,   // Disable network
+            XMLHttpRequest: undefined,
+            WebSocket: undefined,
+            setTimeout: undefined,
+            setInterval: undefined,
+            clearTimeout: undefined,
+            clearInterval: undefined,
+          };
+          
+          // Wrap script in async IIFE for timeout control
+          const wrappedScript = `
+            (async function() {
+              ${script}
+            })()
+          `;
+          
+          // Execute with 30 second timeout
+          const executePromise = new Promise(async (resolve, reject) => {
+            try {
+              // Use Function constructor for safer execution
+              const fn = new Function(...Object.keys(sandbox), wrappedScript);
+              const result = await fn(...Object.values(sandbox));
+              resolve(result);
+            } catch (e) {
+              reject(e);
+            }
+          });
+          
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Script execution timeout (30s)')), 30000);
+          });
+          
+          result = await Promise.race([executePromise, timeoutPromise]);
+        } else {
+          // Python not implemented in this environment
+          return ok(res, { 
+            error: 'Python execution not available in serverless environment',
+            output: ['Python scripts require a server with Python installed. Consider using JavaScript.']
+          });
+        }
+        
+        return ok(res, {
+          success: true,
+          result: result !== undefined ? result : null,
+          output: output.join('\n'),
+          executionTime: new Date().toISOString()
+        });
+        
+      } catch (e) {
+        console.error('Script execution error:', e);
+        return ok(res, {
+          success: false,
+          error: e.message,
+          output: output.join('\n'),
+          executionTime: new Date().toISOString()
+        });
+      }
+    }
+
     // ── DRIFT CHECK (Phase 2.10) ──────────────────────────────
     if (resource === 'drift-check') {
       if (req.method === 'GET') {

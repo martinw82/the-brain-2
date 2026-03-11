@@ -460,6 +460,17 @@ export const aiMetadata = {
     }),
 };
 
+// ── SCRIPT EXECUTION (Phase 3.6) ──────────────────────────────
+export const scripts = {
+  run: (script, language, projectId, projectFiles) =>
+    post(`${BASE}/api/data?resource=scripts`, {
+      script,
+      language,
+      project_id: projectId,
+      project_files: projectFiles,
+    }),
+};
+
 // ── AI ────────────────────────────────────────────────────────
 export const ai = {
   ask: (prompt, system) =>

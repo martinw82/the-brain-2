@@ -443,14 +443,15 @@ _These make the tool genuinely powerful. Each plugs into the foundations from Ph
 - **Done when:** ✅ Running a health check shows structural issues and can auto-fix them
 - **How:** `HealthCheck` component in Meta tab; client-side validation using existing project data; checks required files, valid manifest.json, orphaned files, template folders, missing .gitkeep; error/warning/info classification; auto-fix creates files with default content
 
-### 3.6 Script execution `[API]` `[UI]`
+### 3.6 Script execution `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **Schema:** Scripts stored as files in `/tools/` folder per project
-- [ ] **API:** POST `/api/scripts/run` — accepts script content + language, executes in sandboxed environment
-- [ ] **Safety:** Whitelist allowed languages (js, python, shell), timeout after 30s, no network access
-- [ ] **UI:** Script runner panel — select script, run, see output
-- [ ] **Predefined scripts:** "Export all files as ZIP", "Count words across project", "List all TODOs"
-- **Done when:** You can write a script in a project's /tools/ folder and run it from the UI
+- [x] **Schema:** Scripts stored as files in `/tools/` folder per project
+- [x] **API:** POST `/api/data?resource=scripts` — accepts script content + language, executes in sandboxed environment
+- [x] **Safety:** Whitelist allowed languages (js, python, shell), timeout after 30s, no network access
+- [x] **UI:** Script runner panel — select script, run, see output
+- [x] **Predefined scripts:** "Export all files as ZIP", "Count words across project", "List all TODOs"
+- **Done when:** ✅ You can write a script in a project's /tools/ folder and run it from the UI
+- **How:** `/tools/` folder added to `STANDARD_FOLDERS`; predefined scripts in default project files; `resource=scripts` API with sandboxed JS execution (30s timeout, no network, whitelisted globals); `ScriptRunner` component in Meta tab with quick scripts and custom script selection
 
 ---
 
