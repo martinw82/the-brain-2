@@ -78,6 +78,9 @@ export const projects = {
 
   setActiveFile: (projectId, path) =>
     put(`${BASE}/api/projects?action=active-file&id=${projectId}`, { path }),
+
+  import: (method, projectId, name, data, lifeAreaId, templateId) =>
+    post(`${BASE}/api/projects?action=import`, { method, projectId, name, data, lifeAreaId, templateId }),
 };
 
 // ── AREAS ─────────────────────────────────────────────────────
@@ -243,3 +246,130 @@ export const ai = {
   ask: (prompt, system) =>
     post(`${BASE}/api/ai`, { prompt, system }),
 };
+
+// ── IMPORT PARSERS ────────────────────────────────────────────
+export function parseBuildlFormat(text) {
+  // Parse BUIDL export format: MANIFEST_START...MANIFEST_END, FILES_START...FILES_END
+  const manifestMatch = text.match(/MANIFEST_START\n([\s\S]*?)\nMANIFEST_END/);
+  const filesMatch = text.match(/FILES_START\n([\s\S]*?)\nFILES_END/);
+
+  if (!manifestMatch) throw new Error('Invalid BUIDL format: MANIFEST_START/END not found');
+  if (!filesMatch) throw new Error('Invalid BUIDL format: FILES_START/END not found');
+
+  let manifest;
+  try {
+    manifest = JSON.parse(manifestMatch[1]);
+  } catch (e) {
+    throw new Error('Invalid BUIDL manifest JSON: ' + e.message);
+  }
+
+  const files = [];
+  const filesSection = filesMatch[1];
+  const fileBlocks = filesSection.split('\n---FILE---\n').filter(Boolean);
+
+  for (const block of fileBlocks) {
+    const lines = block.split('\n');
+    const pathLine = lines[0];
+    if (!pathLine.startsWith('PATH: ')) {
+      console.warn('Skipping malformed file block:', block.substring(0, 50));
+      continue;
+    }
+    const path = pathLine.substring(6); // Remove "PATH: "
+    const content = lines.slice(1).join('\n');
+    files.push({ path, content });
+  }
+
+  return {
+    projectId: manifest.projectId || manifest.id || '',
+    name: manifest.name || 'Imported Project',
+    description: manifest.description || '',
+    files,
+  };
+}
+
+export function validateImportJson(json) {
+  // Validate JSON import structure
+  if (!json || typeof json !== 'object') {
+    throw new Error('Import data must be a valid JSON object');
+  }
+
+  if (!json.projectId || typeof json.projectId !== 'string') {
+    throw new Error('Missing or invalid projectId (must be a string)');
+  }
+
+  if (!/^[a-z0-9-]+$/.test(json.projectId)) {
+    throw new Error('Invalid projectId: must contain only lowercase letters, numbers, and hyphens');
+  }
+
+  if (!json.name || typeof json.name !== 'string') {
+    throw new Error('Missing or invalid name (must be a string)');
+  }
+
+  if (!Array.isArray(json.files)) {
+    throw new Error('Missing or invalid files (must be an array)');
+  }
+
+  for (let i = 0; i < json.files.length; i++) {
+    const file = json.files[i];
+    if (!file.path || typeof file.path !== 'string') {
+      throw new Error(`files[${i}].path: must be a non-empty string`);
+    }
+    if (typeof file.content !== 'string') {
+      throw new Error(`files[${i}].content: must be a string`);
+    }
+  }
+
+  return {
+    projectId: json.projectId,
+    name: json.name,
+    description: json.description || '',
+    files: json.files,
+  };
+}
+
+export async function parseFileSystemEntries(dirHandle) {
+  // Recursively read directory entries from File System Access API
+  const skipPatterns = ['.git', 'node_modules', '.DS_Store', '__pycache__', '.env'];
+  const binaryExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.pdf', '.bin', '.exe', '.zip'];
+
+  const files = [];
+  const warnings = [];
+
+  async function readDir(handle, basePath = '') {
+    const entries = await handle.entries();
+    for await (const [name, entry] of entries) {
+      if (skipPatterns.some(p => name.includes(p))) {
+        continue;
+      }
+
+      const path = basePath ? `${basePath}/${name}` : name;
+
+      if (entry.kind === 'directory') {
+        await readDir(entry, path);
+      } else if (entry.kind === 'file') {
+        // Skip binary files
+        const ext = name.substring(name.lastIndexOf('.')).toLowerCase();
+        if (binaryExtensions.includes(ext)) {
+          warnings.push(`${path}: binary file skipped`);
+          continue;
+        }
+
+        try {
+          const file = await entry.getFile();
+          // Limit to 1MB per file
+          if (file.size > 1024 * 1024) {
+            warnings.push(`${path}: file too large (${file.size} bytes), skipped`);
+            continue;
+          }
+          const content = await file.text();
+          files.push({ path, content });
+        } catch (e) {
+          warnings.push(`${path}: error reading file: ${e.message}`);
+        }
+      }
+    }
+  }
+
+  await readDir(dirHandle);
+  return { files, warnings };
+}

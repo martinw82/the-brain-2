@@ -370,6 +370,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [customFolderForm,setCFForm]         = useState({id:"",label:"",icon:"📁",desc:""});
   const [importText,setImportText]           = useState("");
   const [importError,setImportError]         = useState("");
+  const [showImportModal,setShowImportModal] = useState(false);
+  const [importMethod,setImportMethod]       = useState("buidl"); // "buidl" | "json" | "folder"
+  const [importLoading,setImportLoading]     = useState(false);
+  const [importForm,setImportForm]           = useState({projectId:"",name:"",lifeAreaId:"",templateId:""});
+  const [importConflict,setImportConflict]   = useState(null); // {projectId, overwrite callback}
   const [renameValue,setRenameValue]         = useState("");
 
   // Persistence state
@@ -711,6 +716,46 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     if(focusId===projId){const rem=projects.filter(p=>p.id!==projId);if(rem.length)setFocusId(rem[0].id);}
     setModal(null);
     await projectsApi.delete(projId).catch(()=>{});
+  };
+
+  const importProject = async (method, projectId, name, data, overwrite = false) => {
+    if (!projectId.match(/^[a-z0-9-]+$/)) {
+      setImportError("Invalid project ID: use only lowercase letters, numbers, and hyphens");
+      return;
+    }
+    if (!name.trim()) {
+      setImportError("Project name is required");
+      return;
+    }
+
+    setImportLoading(true);
+    setImportError("");
+
+    try {
+      const resp = await projectsApi.import(method, projectId, name, data, importForm.lifeAreaId, importForm.templateId, overwrite);
+
+      // Success: fetch updated projects list and navigate to new project
+      const { projects: updated } = await projectsApi.list();
+      setProjects(updated.map(p=>({...p,health:calcHealth(p)})));
+
+      showToast(`✓ Project imported: ${resp.filesCreated} files`);
+      setShowImportModal(false);
+      setImportForm({projectId:"",name:"",lifeAreaId:"",templateId:""});
+      setImportText("");
+      setImportConflict(null);
+      setFocusId(projectId);
+      openHub(projectId);
+    } catch (e) {
+      const errMsg = e.message;
+      // Check for 409 conflict
+      if (errMsg.includes("409") || errMsg.includes("Project exists")) {
+        setImportConflict({ projectId, overwrite: () => importProject(method, projectId, name, data, true) });
+      } else {
+        setImportError(errMsg || "Import failed");
+      }
+    } finally {
+      setImportLoading(false);
+    }
   };
 
   const completeBootstrap=async(projId,brief)=>{
@@ -1127,6 +1172,146 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
         </Modal>
       )}
 
+      {showImportModal&&(
+        <Modal title="📥 Import Project" onClose={()=>{setShowImportModal(false);setImportError("");setImportConflict(null);}} width={500}>
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            {importConflict&&(
+              <div style={{background:"#7c2d1280",border:`1px solid ${C.red}`,borderRadius:6,padding:10,marginBottom:8}}>
+                <div style={{fontSize:11,color:C.red,marginBottom:6}}>⚠ Project "{importConflict.projectId}" already exists</div>
+                <button style={{...S.btn("danger"),fontSize:9}} onClick={importConflict.overwrite}>Overwrite & Merge Files</button>
+              </div>
+            )}
+            {importError&&(
+              <div style={{background:"#7c2d1280",border:`1px solid ${C.red}`,borderRadius:6,padding:10,marginBottom:8}}>
+                <div style={{fontSize:10,color:C.red}}>{importError}</div>
+              </div>
+            )}
+
+            {/* Method Tabs */}
+            <div style={{display:"flex",gap:4,borderBottom:`1px solid ${C.border}`,marginBottom:12}}>
+              <button style={{...S.tab(importMethod==="buidl",C.green),fontSize:9}} onClick={()=>setImportMethod("buidl")}>Paste BUIDL</button>
+              <button style={{...S.tab(importMethod==="json",C.blue),fontSize:9}} onClick={()=>setImportMethod("json")}>JSON Upload</button>
+              <button style={{...S.tab(importMethod==="folder",C.blue2),fontSize:9}} onClick={()=>setImportMethod("folder")}>Folder</button>
+            </div>
+
+            {/* BUIDL Method */}
+            {importMethod==="buidl"&&(
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <textarea style={{...S.input,height:120,resize:"vertical",fontFamily:C.mono,fontSize:10}} placeholder="Paste BUIDL export here (MANIFEST_START...MANIFEST_END, FILES_START...FILES_END)" value={importText} onChange={e=>setImportText(e.target.value)}/>
+              </div>
+            )}
+
+            {/* JSON Method */}
+            {importMethod==="json"&&(
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{fontSize:10,color:C.muted}}>Upload a JSON file with: {"{projectId, name, files: [{path, content}, ...]}"}</div>
+                <input type="file" accept=".json" onChange={async (e)=>{
+                  const f=e.target.files?.[0];
+                  if(f){
+                    const text=await f.text();
+                    try{
+                      const json=JSON.parse(text);
+                      setImportText(JSON.stringify(json));
+                    }catch(err){
+                      setImportError("Invalid JSON file");
+                    }
+                  }
+                }} style={{...S.input,cursor:"pointer"}}/>
+              </div>
+            )}
+
+            {/* Folder Method */}
+            {importMethod==="folder"&&(
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{fontSize:10,color:C.muted}}>Select a local folder to import all files</div>
+                <button style={{...S.btn("ghost"),fontSize:10}} onClick={async ()=>{
+                  if(!window.showDirectoryPicker){
+                    setImportError("Folder import not supported in your browser (Chrome/Chromium only)");
+                    return;
+                  }
+                  try{
+                    const handle=await window.showDirectoryPicker();
+                    const skipPatterns=[".git","node_modules",".DS_Store","__pycache__",".env"];
+                    const binaryExtensions=[".png",".jpg",".jpeg",".gif",".svg",".pdf",".bin",".exe",".zip"];
+                    const files=[];
+
+                    async function readDir(dirHandle,basePath=""){
+                      const entries=await dirHandle.entries();
+                      for await(const [name,entry] of entries){
+                        if(skipPatterns.some(p=>name.includes(p)))continue;
+                        const path=basePath?`${basePath}/${name}`:name;
+                        if(entry.kind==="directory"){
+                          await readDir(entry,path);
+                        }else if(entry.kind==="file"){
+                          const ext=name.substring(name.lastIndexOf(".")).toLowerCase();
+                          if(binaryExtensions.includes(ext))continue;
+                          try{
+                            const file=await entry.getFile();
+                            if(file.size>1024*1024)continue;
+                            const content=await file.text();
+                            files.push({path,content});
+                          }catch(e){}
+                        }
+                      }
+                    }
+
+                    await readDir(handle);
+                    setImportText(JSON.stringify({files}));
+                    setImportForm(f=>({...f,projectId:handle.name,name:handle.name}));
+                  }catch(e){
+                    setImportError("Failed to read folder: "+e.message);
+                  }
+                }}>📂 Select Folder</button>
+              </div>
+            )}
+
+            {/* Common Fields */}
+            <div style={{display:"flex",flexDirection:"column",gap:10,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
+              <div>
+                <span style={S.label()}>Project ID</span>
+                <input style={S.input} placeholder="unique-project-slug" value={importForm.projectId} onChange={e=>setImportForm(f=>({...f,projectId:e.target.value.toLowerCase().replace(/\s+/g,"-")}))}/>
+                <div style={{fontSize:8,color:C.dim,marginTop:3}}>Lowercase, numbers, and hyphens only</div>
+              </div>
+              <div>
+                <span style={S.label()}>Project Name</span>
+                <input style={S.input} placeholder="My Project" value={importForm.name} onChange={e=>setImportForm(f=>({...f,name:e.target.value}))}/>
+              </div>
+              <div>
+                <span style={S.label()}>Life Area (optional)</span>
+                <select style={S.sel} value={importForm.lifeAreaId} onChange={e=>setImportForm(f=>({...f,lifeAreaId:e.target.value}))}>
+                  <option value="">—None—</option>
+                  {areas.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <span style={S.label()}>Template (optional)</span>
+                <select style={S.sel} value={importForm.templateId} onChange={e=>setImportForm(f=>({...f,templateId:e.target.value}))}>
+                  <option value="">—Use Imported Config—</option>
+                  {templates.map(t=><option key={t.id} value={t.id}>{t.icon} {t.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{display:"flex",gap:8,justifyContent:"flex-end",paddingTop:12,borderTop:`1px solid ${C.border}`}}>
+              <button style={S.btn("ghost")} onClick={()=>{setShowImportModal(false);setImportError("");setImportConflict(null);setImportText("");}} disabled={importLoading}>Cancel</button>
+              <button style={{...S.btn("primary"),opacity:(!importForm.projectId||!importForm.name||!importText||importLoading)?0.6:1}} onClick={async ()=>{
+                let data=importText;
+                if(importMethod==="json"||importMethod==="folder"){
+                  try{
+                    data=JSON.parse(importText);
+                  }catch(e){
+                    setImportError("Invalid data format");
+                    return;
+                  }
+                }
+                importProject(importMethod,importForm.projectId,importForm.name,data);
+              }} disabled={importLoading||!importForm.projectId||!importForm.name||!importText}>{importLoading?"Importing...":"Import"}</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* ── BODY ── */}
       <div style={{maxWidth:1200,margin:"0 auto",padding:"16px 20px"}}>
 
@@ -1494,6 +1679,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             <div>
               <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
                 <button style={S.btn("primary")} onClick={()=>setModal("new-project")}>+ New Project</button>
+                <button style={S.btn("ghost")} onClick={()=>setShowImportModal(true)}>⬆ Import</button>
               </div>
               {projects.map(p=>(
                 <div key={p.id} style={S.card(false)}>
