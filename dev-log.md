@@ -4,6 +4,42 @@
 
 ---
 
+## Session 039 — 2026-03-11
+**Branch:** `session-039-file-validity-checker`
+**Task:** Phase 3.5 — File Validity Checker
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented file validity checker with health check component in Meta tab.
+
+**UI Changes (`src/TheBrain.jsx`):**
+- New `HealthCheck` component:
+  - Checks required files: PROJECT_OVERVIEW.md, DEVLOG.md, manifest.json
+  - Validates manifest.json is valid JSON
+  - Checks manifest.json matches project state (name, phase)
+  - Detects orphaned files (not in any folder)
+  - Validates template-required folders exist
+  - Checks for missing .gitkeep files in folders
+  - Error/warning/info severity classification
+  - Shows badge counts in collapsed header
+  - Expandable panel with detailed issue list
+  - Auto-fix button for missing files with default content
+  - Visual feedback during check and fix operations
+- Integrated in Meta tab above Desktop Sync section
+
+**Checks Performed:**
+1. Required files exist
+2. manifest.json is valid JSON
+3. manifest.json matches project state
+4. No orphaned files
+5. Template-required folders exist
+6. .gitkeep files present in folders
+
+### Done When
+✅ Running a health check shows structural issues and can auto-fix them
+
+---
+
 ## Session 038 — 2026-03-11
 **Branch:** `session-038-local-file-sync`
 **Task:** Phase 3.4 — Local File System Sync
