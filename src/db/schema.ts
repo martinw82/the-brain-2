@@ -484,3 +484,27 @@ export const sync_file_state = mysqlTable(
     ),
   })
 );
+
+// ────────────────────────────────────────────────────────────────
+// DAILY CHECKINS (Phase 2.5 - Daily Check-in System)
+// Track daily user state for AI task routing
+// ────────────────────────────────────────────────────────────────
+export const daily_checkins = mysqlTable(
+  "daily_checkins",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
+    user_id: varchar("user_id", { length: 36 }).notNull(),
+    date: varchar("date", { length: 10 }).notNull(),
+    sleep_hours: int("sleep_hours"),
+    energy_level: int("energy_level"),
+    gut_symptoms: int("gut_symptoms"),
+    training_done: tinyint("training_done").default(0),
+    notes: text("notes"),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    uniqueCheckin: unique("unique_user_date").on(table.user_id, table.date),
+    userDateIdx: index("idx_user_date").on(table.user_id, table.date),
+  })
+);

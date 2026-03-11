@@ -5,6 +5,7 @@ import { sync } from "./sync.js";
 import { desktopSync } from "./desktop-sync.js";
 import FolderSyncSetup from "./components/FolderSyncSetup.jsx";
 import SyncReviewModal from "./components/SyncReviewModal.jsx";
+import DailyCheckinModal from "./components/DailyCheckinModal.jsx";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -517,6 +518,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [syncChanges, setSyncChanges] = useState(null);
   const [showSyncReview, setShowSyncReview] = useState(false);
 
+  // Daily checkin state (Phase 2.5)
+  const [todayCheckin, setTodayCheckin] = useState(null);
+  const [showCheckinModal, setShowCheckinModal] = useState(false);
+  const [checkinLastDate, setCheckinLastDate] = useState(localStorage.getItem('lastCheckinDate'));
+
   const showToast = (msg) => setToast({msg});
 
   // ── TAG HELPERS ───────────────────────────────────────────
@@ -755,6 +761,42 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
         }
       })
       .catch(() => {});
+  }, [user?.id]);
+
+  // ── DAILY CHECKIN — prompt on first visit of day (Phase 2.5) ──
+  useEffect(() => {
+    if (!user) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const lastSavedDate = checkinLastDate;
+
+    if (today !== lastSavedDate) {
+      // First visit of day — load today's checkin or show modal
+      const dailyCheckinsApi = async () => {
+        try {
+          const res = await fetch(`/api/data?resource=daily-checkins&date=${today}`, {
+            headers: { 'Authorization': `Bearer ${token.get()}` }
+          });
+          if (!res.ok) throw new Error('Failed to load checkin');
+          const data = await res.json();
+
+          if (data.checkin) {
+            // Already checked in today
+            setTodayCheckin(data.checkin);
+            setCheckinLastDate(today);
+            localStorage.setItem('lastCheckinDate', today);
+          } else {
+            // No checkin yet — show modal
+            setShowCheckinModal(true);
+          }
+        } catch (e) {
+          console.error('Checkin load error:', e);
+          // Show modal as fallback
+          setShowCheckinModal(true);
+        }
+      };
+      dailyCheckinsApi();
+    }
   }, [user?.id]);
 
   // ── NAVIGATION — lazy-loads files on first hub open ────────
@@ -1108,6 +1150,28 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     setSessionOn(false);setSessionSecs(0);setSessionLog("");
   };
 
+  // ── DAILY CHECKIN (Phase 2.5) ────────────────────────────────
+  const saveCheckin=async(checkin)=>{
+    try{
+      const res=await fetch(`/api/data?resource=daily-checkins`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${token.get()}`},
+        body:JSON.stringify(checkin)
+      });
+      if(!res.ok)throw new Error('Save failed');
+      const data=await res.json();
+      setTodayCheckin(checkin);
+      const today=new Date().toISOString().split('T')[0];
+      setCheckinLastDate(today);
+      localStorage.setItem('lastCheckinDate',today);
+      setShowCheckinModal(false);
+      showToast("✓ Check-in saved");
+    }catch(e){
+      console.error('Checkin save error:',e);
+      showToast("⚠ Failed to save check-in");
+    }
+  };
+
   // ── DRAG & DROP ────────────────────────────────────────────
   const handleDrop=useCallback((e,projId)=>{
     e.preventDefault();setDragOver(false);
@@ -1172,7 +1236,14 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
   const askAI=async(prompt)=>{
     setAiLoad(true);setAiOut("");
-    const sys=`You are The Brain AI Coach for ${user?.name||"this builder"}, targeting £${user?.monthly_target||3000}/mo. Direct, max 250 words. Reference specific projects. Context:\n${buildCtx()}`;
+    // Build state context (Phase 2.5)
+    let stateContext = "";
+    if (todayCheckin) {
+      const energy = todayCheckin.energy_level;
+      let stateLabel = energy <= 4 ? "Recovery day" : energy <= 7 ? "Steady work" : "Power day";
+      stateContext = `\nToday's State: Energy ${energy}/10 (${stateLabel}), Sleep ${todayCheckin.sleep_hours}h, Gut ${todayCheckin.gut_symptoms}/10${todayCheckin.training_done ? ", Training done" : ""}\nTask routing: ${energy <= 4 ? "Low-complexity only (admin, comms, review)" : energy <= 7 ? "Shipping, outreach, communications" : "Deep work, architecture, new features"}`;
+    }
+    const sys=`You are The Brain AI Coach for ${user?.name||"this builder"}, targeting £${user?.monthly_target||3000}/mo. Direct, max 250 words. Reference specific projects.${stateContext}\n\nContext:\n${buildCtx()}`;
     try{
       const d = await aiApi.ask(prompt, sys);
       setAiOut(d.content?.map(b=>b.text||"").join("")||"No response.");
@@ -1249,6 +1320,17 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   {queuedWrites > 0 && ` (${queuedWrites})`}
                 </div>
               </div>
+              {/* Energy Level Status (Phase 2.5) */}
+              {todayCheckin && (
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:14,fontWeight:700,color:todayCheckin.energy_level<=4?C.amber:todayCheckin.energy_level<=7?C.amber:C.green}}>
+                    {todayCheckin.energy_level<=4?"🌙":todayCheckin.energy_level<=7?"🔄":"⚡"}
+                  </div>
+                  <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>
+                    {todayCheckin.energy_level}/10
+                  </div>
+                </div>
+              )}
               {[{v:projects.length,l:"Projects"},{v:`${activeGoal?.currency==='USD'?'$':activeGoal?.currency==='EUR'?'€':'£'}${totalIncome}`,l:activeGoal?.title||"Goal"},{v:`${Math.round(totalIncome/(activeGoal?.target_amount||3000)*100)}%`,l:"Status"},atRisk>0?{v:atRisk,l:"⚠ At Risk",c:C.amber}:null].filter(Boolean).map(s=>(
                 <div key={s.l} style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:s.c||C.blue2}}>{s.v}</div><div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>{s.l}</div></div>
               ))}
@@ -1449,6 +1531,14 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             showToast("✓ Sync approved");
           }}
           onCancel={() => setShowSyncReview(false)}
+        />
+      )}
+
+      {showCheckinModal && (
+        <DailyCheckinModal
+          onSave={saveCheckin}
+          onDismiss={() => setShowCheckinModal(false)}
+          lastCheckin={todayCheckin}
         />
       )}
 
