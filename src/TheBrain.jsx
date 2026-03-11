@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token } from "./api.js";
+import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token, drift as driftApi } from "./api.js";
 import { cache } from "./cache.js";
 import { sync } from "./sync.js";
 import { desktopSync } from "./desktop-sync.js";
@@ -535,6 +535,13 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [todayOutreach, setTodayOutreach] = useState([]); // today's entries
   const [weeklyOutreach, setWeeklyOutreach] = useState(0); // total this week
 
+  // Drift detection state (Phase 2.10)
+  const [driftFlags, setDriftFlags] = useState([]);
+  const [driftDismissed, setDriftDismissed] = useState(() => {
+    const saved = localStorage.getItem('driftDismissed');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const showToast = (msg) => setToast({msg});
 
   // ── TAG HELPERS ───────────────────────────────────────────
@@ -809,8 +816,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       };
       dailyCheckinsApi();
     }
-    // Load weekly training count + today's outreach
-    if (user) { loadWeeklyTraining(); loadTodayOutreach(); }
+    // Load weekly training count + today's outreach + drift check
+    if (user) { loadWeeklyTraining(); loadTodayOutreach(); loadDriftCheck(); }
   }, [user?.id]);
 
   // ── NAVIGATION — lazy-loads files on first hub open ────────
@@ -1259,6 +1266,25 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       console.error('Outreach save error:',e);
       showToast("⚠ Failed to log outreach");
     }
+  };
+
+  // ── DRIFT DETECTION (Phase 2.10) ──────────────────────────────
+  const loadDriftCheck=async()=>{
+    try{
+      const data=await driftApi.check();
+      if(data&&data.flags){
+        // Filter out dismissed flags (by type)
+        const activeFlags=data.flags.filter(f=>!driftDismissed.includes(f.type));
+        setDriftFlags(activeFlags);
+      }
+    }catch(e){console.error('Drift check error:',e);}
+  };
+
+  const dismissDriftFlag=(type)=>{
+    const updated=[...driftDismissed,type];
+    setDriftDismissed(updated);
+    localStorage.setItem('driftDismissed',JSON.stringify(updated));
+    setDriftFlags(prev=>prev.filter(f=>f.type!==type));
   };
 
   // ── DRAG & DROP ────────────────────────────────────────────
@@ -2187,6 +2213,27 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 <div style={{background:"rgba(239,68,68,0.05)",border:"1px solid #ef444330",borderRadius:6,padding:"10px 14px",marginBottom:10}}>
                   <div style={{fontSize:9,color:C.red,letterSpacing:"0.12em",marginBottom:6}}>🚨 HEALTH ALERTS</div>
                   <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>{projects.filter(p=>p.health<50).map(p=><div key={p.id} style={{display:"flex",gap:6,alignItems:"center"}}><span>{p.emoji}</span><span style={{fontSize:10}}>{p.name}</span><HealthBar score={p.health}/></div>)}</div>
+                </div>
+              )}
+
+              {/* Drift Alerts (Phase 2.10) */}
+              {driftFlags.length>0&&(
+                <div style={{background:"rgba(245,158,11,0.05)",border:"1px solid #f59e0b30",borderRadius:6,padding:"10px 14px",marginBottom:10}}>
+                  <div style={{fontSize:9,color:C.amber,letterSpacing:"0.12em",marginBottom:6}}>⚠️ DRIFT DETECTED</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {driftFlags.map((flag,i)=>(
+                      <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6,flex:1}}>
+                          <span style={{fontSize:10}}>
+                            {flag.type==='training_deficit'?'🥋':flag.type==='outreach_gap'?'📣':flag.type==='energy_decline'?'🌙':flag.type==='session_gap'?'⏱️':'📉'}
+                          </span>
+                          <span style={{fontSize:10,color:C.text}}>{flag.message}</span>
+                          {flag.severity==='high'&&<span style={{...S.badge(C.red),fontSize:8}}>HIGH</span>}
+                        </div>
+                        <button style={{...S.btn("ghost"),padding:"2px 6px",fontSize:8}} onClick={()=>dismissDriftFlag(flag.type)}>Dismiss</button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               {/* Training Log card (Phase 2.6) */}

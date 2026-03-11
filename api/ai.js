@@ -46,6 +46,7 @@ function estimateTokens(text) {
 async function buildSystemPrompt(userId, db) {
   const today = new Date().toISOString().split('T')[0];
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   // Fetch all data in parallel
   const [
@@ -57,6 +58,10 @@ async function buildSystemPrompt(userId, db) {
     [outreachRows],
     [projectRows],
     [sessionRows],
+    [driftCheckinRows],
+    [driftTrainingRows],
+    [driftOutreachRows],
+    [driftSessionRows],
   ] = await Promise.all([
     db.execute('SELECT name, email, monthly_target, currency, goal FROM users WHERE id = ?', [userId]),
     db.execute(`SELECT id, title, target_amount, current_amount, currency, status
@@ -74,6 +79,11 @@ async function buildSystemPrompt(userId, db) {
     db.execute(`SELECT s.project_id, p.name as project_name, s.duration_s, s.log, s.ended_at
                 FROM sessions s LEFT JOIN projects p ON p.id = s.project_id
                 WHERE s.user_id = ? ORDER BY s.ended_at DESC LIMIT 3`, [userId]),
+    // Drift detection data
+    db.execute('SELECT date, energy_level FROM daily_checkins WHERE user_id = ? AND date >= ? ORDER BY date DESC', [userId, fourteenDaysAgo]),
+    db.execute('SELECT date FROM training_logs WHERE user_id = ? AND date >= ? ORDER BY date DESC', [userId, fourteenDaysAgo]),
+    db.execute('SELECT date FROM outreach_log WHERE user_id = ? AND date >= ? ORDER BY date DESC', [userId, new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]]),
+    db.execute('SELECT project_id, ended_at FROM sessions WHERE user_id = ? AND ended_at >= ? ORDER BY ended_at DESC', [userId, fourteenDaysAgo + ' 00:00:00']),
   ]);
 
   const user = userRows[0] || {};
@@ -163,6 +173,74 @@ Outreach today: ${outreachToday} ${outreachToday === 0 ? '— NOT DONE (mandator
     }).join('\n');
   }
 
+  // ── DRIFT DETECTION BLOCK ─────────────────────────────────
+  const driftFlags = [];
+  
+  // Training deficit: <3 sessions/week for 2 weeks
+  const trainingByWeek = {};
+  for (const row of driftTrainingRows) {
+    const d = new Date(row.date);
+    const day = d.getDay() || 7;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - day + 1);
+    const weekKey = monday.toISOString().split('T')[0];
+    trainingByWeek[weekKey] = (trainingByWeek[weekKey] || 0) + 1;
+  }
+  const weekKeys = Object.keys(trainingByWeek).sort().slice(-2);
+  if (weekKeys.length >= 2) {
+    const w1 = trainingByWeek[weekKeys[0]] || 0;
+    const w2 = trainingByWeek[weekKeys[1]] || 0;
+    if (w1 < 3 && w2 < 3) {
+      driftFlags.push(`TRAINING DEFICIT: ${w1} this week, ${w2} last week (target: 3/week)`);
+    }
+  }
+  
+  // Outreach gap: 0 for 5+ days
+  const uniqueOutreachDays = new Set(driftOutreachRows.map(r => r.date)).size;
+  if (uniqueOutreachDays === 0) {
+    driftFlags.push('OUTREACH GAP: No outreach for 5+ days (mandatory daily minimum)');
+  }
+  
+  // Energy decline over 7 days
+  const sevenDayCheckins = driftCheckinRows.filter(r => r.energy_level != null && r.date >= weekAgo);
+  if (sevenDayCheckins.length >= 3) {
+    const mid = Math.floor(sevenDayCheckins.length / 2);
+    const first = sevenDayCheckins.slice(0, mid).reduce((s, r) => s + r.energy_level, 0) / mid;
+    const second = sevenDayCheckins.slice(mid).reduce((s, r) => s + r.energy_level, 0) / (sevenDayCheckins.length - mid);
+    if (second < first - 1) {
+      driftFlags.push(`ENERGY DECLINE: ${first.toFixed(1)} → ${second.toFixed(1)} over last 7 days`);
+    }
+  }
+  
+  // Session gap: no sessions for 3+ days
+  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const recentSessions = driftSessionRows.filter(r => r.ended_at && r.ended_at >= threeDaysAgo + ' 00:00:00');
+  if (recentSessions.length === 0) {
+    const last = driftSessionRows[0];
+    const daysSince = last ? Math.floor((Date.now() - new Date(last.ended_at).getTime()) / (24 * 60 * 60 * 1000)) : 14;
+    driftFlags.push(`SESSION GAP: No work logged for ${daysSince} days`);
+  }
+  
+  // Stagnant project: 14+ days focus, no health improvement
+  const sessionsByProj = {};
+  for (const row of driftSessionRows) {
+    sessionsByProj[row.project_id] = (sessionsByProj[row.project_id] || 0) + 1;
+  }
+  let primaryPid = null, primaryCount = 0;
+  for (const [pid, count] of Object.entries(sessionsByProj)) {
+    if (count > primaryCount) { primaryCount = count; primaryPid = pid; }
+  }
+  if (primaryPid && primaryCount >= 3) {
+    const proj = projectRows.find(p => p.id === primaryPid);
+    if (proj && proj.health < 60) {
+      driftFlags.push(`STAGNANT PROJECT: ${proj.name} stuck at health ${proj.health} (${primaryCount} sessions, no improvement)`);
+    }
+  }
+  
+  const driftBlock = driftFlags.length > 0 
+    ? driftFlags.join('\n') 
+    : 'No drift detected — patterns on track.';
+
   // ── ASSEMBLE PROMPT ───────────────────────────────────────
   const prompt = `${identityBlock}
 
@@ -174,6 +252,9 @@ ${rulesBlock}
 
 ## Today's State
 ${stateBlock}
+
+## Drift Detection
+${driftBlock}
 
 ## Active Goal
 ${goalBlock}
@@ -199,6 +280,9 @@ ${rulesBlock}
 
 ## Today's State
 ${stateBlock}
+
+## Drift Detection
+${driftBlock}
 
 ## Active Goal
 ${goalBlock}

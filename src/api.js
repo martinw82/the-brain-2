@@ -436,6 +436,12 @@ export const weeklyReview = {
     post(`${BASE}/api/data?resource=weekly-review`, data),
 };
 
+// ── DRIFT DETECTION (Phase 2.10) ──────────────────────────────
+export const drift = {
+  check: () =>
+    get(`${BASE}/api/data?resource=drift-check`),
+};
+
 // ── AI ────────────────────────────────────────────────────────
 export const ai = {
   ask: (prompt, system) =>

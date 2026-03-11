@@ -915,6 +915,165 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── DRIFT CHECK (Phase 2.10) ──────────────────────────────
+    if (resource === 'drift-check') {
+      if (req.method === 'GET') {
+        const today = new Date().toISOString().split('T')[0];
+        const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        // Fetch all data in parallel
+        const [
+          [checkinRows],
+          [trainingRows],
+          [outreachRows],
+          [sessionRows],
+          [projectRows],
+        ] = await Promise.all([
+          // Last 14 days of check-ins
+          db.execute(
+            'SELECT date, energy_level, sleep_hours, gut_symptoms FROM daily_checkins WHERE user_id = ? AND date >= ? ORDER BY date DESC',
+            [auth.userId, fourteenDaysAgo]
+          ),
+          // Training logs for last 14 days
+          db.execute(
+            'SELECT date, duration_minutes FROM training_logs WHERE user_id = ? AND date >= ? ORDER BY date DESC',
+            [auth.userId, fourteenDaysAgo]
+          ),
+          // Outreach for last 5 days
+          db.execute(
+            'SELECT date FROM outreach_log WHERE user_id = ? AND date >= ? ORDER BY date DESC',
+            [auth.userId, fiveDaysAgo]
+          ),
+          // Sessions for last 14 days
+          db.execute(
+            'SELECT project_id, ended_at FROM sessions WHERE user_id = ? AND ended_at >= ? ORDER BY ended_at DESC',
+            [auth.userId, fourteenDaysAgo + ' 00:00:00']
+          ),
+          // Project health history (last 14 days of health snapshots if available, or current)
+          db.execute(
+            'SELECT id, name, health, phase, updated_at FROM projects WHERE user_id = ? ORDER BY updated_at DESC',
+            [auth.userId]
+          ),
+        ]);
+
+        const flags = [];
+
+        // Rule 1: Training < 3 sessions/week for 2 consecutive weeks
+        const trainingByWeek = {};
+        for (const row of trainingRows) {
+          const d = new Date(row.date);
+          const day = d.getDay() || 7;
+          const monday = new Date(d);
+          monday.setDate(d.getDate() - day + 1);
+          const weekKey = monday.toISOString().split('T')[0];
+          trainingByWeek[weekKey] = (trainingByWeek[weekKey] || 0) + 1;
+        }
+        const weekKeys = Object.keys(trainingByWeek).sort().slice(-2); // Last 2 weeks
+        if (weekKeys.length >= 2) {
+          const week1Count = trainingByWeek[weekKeys[0]] || 0;
+          const week2Count = trainingByWeek[weekKeys[1]] || 0;
+          if (week1Count < 3 && week2Count < 3) {
+            flags.push({
+              type: 'training_deficit',
+              severity: 'high',
+              message: `Training below minimum: ${week1Count} sessions this week, ${week2Count} last week (target: 3/week)`,
+              data: { currentWeek: week1Count, lastWeek: week2Count }
+            });
+          }
+        }
+
+        // Rule 2: Outreach = 0 for 5+ days
+        const uniqueOutreachDays = new Set(outreachRows.map(r => r.date)).size;
+        if (uniqueOutreachDays === 0) {
+          flags.push({
+            type: 'outreach_gap',
+            severity: 'high',
+            message: 'No outreach actions for 5+ days — mandatory daily minimum not met',
+            data: { daysSince: 5 }
+          });
+        }
+
+        // Rule 3: Average energy declining over 7 days
+        const recentCheckins = checkinRows.filter(r => r.energy_level != null && r.date >= sevenDaysAgo);
+        if (recentCheckins.length >= 3) {
+          const avgEnergy = recentCheckins.reduce((s, r) => s + r.energy_level, 0) / recentCheckins.length;
+          // Check if declining trend (compare first half vs second half)
+          const mid = Math.floor(recentCheckins.length / 2);
+          const firstHalf = recentCheckins.slice(0, mid);
+          const secondHalf = recentCheckins.slice(mid);
+          const firstAvg = firstHalf.reduce((s, r) => s + r.energy_level, 0) / firstHalf.length;
+          const secondAvg = secondHalf.reduce((s, r) => s + r.energy_level, 0) / secondHalf.length;
+          if (secondAvg < firstAvg - 1) {
+            flags.push({
+              type: 'energy_decline',
+              severity: 'medium',
+              message: `Energy declining: ${firstAvg.toFixed(1)} → ${secondAvg.toFixed(1)} over last 7 days`,
+              data: { firstHalfAvg: firstAvg, secondHalfAvg: secondAvg, currentAvg: avgEnergy }
+            });
+          }
+        }
+
+        // Rule 4: No sessions logged for 3+ days
+        const recentSessions = sessionRows.filter(r => r.ended_at && r.ended_at >= threeDaysAgo + ' 00:00:00');
+        if (recentSessions.length === 0) {
+          const lastSession = sessionRows[0];
+          const daysSince = lastSession 
+            ? Math.floor((Date.now() - new Date(lastSession.ended_at).getTime()) / (24 * 60 * 60 * 1000))
+            : 14;
+          flags.push({
+            type: 'session_gap',
+            severity: 'medium',
+            message: `No work sessions for ${daysSince} days`,
+            data: { daysSince }
+          });
+        }
+
+        // Rule 5: Same project focus for 14+ days with no health improvement
+        const sessionsByProject = {};
+        for (const row of sessionRows) {
+          if (!sessionsByProject[row.project_id]) {
+            sessionsByProject[row.project_id] = [];
+          }
+          sessionsByProject[row.project_id].push(row);
+        }
+        // Find project with most recent sessions
+        let primaryProjectId = null;
+        let primaryProjectCount = 0;
+        for (const [pid, sessions] of Object.entries(sessionsByProject)) {
+          if (sessions.length > primaryProjectCount) {
+            primaryProjectCount = sessions.length;
+            primaryProjectId = pid;
+          }
+        }
+        if (primaryProjectId && primaryProjectCount >= 3) {
+          const project = projectRows.find(p => p.id === primaryProjectId);
+          if (project && project.health < 60) {
+            flags.push({
+              type: 'stagnant_project',
+              severity: 'medium',
+              message: `${project.name} stuck at health ${project.health} — ${primaryProjectCount} sessions logged but no improvement`,
+              data: { projectId: primaryProjectId, projectName: project.name, health: project.health, sessionCount: primaryProjectCount }
+            });
+          }
+        }
+
+        return ok(res, { 
+          flags, 
+          checked_at: new Date().toISOString(),
+          summary: {
+            checkins: checkinRows.length,
+            trainingSessions: trainingRows.length,
+            outreachDays: uniqueOutreachDays,
+            sessions: sessionRows.length,
+            projects: projectRows.length
+          }
+        });
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e);
