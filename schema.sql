@@ -285,6 +285,24 @@ CREATE TABLE IF NOT EXISTS entity_links (
   INDEX idx_entity_links_target (user_id, target_type, target_id)
 );
 
+-- ── DAILY CHECKINS (Phase 2.5) ─────────────────────────────
+-- Track daily user state for AI-driven task routing
+CREATE TABLE IF NOT EXISTS daily_checkins (
+  id              VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
+  user_id         VARCHAR(36)   NOT NULL,
+  date            VARCHAR(10)   NOT NULL,          -- YYYY-MM-DD
+  sleep_hours     INT           DEFAULT NULL,      -- 0-24
+  energy_level    INT           DEFAULT NULL,      -- 0-10
+  gut_symptoms    INT           DEFAULT NULL,      -- 0-10
+  training_done   TINYINT(1)    DEFAULT 0,
+  notes           TEXT,
+  created_at      DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_user_date (user_id, date),
+  INDEX idx_user_date (user_id, date)
+);
+
 -- ── TEMPLATES ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS templates (
   id              VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
