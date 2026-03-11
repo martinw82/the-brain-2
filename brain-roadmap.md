@@ -432,15 +432,16 @@ _These make the tool genuinely powerful. Each plugs into the foundations from Ph
 - **Done when:** ✅ You can connect a local folder, save your project to it, and load changes back
 - **How:** `sync_state`/`sync_file_state` tables (migrations v16, v17); `resource=sync_state` API endpoints; `desktop-sync.js` module with File System Access API integration; `FolderSyncSetup` component in Meta tab; `SyncReviewModal` for conflict resolution with desktop/cloud choice
 
-### 3.5 File validity checker `[UI]` `[API]`
+### 3.5 File validity checker `[UI]` `[API]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **Check:** Required files exist (PROJECT_OVERVIEW.md, DEVLOG.md, manifest.json)
-- [ ] **Check:** manifest.json is valid JSON and matches project state
-- [ ] **Check:** No orphaned files (files in DB not referenced by any folder)
-- [ ] **Check:** Template-required folders exist
-- [ ] **UI:** "Health check" button in Meta tab, shows pass/fail list
-- [ ] **Auto-fix:** Offer to create missing required files with defaults
-- **Done when:** Running a health check shows structural issues and can auto-fix them
+- [x] **Check:** Required files exist (PROJECT_OVERVIEW.md, DEVLOG.md, manifest.json)
+- [x] **Check:** manifest.json is valid JSON and matches project state
+- [x] **Check:** No orphaned files (files in DB not referenced by any folder)
+- [x] **Check:** Template-required folders exist
+- [x] **UI:** "Health check" button in Meta tab, shows pass/fail list
+- [x] **Auto-fix:** Offer to create missing required files with defaults
+- **Done when:** ✅ Running a health check shows structural issues and can auto-fix them
+- **How:** `HealthCheck` component in Meta tab; client-side validation using existing project data; checks required files, valid manifest.json, orphaned files, template folders, missing .gitkeep; error/warning/info classification; auto-fix creates files with default content
 
 ### 3.6 Script execution `[API]` `[UI]`
 

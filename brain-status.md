@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 7.6 (Phase 3.4 Complete — Local File System Sync)
+**Version:** 7.7 (Phase 3.5 Complete — File Validity Checker)
 **Live URL:** the-brain-2.vercel.app
 **Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, and Phase 3.1–3.4 complete; next is Phase 3.5 (File Validity Checker)
+**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, and Phase 3.1–3.5 complete; next is Phase 3.6 (Script Execution)
 
 ---
 
@@ -75,6 +75,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **mermaid_diagrams** — rendered client-side via CDN, no table needed (Phase 3.2)
 - **search_improvements** — enhanced search modal with highlighting, filters, recent searches; localStorage only (Phase 3.3)
 - **sync_state** — `sync_state` and `sync_file_state` tables, `resource=sync_state` API, desktop folder sync (Phase 3.4)
+- **file_validity_checker** — HealthCheck component in Meta tab, structural validation, auto-fix (Phase 3.5)
 
 ---
 
@@ -140,6 +141,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **Mermaid Diagram Rendering (3.2)** — Mermaid loaded via CDN in index.html; `MermaidRenderer` component renders diagrams as SVG; `MarkdownPreview` component splits content and renders mermaid blocks; `renderMd` detects and extracts mermaid code blocks; default `system/DEPENDENCY_GRAPH.md` template with example diagrams (system architecture, data flow, project dependencies); MERMAID badge shown in editor when file contains diagrams
 - **Search Improvements (3.3)** — Enhanced search API with filters (project, folder, file type), highlighted excerpts, grouped results by project; `SearchModal` component with Cmd+K shortcut, recent searches (localStorage), filter dropdowns, highlighted match terms; search button with keyboard shortcut hint; debounced search with loading indicator
 - **Local File System Sync (3.4)** — `sync_state` and `sync_file_state` tables (migrations v16, v17); `resource=sync_state` API endpoints (GET/POST/PUT/DELETE); `desktop-sync.js` module with `selectFolder()`, `saveFolderHandle()`, `syncFiles()`, conflict detection; `FolderSyncSetup` component in Meta tab for folder connection; `SyncReviewModal` for conflict resolution; File System Access API for desktop folder access; bi-directional sync with overwrite confirmation
+- **File Validity Checker (3.5)** — `HealthCheck` component in Meta tab; checks for required files (PROJECT_OVERVIEW.md, DEVLOG.md, manifest.json), valid manifest.json JSON, manifest-project state consistency, orphaned files (not in any folder), template-required folders, missing .gitkeep files; shows error/warning/info counts; auto-fix for missing files with default content; expandable panel with detailed issue list
 
 ---
 
@@ -311,9 +313,10 @@ At the end of each build session, update this document with:
 - ✅ **Phase 3.2 — Mermaid diagram rendering** (2026-03-11) — Mermaid loaded via CDN; `MermaidRenderer` component renders diagrams as SVG; `MarkdownPreview` component splits content and renders mermaid blocks; default `system/DEPENDENCY_GRAPH.md` template with example diagrams
 - ✅ **Phase 3.3 — Search improvements** (2026-03-11) — Enhanced search API with filters (project, folder, file type), highlighted excerpts, grouped results by project; `SearchModal` component with Cmd+K shortcut, recent searches (localStorage), filter dropdowns, highlighted match terms
 - ✅ **Phase 3.4 — Local file system sync** (2026-03-11) — `sync_state`/`sync_file_state` tables (migrations v16, v17); `resource=sync_state` API; `desktop-sync.js` module; `FolderSyncSetup` component in Meta tab; `SyncReviewModal` for conflict resolution; File System Access API integration
+- ✅ **Phase 3.5 — File validity checker** (2026-03-11) — `HealthCheck` component in Meta tab; checks required files, valid manifest.json, orphaned files, template folders; error/warning/info classification; auto-fix for missing files; expandable results panel
 
 ### Next Up — Phase 3
-1. **Phase 3.5 — File validity checker** ← NEXT — Missing files, orphaned entries, health check
+1. **Phase 3.6 — Script execution** ← NEXT — /tools/ folder, sandboxed JS/Python/shell
 
 ### Parking Lot (after Phase 2 — not now)
 **Phase 3:**
@@ -321,11 +324,7 @@ At the end of each build session, update this document with:
 - ✅ Mermaid diagram rendering (3.2) — DONE
 - ✅ Search improvements (3.3) — DONE
 - ✅ Local file system sync (3.4) — DONE
-- ✅ Mermaid diagram rendering (3.2) — DONE
-- ✅ Search improvements (3.3) — DONE
-- Search improvements — Cmd+K, cross-project, highlighted excerpts (3.3)
-- Local file system sync via File System Access API (3.4)
-- File validity checker — missing required files, orphaned entries (3.5)
+- ✅ File validity checker (3.5) — DONE
 - Script execution — /tools/ folder, sandboxed JS/Python/shell (3.6)
 
 **Phase 4:**
@@ -379,6 +378,16 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 11/03/26 session
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 18 — Phase 3.5 File Validity Checker complete):**
+- Version bumped to **7.7** (Phase 3.5 Complete — File Validity Checker)
+- No new DB table — health check is client-side only using existing project data
+- Component: New `HealthCheck` component in `src/TheBrain.jsx`; checks required files (PROJECT_OVERVIEW.md, DEVLOG.md, manifest.json), valid JSON in manifest.json, manifest-project state consistency, orphaned files (not in any folder), template-required folders, missing .gitkeep files
+- UI: "🏥 Health Check" section in Meta tab; error/warning/info badge counts; "Check" button runs validation; expandable panel shows detailed issues; auto-fix button for missing files
+- Auto-fix: Creates missing required files with default content; creates missing .gitkeep files
+- Priority Stack: 3.5 moved to Completed (Phase 3 Features section); Next Up now Phase 3.6 (Script Execution)
+- Next: **Phase 3.6 — Script Execution**
 
 ---
 **Edit 2026-03-11 (session 17 — Phase 3.4 Local File System Sync complete):**
