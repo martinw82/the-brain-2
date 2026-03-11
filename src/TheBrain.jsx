@@ -1322,18 +1322,12 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
   const copy=(text)=>{navigator.clipboard.writeText(text);setCopied(true);setTimeout(()=>setCopied(false),2000);};
 
-  const askAI=async(prompt)=>{
+  // Phase 2.8: system prompt is now built server-side from DB (agent-config.json + real data)
+  // Pass system=null for standard questions; skill briefings still pass their own system override
+  const askAI=async(prompt, systemOverride=null)=>{
     setAiLoad(true);setAiOut("");
-    // Build state context (Phase 2.5)
-    let stateContext = "";
-    if (todayCheckin) {
-      const energy = todayCheckin.energy_level;
-      let stateLabel = energy <= 4 ? "Recovery day" : energy <= 7 ? "Steady work" : "Power day";
-      stateContext = `\nToday's State: Energy ${energy}/10 (${stateLabel}), Sleep ${todayCheckin.sleep_hours}h, Gut ${todayCheckin.gut_symptoms}/10${todayCheckin.training_done ? ", Training done" : ""}\nTraining this week: ${weeklyTraining.count}/3 sessions (${weeklyTraining.minutes} min)${weeklyTraining.count<3?" — BELOW TARGET":""}\nOutreach today: ${todayOutreach.length} action${todayOutreach.length===1?"":"s"}${todayOutreach.length===0?" — NOT DONE (mandatory)":" — done"} (${weeklyOutreach} this week)\nTask routing: ${energy <= 4 ? "Low-complexity only (admin, comms, review)" : energy <= 7 ? "Shipping, outreach, communications" : "Deep work, architecture, new features"}`;
-    }
-    const sys=`You are The Brain AI Coach for ${user?.name||"this builder"}, targeting £${user?.monthly_target||3000}/mo. Direct, max 250 words. Reference specific projects.${stateContext}\n\nContext:\n${buildCtx()}`;
     try{
-      const d = await aiApi.ask(prompt, sys);
+      const d = await aiApi.ask(prompt, systemOverride);
       setAiOut(d.content?.map(b=>b.text||"").join("")||"No response.");
     }catch(e){
       setAiOut(e.message || "Connection error.");

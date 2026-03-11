@@ -1,6 +1,11 @@
-// api/ai.js — Anthropic Proxy Function
+// api/ai.js — Anthropic Proxy + Server-Side Context Builder (Phase 2.8)
 
 import jwt from 'jsonwebtoken';
+import mysql from 'mysql2/promise';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const agentConfig = require('../agent-config.json');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -20,6 +25,195 @@ function getAuth(req) {
   try { return jwt.verify(h.slice(7), JWT_SECRET); } catch { return null; }
 }
 
+function getDb() {
+  return mysql.createConnection({
+    host:     process.env.DB_HOST,
+    port:     parseInt(process.env.DB_PORT || '4000'),
+    user:     process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME || 'the_brain',
+    ssl:      { rejectUnauthorized: true },
+  });
+}
+
+// ── TOKEN ESTIMATOR ───────────────────────────────────────────
+// Rough estimate: 1 token ≈ 4 chars
+function estimateTokens(text) {
+  return Math.ceil(text.length / 4);
+}
+
+// ── SERVER-SIDE SYSTEM PROMPT BUILDER ────────────────────────
+async function buildSystemPrompt(userId, db) {
+  const today = new Date().toISOString().split('T')[0];
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  // Fetch all data in parallel
+  const [
+    [userRows],
+    [goalRows],
+    [contribRows],
+    [checkinRows],
+    [trainingRows],
+    [outreachRows],
+    [projectRows],
+    [sessionRows],
+  ] = await Promise.all([
+    db.execute('SELECT name, email, monthly_target, currency, goal FROM users WHERE id = ?', [userId]),
+    db.execute(`SELECT id, title, target_amount, current_amount, currency, status
+                FROM goals WHERE user_id = ? AND status = 'active' LIMIT 1`, [userId]),
+    db.execute(`SELECT SUM(amount) as total FROM goal_contributions
+                WHERE goal_id IN (SELECT id FROM goals WHERE user_id = ? AND status = 'active')`, [userId]),
+    db.execute('SELECT * FROM daily_checkins WHERE user_id = ? AND date = ?', [userId, today]),
+    db.execute(`SELECT COUNT(*) as count, SUM(duration_minutes) as minutes
+                FROM training_logs WHERE user_id = ? AND date >= ?`, [userId, weekAgo]),
+    db.execute(`SELECT COUNT(*) as today_count FROM outreach_log WHERE user_id = ? AND date = ?`, [userId, today]),
+    db.execute(`SELECT id, name, phase, health, momentum, priority, revenue_ready,
+                       next_action, blockers, tags, income_target, emoji
+                FROM projects WHERE user_id = ?
+                ORDER BY priority ASC LIMIT 12`, [userId]),
+    db.execute(`SELECT s.project_id, p.name as project_name, s.duration_s, s.log, s.ended_at
+                FROM sessions s LEFT JOIN projects p ON p.id = s.project_id
+                WHERE s.user_id = ? ORDER BY s.ended_at DESC LIMIT 3`, [userId]),
+  ]);
+
+  const user = userRows[0] || {};
+  const goal = goalRows[0] || null;
+  const goalTotal = Number(contribRows[0]?.total || 0);
+  const checkin = checkinRows[0] || null;
+  const training = trainingRows[0] || { count: 0, minutes: 0 };
+  const outreachToday = Number(outreachRows[0]?.today_count || 0);
+
+  // ── IDENTITY BLOCK ────────────────────────────────────────
+  const identityBlock = agentConfig.identity;
+
+  // ── RULES BLOCK (compressed) ──────────────────────────────
+  const rulesBlock = agentConfig.rules
+    .map(r => `${r.id}. **${r.rule}**: ${r.detail}`)
+    .join('\n');
+
+  // ── STATE BLOCK ───────────────────────────────────────────
+  let stateBlock = 'No check-in today.';
+  let routingMode = 'Steady';
+  let routingNote = '';
+
+  if (checkin) {
+    const e = checkin.energy_level || 5;
+    const g = checkin.gut_symptoms || 0;
+    const s = checkin.sleep_hours || 7;
+    const trainingDone = checkin.training_done ? 'yes' : 'no';
+
+    if (e <= 4 || g >= 7 || s < 5) {
+      routingMode = 'Recovery';
+      routingNote = 'LOW ENERGY / POOR STATE — low-complexity tasks only (admin, comms, review)';
+    } else if (e >= 8 && g <= 4 && s >= 7) {
+      routingMode = 'Power';
+      routingNote = 'HIGH ENERGY — deep work, architecture, hard problems available';
+    } else {
+      routingMode = 'Steady';
+      routingNote = 'STEADY STATE — shipping, outreach, medium-complexity tasks';
+    }
+
+    stateBlock = `Energy: ${e}/10 | Sleep: ${s}h | Gut: ${g}/10 | Training today: ${trainingDone}
+Training this week: ${training.count} sessions (${training.minutes || 0} min) ${training.count < 3 ? '⚠ BELOW 3/week target' : '✓ on target'}
+Outreach today: ${outreachToday} action${outreachToday === 1 ? '' : 's'} ${outreachToday === 0 ? '— NOT DONE (Rule 2: mandatory every day)' : '✓ done'}
+Mode: **${routingMode}** — ${routingNote}`;
+  } else {
+    stateBlock = `No check-in logged today.
+Training this week: ${training.count} sessions ${training.count < 3 ? '⚠ BELOW target' : '✓ on target'}
+Outreach today: ${outreachToday} ${outreachToday === 0 ? '— NOT DONE (mandatory)' : '✓ done'}`;
+  }
+
+  // ── GOAL BLOCK ────────────────────────────────────────────
+  let goalBlock = 'No active goal set.';
+  if (goal) {
+    const pct = goal.target_amount > 0 ? Math.round(goalTotal / goal.target_amount * 100) : 0;
+    const curr = goal.currency === 'USD' ? '$' : goal.currency === 'EUR' ? '€' : '£';
+    goalBlock = `${goal.title}: ${curr}${goalTotal} / ${curr}${goal.target_amount} (${pct}%)`;
+  }
+
+  // ── PROJECTS BLOCK (compressed, priority order) ───────────
+  const projectLines = projectRows.map(p => {
+    const blockers = (() => {
+      try { return JSON.parse(p.blockers || '[]'); } catch { return []; }
+    })();
+    const tags = (() => {
+      try { return JSON.parse(p.tags || '[]'); } catch { return []; }
+    })();
+    const parts = [
+      `#${p.priority} ${p.emoji || ''} ${p.name}`,
+      `phase:${p.phase}`,
+      `health:${p.health}`,
+      p.revenue_ready ? '💰revenue-ready' : '',
+      `next→${p.next_action || 'none'}`,
+      blockers.length > 0 ? `BLOCKED:${blockers.slice(0, 2).join('; ')}` : '',
+      tags.length > 0 ? `tags:${tags.slice(0, 3).join(',')}` : '',
+    ].filter(Boolean);
+    return parts.join(' | ');
+  });
+  const projectsBlock = projectLines.join('\n');
+
+  // ── SESSIONS BLOCK ────────────────────────────────────────
+  let sessionsBlock = 'No recent sessions.';
+  if (sessionRows.length > 0) {
+    sessionsBlock = sessionRows.map(s => {
+      const mins = Math.round((s.duration_s || 0) / 60);
+      const date = s.ended_at ? String(s.ended_at).slice(0, 10) : '?';
+      const log = (s.log || '').slice(0, 80);
+      return `${date} | ${s.project_name || 'unknown'} | ${mins}min | ${log}`;
+    }).join('\n');
+  }
+
+  // ── ASSEMBLE PROMPT ───────────────────────────────────────
+  const prompt = `${identityBlock}
+
+## Operator
+Name: ${user.name || 'Builder'} | Monthly target: ${user.currency || '£'}${user.monthly_target || 3000}
+
+## Enforcement Rules
+${rulesBlock}
+
+## Today's State
+${stateBlock}
+
+## Active Goal
+${goalBlock}
+
+## Projects (priority order)
+${projectsBlock}
+
+## Recent Sessions
+${sessionsBlock}`;
+
+  // Token budget check — truncate projects if over budget
+  const estimated = estimateTokens(prompt);
+  if (estimated > agentConfig.token_budget) {
+    // Trim to first 6 projects
+    const trimmedProjects = projectLines.slice(0, 6).join('\n') + '\n[...truncated to fit token budget]';
+    return `${identityBlock}
+
+## Operator
+Name: ${user.name || 'Builder'} | Monthly target: ${user.currency || '£'}${user.monthly_target || 3000}
+
+## Enforcement Rules
+${rulesBlock}
+
+## Today's State
+${stateBlock}
+
+## Active Goal
+${goalBlock}
+
+## Projects (priority order, top 6)
+${trimmedProjects}
+
+## Recent Sessions
+${sessionsBlock}`;
+  }
+
+  return prompt;
+}
+
+// ── HANDLER ───────────────────────────────────────────────────
 export default async function handler(req, res) {
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -34,24 +228,33 @@ export default async function handler(req, res) {
 
   if (!ANTHROPIC_API_KEY) return err(res, 'AI provider not configured', 500);
 
-  // Simple in-memory rate limiting (best effort for serverless)
-  // Note: In a real Vercel environment, this only applies to the current instance.
-  // Using a global store like Upstash Redis is the recommended Phase 2 approach.
+  // Rate limiting
   if (!global.aiRateLimit) global.aiRateLimit = {};
   const now = Date.now();
   const userLimit = global.aiRateLimit[auth.userId] || { count: 0, reset: now + 60000 };
-
-  if (now > userLimit.reset) {
-    userLimit.count = 0;
-    userLimit.reset = now + 60000;
-  }
-
+  if (now > userLimit.reset) { userLimit.count = 0; userLimit.reset = now + 60000; }
   if (userLimit.count >= 10) {
     return res.status(429).json({ error: 'Rate limited. Try again in a minute.' });
   }
-
   userLimit.count++;
   global.aiRateLimit[auth.userId] = userLimit;
+
+  // Build system prompt — server-side if no override provided
+  let systemPrompt = system || null;
+  let db = null;
+  if (!systemPrompt) {
+    try {
+      db = await getDb();
+      systemPrompt = await buildSystemPrompt(auth.userId, db);
+    } catch (e) {
+      console.error('[AI] Failed to build system prompt from DB:', e.message);
+      // Fallback to minimal prompt rather than failing
+      systemPrompt = agentConfig.identity + '\n\n## Rules\n' +
+        agentConfig.rules.map(r => `${r.id}. ${r.rule}: ${r.detail}`).join('\n');
+    } finally {
+      if (db) db.end().catch(() => {});
+    }
+  }
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -63,21 +266,22 @@ export default async function handler(req, res) {
         'anthropic-beta': 'prompt-caching-2024-07-31',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system: system ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] : undefined,
+        model: agentConfig.model,
+        max_tokens: agentConfig.max_response_tokens,
+        system: systemPrompt ? [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }] : undefined,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
 
     const data = await response.json();
     if (!response.ok) {
-        console.error('Anthropic API error:', data);
-        return err(res, data.error?.message || 'AI Proxy Error', response.status);
+      console.error('Anthropic API error:', data);
+      return err(res, data.error?.message || 'AI Proxy Error', response.status);
     }
 
     const { usage } = data;
-    console.log(`[AI] user=${auth.userId} input=${usage?.input_tokens} output=${usage?.output_tokens} cache_create=${usage?.cache_creation_input_tokens||0} cache_read=${usage?.cache_read_input_tokens||0}`);
+    const tokenEstimate = systemPrompt ? estimateTokens(systemPrompt) : 0;
+    console.log(`[AI] user=${auth.userId} sys_est=${tokenEstimate}tok input=${usage?.input_tokens} output=${usage?.output_tokens} cache_create=${usage?.cache_creation_input_tokens||0} cache_read=${usage?.cache_read_input_tokens||0}`);
 
     return res.status(200).json(data);
   } catch (e) {

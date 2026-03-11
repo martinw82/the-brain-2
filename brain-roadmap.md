@@ -346,29 +346,23 @@ Foundation for the agent layer's state-based task routing.
 - [x] **AI context:** Outreach today count + "NOT DONE (mandatory)" flag in AI Coach system prompt when no outreach logged
 - **Done when:** ✓ Log outreach actions, see daily indicator in top bar and card, AI coach enforces mandatory daily minimum
 
-### 2.8 Agent system prompt upgrade + context compression `[API]` `[CONFIG]`
+### 2.8 Agent system prompt upgrade + context compression `[API]` `[CONFIG]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **Create:** `agent-config.json` — structured version of the 10 assistant rules
-- [ ] **Context compression:** The AI cannot receive all files for all projects. Build a smart context builder:
-  - Per-project summary (2-3 sentences) auto-generated and cached in a `project_summaries` column or table
-  - Summaries regenerate when: project files change, health score changes, or manually triggered
-  - When asking about a specific project: include that project's summary + recent devlog entries (last 5) + current active file content + next action
-  - When asking a general question: include all project summaries + today's check-in + active goal progress + life area health scores
-  - Token budget: keep total context under 4,000 tokens (leaves room for response)
-- [ ] **Build system prompt dynamically:** Read from:
-  - User profile (name, goal, currency)
-  - Active goal + progress
-  - Today's check-in (energy, training count, outreach status)
-  - Project data (priorities, health scores, next actions)
-  - Recent session logs
-  - The 10 enforcement rules
-- [ ] **State-based routing in prompt:** Include the task complexity table:
-  - Energy ≤4 OR gut ≥6 OR sleep <6 → low-complexity only
-  - Energy 5-7, stable → shipping/outreach/medium tasks
-  - Energy 8+, laptop available → deep work
-- [ ] **Update AI proxy function** to build this prompt server-side
-- [ ] **Test:** Ask "What should I work on today?" and verify it references your actual check-in data and enforces the rules
-- **Done when:** AI Coach gives state-aware, rule-enforced responses based on real data
+- [x] **Create:** `agent-config.json` — 10 enforcement rules (ship or it doesn't exist, outreach mandatory, match work to state, revenue-ready priority, health score urgency, call the loop, sessions need deliverables, ideas to staging, life before projects, truth over comfort) + state routing table + model/token config
+- [x] **Context compression:** Server-side builder queries DB directly — no file content sent; projects compressed to ~60 tokens each (name, phase, health, revenue_ready, next_action, blockers)
+- [x] **Token budget:** 4,000 token cap with auto-truncation to top 6 projects if exceeded; rough estimate logged per call
+- [x] **Build system prompt dynamically:** `buildSystemPrompt(userId, db)` in `api/ai.js` queries in parallel:
+  - User profile (name, currency, monthly_target)
+  - Active goal + contribution total + progress %
+  - Today's check-in (energy, sleep, gut, training_done)
+  - Training this week (count + minutes vs 3/week target)
+  - Outreach today (count, mandatory flag if zero)
+  - All projects (priority order, compressed single-line per project)
+  - Last 3 sessions
+- [x] **State-based routing:** Computed server-side — Recovery/Steady/Power mode with allowed/blocked task types
+- [x] **Graceful fallback:** If DB query fails, falls back to identity + rules only (no crash)
+- [x] **Client simplified:** `askAI()` now sends `{ prompt }` only — no client-side context building; skill briefings still pass their own `systemOverride`
+- **Done when:** ✓ Ask "What should I work on today?" — response references real check-in energy, project health scores, outreach status, enforces the 10 rules
 
 ### 2.9 Weekly review automation `[API]` `[UI]`
 
