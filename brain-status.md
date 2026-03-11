@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 7.1 (Phase 2.9 Complete — Weekly Review Automation)
+**Version:** 7.2 (Phase 2.10 Complete — Drift Detection)
 **Live URL:** the-brain-2.vercel.app
 **Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 0, Phase 1, and Phase 2.1–2.9 complete; next is 2.10 (Drift Detection)
+**Status:** Beta — All Phase 0, Phase 1, and Phase 2.1–2.10 complete; next is Phase 3.1 (AI Metadata Suggestions)
 
 ---
 
@@ -70,6 +70,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **training_logs** — training sessions: date, duration_minutes, type (solo/class/sparring/conditioning/other), notes, energy_after (Phase 2.6; migration v13)
 - **outreach_log** — outreach actions: date, type (message/post/call/email/other), target, project_id, notes (Phase 2.7; migration v14)
 - **weekly_reviews** — weekly review snapshots: week_start, what_shipped, what_blocked, next_priority, ai_analysis, data_json (Phase 2.9; migration v15)
+- **drift_detection** — computed on-demand via `resource=drift-check` API, no table needed (Phase 2.10)
 
 ---
 
@@ -239,7 +240,7 @@ The Brain's AI Coach currently has a one-line system prompt. The full agent rule
 - ✅ **Outreach tracking** — `outreach_log` table, `OutreachLogModal`, daily indicator in top bar + Command Centre card, AI coach mandatory enforcement (Phase 2.7 DONE)
 - ✅ **Agent system prompt upgrade + context compression** — `agent-config.json` (10 rules + state routing), `buildSystemPrompt()` in `api/ai.js` queries DB server-side, 4k token budget, Recovery/Steady/Power routing, graceful fallback (Phase 2.8 DONE)
 - ✅ **Weekly review automation** — `weekly_reviews` table, `WeeklyReviewPanel` (week nav, 7 stat cards, sessions list, reflection fields, AI generate, save), upsert API (Phase 2.9 DONE)
-- **Drift detection** — background check on training/outreach/energy minimums (Phase 2.10)
+- ✅ **Drift detection** — `resource=drift-check` API with 5 detection rules, drift alerts in Command Centre, drift flags in AI coach context (Phase 2.10 DONE)
 
 ---
 
@@ -291,9 +292,10 @@ At the end of each build session, update this document with:
 - ✅ **Phase 2.7 — Outreach tracking** (2026-03-11) — `outreach_log` table (migration v14), `OutreachLogModal`, Command Centre card, 📣 top bar indicator, AI Coach mandatory enforcement
 - ✅ **Phase 2.8 — Agent system prompt upgrade** (2026-03-11) — `agent-config.json`, `buildSystemPrompt()` in `api/ai.js`, DB-driven context, 4k token budget, Recovery/Steady/Power routing
 - ✅ **Phase 2.9 — Weekly review automation** (2026-03-11) — `weekly_reviews` table (migration v15), `resource=weekly-review` API (aggregation + upsert), `WeeklyReviewPanel` (week nav, stats, sessions, reflection, AI generate, save)
+- ✅ **Phase 2.10 — Drift detection** (2026-03-11) — `resource=drift-check` API with 5 detection rules, drift alerts in Command Centre with dismiss, drift flags in AI context
 
-### Next Up — Phase 2 (continued)
-1. **Phase 2.10 — Drift detection** ← NEXT — background checks on training/outreach/energy/session minimums, alerts in Command Centre
+### Next Up — Phase 3
+1. **Phase 3.1 — AI metadata suggestions** ← NEXT — auto-suggest tags/category on file save
 
 ### Parking Lot (after Phase 2 — not now)
 **Phase 3:**
@@ -355,6 +357,17 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 11/03/26 session
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 13 — Phase 2.10 Drift Detection complete):**
+- Version bumped to **7.2** (Phase 2.10 Complete — Drift Detection)
+- DB schema: 21 tables (no new table — drift is computed on-demand)
+- What's Built: added Drift Detection entry in Phase 2 additions + Agent Layer section
+- API: `resource=drift-check` endpoint in `api/data.js` with 5 detection rules
+- AI Integration: drift flags computed in `buildSystemPrompt()` and included in context
+- UI: drift alerts in Command Centre with dismiss functionality, persists dismissed state in localStorage
+- Priority Stack: 2.10 moved to Completed; Next Up now Phase 3.1 (AI Metadata Suggestions)
+- Next: **Phase 3.1 — AI Metadata Suggestions**
 
 ---
 **Edit 2026-03-11 (session 12 — Phase 2.9 Weekly Review Automation complete):**

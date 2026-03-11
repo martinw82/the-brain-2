@@ -374,18 +374,18 @@ Foundation for the agent layer's state-based task routing.
 - [x] **Persist:** POST upserts to `weekly_reviews` table per user + week_start; "Save Review" button
 - **Done when:** Every Sunday (or on demand), you can run a weekly review that shows real data and saves an AI-generated analysis ✅
 
-### 2.10 Drift detection `[API]`
+### 2.10 Drift detection `[API]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **Background check** (runs on login or daily): query last 14 days of check-ins + training + outreach
-- [ ] **Rules:**
+- [x] **Background check** (runs on login or daily): query last 14 days of check-ins + training + outreach
+- [x] **Rules:**
   - Training < 3 sessions/week for 2 consecutive weeks → flag
   - Outreach = 0 for 5+ days → flag
   - Average energy declining over 7 days → flag
   - No sessions logged for 3+ days → flag
   - Same project focus for 14+ days with no health improvement → flag
-- [ ] **UI:** Drift alerts in command centre (similar to health alerts)
-- [ ] **AI integration:** Drift flags included in AI coach context so it can address them
-- **Done when:** The system proactively warns when patterns are slipping, without you having to notice
+- [x] **UI:** Drift alerts in command centre (similar to health alerts)
+- [x] **AI integration:** Drift flags included in AI coach context so it can address them
+- **Done when:** ✅ The system proactively warns when patterns are slipping, without you having to notice
 
 ---
 
