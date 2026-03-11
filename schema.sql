@@ -65,6 +65,15 @@ CREATE TABLE IF NOT EXISTS project_custom_folders (
 );
 
 -- ── PROJECT FILES ─────────────────────────────────────────────
+-- MIGRATION NOTE (Phase 2.2):
+-- Files currently stored as base64 in LONGTEXT (up to 4GB capacity).
+-- To migrate to object storage (S3/R2/Azure):
+-- 1. Add optional `file_url VARCHAR(2048)` column to project_files
+-- 2. ImageViewer/BinaryViewer components accept BOTH base64 (data:) and URLs
+-- 3. Gradual migration: new files upload to object storage, old files stay as base64
+-- 4. UI detects source: content.startsWith('data:') → base64, else → URL
+-- 5. At 100% migration completion, drop content column
+-- This design allows zero-downtime migration across all file types.
 CREATE TABLE IF NOT EXISTS project_files (
   id          INT           AUTO_INCREMENT PRIMARY KEY,
   project_id  VARCHAR(64)   NOT NULL,
