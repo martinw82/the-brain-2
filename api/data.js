@@ -915,6 +915,118 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── AI METADATA SUGGESTIONS (Phase 3.1) ───────────────────
+    if (resource === 'ai-metadata-suggestions') {
+      if (req.method === 'POST') {
+        const { project_id, file_path, content, project_name, project_phase } = req.body || {};
+        if (!content) return err(res, 'content required');
+
+        // Check ignore rules from agent-config.json
+        const ignorePatterns = [
+          'node_modules', '.git', 'dist', 'build', '.env',
+          'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'
+        ];
+        const lowerPath = (file_path || '').toLowerCase();
+        for (const pattern of ignorePatterns) {
+          if (lowerPath.includes(pattern)) {
+            return ok(res, { ignored: true, reason: `File matches ignore pattern: ${pattern}` });
+          }
+        }
+
+        // Only suggest for text/markdown files
+        const suggestableExts = ['.md', '.txt', '.markdown'];
+        const hasSuggestableExt = suggestableExts.some(ext => lowerPath.endsWith(ext));
+        if (!hasSuggestableExt && content.length > 5000) {
+          return ok(res, { ignored: true, reason: 'File type not supported for suggestions' });
+        }
+
+        // Truncate content if too long (first 3000 chars is enough for analysis)
+        const truncatedContent = content.slice(0, 3000);
+
+        // Call Anthropic API for suggestions
+        const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+        if (!ANTHROPIC_API_KEY) {
+          return ok(res, { error: 'AI provider not configured', suggestions: null });
+        }
+
+        const systemPrompt = `You are a metadata analysis assistant. Analyze the provided file content and suggest metadata.
+
+Respond with ONLY a JSON object in this exact format:
+{
+  "category": "one of: documentation, planning, research, code, design, marketing, other",
+  "status": "one of: draft, review, final, archived",
+  "tags": ["tag1", "tag2", "tag3"],
+  "related_projects": ["project-id-1", "project-id-2"],
+  "confidence": 0.85
+}
+
+Rules:
+- category: best fit based on content type
+- status: draft if incomplete/notes, review if needs feedback, final if polished
+- tags: 2-5 relevant tags based on content themes
+- related_projects: suggest related project IDs if content references other projects (empty array if none)
+- confidence: 0.0-1.0 score of how confident you are in these suggestions
+
+Be concise. Return valid JSON only.`;
+
+        const userPrompt = `Analyze this file and suggest metadata:
+
+File path: ${file_path || 'unknown'}
+Project: ${project_name || 'unknown'} (${project_phase || 'unknown phase'})
+
+Content:
+---
+${truncatedContent}
+---
+
+Provide metadata suggestions as JSON.`;
+
+        try {
+          const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': ANTHROPIC_API_KEY,
+              'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+              model: 'claude-sonnet-4-6',
+              max_tokens: 500,
+              system: systemPrompt,
+              messages: [{ role: 'user', content: userPrompt }],
+            }),
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            console.error('Anthropic API error:', data);
+            return ok(res, { error: 'AI analysis failed', suggestions: null });
+          }
+
+          // Parse the JSON response
+          let suggestions;
+          try {
+            const text = data.content?.[0]?.text || '{}';
+            // Extract JSON from potential markdown code block
+            const jsonMatch = text.match(/```json\s*([\s\S]*?)```/) || text.match(/```\s*([\s\S]*?)```/) || [null, text];
+            suggestions = JSON.parse(jsonMatch[1] || text);
+          } catch (e) {
+            console.error('Failed to parse AI response:', e);
+            suggestions = null;
+          }
+
+          return ok(res, { 
+            suggestions,
+            usage: data.usage,
+            content_sampled: truncatedContent.length < content.length ? `${truncatedContent.length} of ${content.length} chars` : 'full content'
+          });
+        } catch (e) {
+          console.error('AI metadata suggestion error:', e);
+          return ok(res, { error: 'Analysis failed', suggestions: null });
+        }
+      }
+    }
+
     // ── DRIFT CHECK (Phase 2.10) ──────────────────────────────
     if (resource === 'drift-check') {
       if (req.method === 'GET') {

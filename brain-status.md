@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 7.2 (Phase 2.10 Complete — Drift Detection)
+**Version:** 7.3 (Phase 3.1 Complete — AI Metadata Suggestions)
 **Live URL:** the-brain-2.vercel.app
 **Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 0, Phase 1, and Phase 2.1–2.10 complete; next is Phase 3.1 (AI Metadata Suggestions)
+**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, and Phase 3.1 complete; next is Phase 3.2 (Mermaid Diagram Rendering)
 
 ---
 
@@ -71,6 +71,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **outreach_log** — outreach actions: date, type (message/post/call/email/other), target, project_id, notes (Phase 2.7; migration v14)
 - **weekly_reviews** — weekly review snapshots: week_start, what_shipped, what_blocked, next_priority, ai_analysis, data_json (Phase 2.9; migration v15)
 - **drift_detection** — computed on-demand via `resource=drift-check` API, no table needed (Phase 2.10)
+- **ai_metadata_suggestions** — computed on-demand via `resource=ai-metadata-suggestions` API, no table needed (Phase 3.1)
 
 ---
 
@@ -118,7 +119,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **Tagging & Linking (1.3)** — `tags`/`entity_tags`/`entity_links` tables + API + UI; QuickTagRow on projects/ideas/staging/goals/files; 🏷 Tags brain tab (cross-entity query); 🔗 Links hub tab (create/view/delete entity relationships)
 - **Settings (1.4)** — `settings` JSON column on `users`, GET/PUT `/api/settings`, settings modal (⚙ gear icon in header), font family + font size persist to DB across devices, localStorage cache for speed
 
-### Phase 2 Features (2.1–2.5)
+### Phase 2 Features (2.1–2.10)
 - **Project Import (2.1)** — BUIDL format paste, JSON file upload, folder picker (File System Access API); conflict resolution with overwrite option; auto-navigate on success
 - **Image & Binary File Handling (2.2)** — image viewer component (renders `<img>` for .png/.jpg/.gif/.svg/.webp), binary detection by extension, base64 upload via drag-drop into staging, download link for non-text files, size warning >500KB
 - **Metadata Editor Panel (2.3)** — `file_metadata` table + API; collapsible right panel per file; category/status dropdowns; `folder_path`/`filed_at` fields on staging for "file to folder" flow; JSON custom fields extensible
@@ -128,6 +129,11 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **Training Log (2.6)** — `training_logs` table (migration v13); `TrainingLogModal.jsx` with type selector (solo/class/sparring/conditioning/other), duration + quick presets (30/45/60/90m), energy-after slider, notes; Command Centre training card: weekly sessions/minutes + progress bar toward 3/week target; 🥋 top bar indicator (click to log); auto-marks today's check-in `training_done=true`; weekly training count + below-target flag in AI Coach context; stats endpoint with weekly bucket aggregation
 - **Outreach Tracking (2.7)** — `outreach_log` table (migration v14); `OutreachLogModal.jsx` with type selector (5 types), target input, optional project link, notes; Command Centre outreach card: today's count + weekly total + last 3 entries preview + ⚠ warning when none; 📣 top bar indicator (purple when done, dim when zero, click to log); AI Coach context includes outreach count + "NOT DONE (mandatory)" flag
 - **Agent System Prompt Upgrade (2.8)** — `agent-config.json` (10 enforcement rules + state routing + model config); `buildSystemPrompt(userId, db)` in `api/ai.js` queries DB in parallel (user profile, active goal + progress %, today's check-in, training this week, outreach today, all projects compressed, last 3 sessions); Recovery/Steady/Power routing computed server-side; 4,000 token budget with auto-truncation; graceful fallback to rules-only if DB unavailable; `askAI()` now sends `{ prompt }` only — no client-side context
+- **Weekly Review Automation (2.9)** — `weekly_reviews` table (migration v15); `WeeklyReviewPanel` with week navigation, 7 stat cards, sessions list, reflection fields (what shipped, what blocked, next priority), AI-generated analysis, save to DB
+- **Drift Detection (2.10)** — `resource=drift-check` API with 5 detection rules (training deficit, outreach gap, energy decline, session gap, stagnant project); drift alerts in Command Centre with dismiss functionality; drift flags included in AI Coach context
+
+### Phase 3 Features
+- **AI Metadata Suggestions (3.1)** — `resource=ai-metadata-suggestions` API endpoint; AI analyzes file content and suggests category, status, tags; suggestions shown in MetadataEditor panel as purple dashed pills; click to accept; ignores files matching patterns (node_modules, .git, etc.); content truncated to 3000 chars; confidence score displayed
 
 ---
 
@@ -357,6 +363,16 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 11/03/26 session
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 14 — Phase 3.1 AI Metadata Suggestions complete):**
+- Version bumped to **7.3** (Phase 3.1 Complete — AI Metadata Suggestions)
+- No new DB table — suggestions computed on-demand via AI API
+- API: `resource=ai-metadata-suggestions` endpoint in `api/data.js`; calls Anthropic API server-side; content truncated to 3000 chars; ignores files matching patterns (node_modules, .git, lockfiles)
+- Client: `aiMetadata.suggest()` in `src/api.js`; `aiSuggestions` + `loadingAiSuggestions` state in TheBrain.jsx
+- UI: MetadataEditor panel shows "🤖 AI Suggestions" section with refresh button; category/status suggestions as clickable purple dashed pills; tag suggestions with "(has)" indicator if already attached; confidence score displayed
+- Integration: Accepting tag suggestion attaches via existing `tagsApi.attachByName()`; auto-save optional via `userSettings.aiMetadataAutoSuggest`
+- Priority Stack: 3.1 moved to Completed (Phase 3 Features section); Next Up now Phase 3.2 (Mermaid Diagram Rendering)
 
 ---
 **Edit 2026-03-11 (session 13 — Phase 2.10 Drift Detection complete):**

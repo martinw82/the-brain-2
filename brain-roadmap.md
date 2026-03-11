@@ -393,13 +393,14 @@ Foundation for the agent layer's state-based task routing.
 
 _These make the tool genuinely powerful. Each plugs into the foundations from Phase 1-2._
 
-### 3.1 AI metadata suggestions `[API]`
+### 3.1 AI metadata suggestions `[API]` ✅ COMPLETE (2026-03-11)
 
-- [ ] When a file is saved, optionally send content to AI proxy
-- [ ] AI returns suggested: category, tags, status, related projects
-- [ ] Show suggestions in metadata panel as "suggested" pills (click to accept)
-- [ ] Respect agent.ignore rules (don't analyse files in ignored folders)
-- **Done when:** Saving a markdown file shows AI-suggested tags that you can accept with one click
+- [x] When a file is saved, optionally send content to AI proxy
+- [x] AI returns suggested: category, tags, status, related projects
+- [x] Show suggestions in metadata panel as "suggested" pills (click to accept)
+- [x] Respect agent.ignore rules (don't analyse files in ignored folders)
+- **Done when:** ✅ Saving a markdown file shows AI-suggested tags that you can accept with one click
+- **How:** `resource=ai-metadata-suggestions` endpoint in `api/data.js`; Anthropic API call server-side; content truncated to 3000 chars; ignore patterns (node_modules, .git, lockfiles); suggestions shown in MetadataEditor as purple dashed pills with ✓ click-to-accept; confidence score displayed
 
 ### 3.2 Mermaid diagram rendering `[UI]`
 
