@@ -66,7 +66,52 @@ export default async function handler(req, res) {
         return ok(res, { success: true, id: newId }, 201);
       }
       if (req.method === 'PUT' && resourceId) {
-        const { status, notes } = req.body || {};
+        const { action } = req.query;
+        const { status, notes, folder_id, filename } = req.body || {};
+
+        // Phase 2.3: Move staging item to folder
+        if (action === 'moveToFolder' && folder_id && filename) {
+          try {
+            // Get staging item
+            const [stagingRows] = await db.execute('SELECT * FROM staging WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+            if (!stagingRows.length) return err(res, 'Staging item not found', 404);
+            const stagingItem = stagingRows[0];
+
+            // Get project files to check for conflicts
+            const [existingFiles] = await db.execute('SELECT * FROM project_files WHERE project_id = ? AND path = ?', [stagingItem.project_id, `${folder_id}/${filename}`]);
+
+            let finalPath = `${folder_id}/${filename}`;
+            if (existingFiles.length > 0) {
+              // Add timestamp suffix to avoid conflict
+              const ext = filename.split('.').pop();
+              const base = filename.replace(new RegExp(`\\.${ext}$`), '');
+              const timestamp = new Date().toISOString().replace(/[:-]/g, '').slice(0, 15);
+              finalPath = `${folder_id}/${base}_${timestamp}.${ext}`;
+            }
+
+            // Get staging file content
+            const [stagingFileRows] = await db.execute('SELECT * FROM project_files WHERE project_id = ? AND path = ?', [stagingItem.project_id, `staging/${stagingItem.name}`]);
+
+            if (stagingFileRows.length > 0) {
+              const stagingFile = stagingFileRows[0];
+              // Copy to new location
+              await db.execute('INSERT INTO project_files (project_id, user_id, path, content) VALUES (?, ?, ?, ?)', [stagingItem.project_id, auth.userId, finalPath, stagingFile.content]);
+              // Delete from staging
+              await db.execute('DELETE FROM project_files WHERE project_id = ? AND path = ?', [stagingItem.project_id, `staging/${stagingItem.name}`]);
+            }
+
+            // Update staging record with folder path and filed timestamp
+            const filedAt = new Date().toISOString();
+            await db.execute('UPDATE staging SET folder_path = ?, filed_at = ? WHERE id = ? AND user_id = ?', [finalPath, filedAt, resourceId, auth.userId]);
+
+            return ok(res, { success: true, folder_path: finalPath, filed_at: filedAt });
+          } catch (e) {
+            console.error('moveToFolder error:', e);
+            return err(res, 'Failed to move file to folder');
+          }
+        }
+
+        // Regular status/notes update
         const fields = [], values = [];
         if (status !== undefined) { fields.push('status = ?'); values.push(status); }
         if (notes !== undefined) { fields.push('notes = ?'); values.push(notes); }

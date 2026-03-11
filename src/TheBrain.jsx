@@ -370,6 +370,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [mainTab,setMainTab]         = useState("command");
   const [hubId,setHubId]             = useState(null);
   const [hubTab,setHubTab]           = useState("editor");
+  const [reviewFilter,setReviewFilter] = useState("pending");  // Phase 2.3: 'all'|'pending'|'filed'
   const [focusId,setFocusId]         = useState(initialProjects[0]?.id || null);
 
   // Session timer
@@ -865,6 +866,47 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const updateStagingStatus=async(id,status)=>{
     setStaging(prev=>prev.map(s=>s.id===id?{...s,status}:s));
     await stagingApi.update(id,{status}).catch(()=>{});
+  };
+
+  // ── PHASE 2.3: Move staging items to folders ───────────────
+  const moveToFolder=async(stagingId,folderId)=>{
+    const item=staging.find(s=>s.id===stagingId);
+    if(!item||!hub)return;
+
+    // Optimistic update
+    setStaging(prev=>prev.map(s=>
+      s.id===stagingId
+        ?{...s,folder_path:`${folderId}/${item.name}`,filed_at:new Date().toISOString()}
+        :s
+    ));
+
+    try{
+      const res=await stagingApi.moveToFolder(stagingId,folderId,item.name);
+
+      // Update files in project — move from staging/ to folder/
+      setProjects(prev=>prev.map(p=>{
+        if(p.id!==hubId)return p;
+        const files={...(p.files||{})};
+        const oldPath=`staging/${item.name}`;
+        const newPath=res.folder_path;
+
+        if(files[oldPath]){
+          files[newPath]=files[oldPath];
+          delete files[oldPath];
+        }
+        return {...p,files};
+      }));
+
+      showToast(`✓ Filed as ${res.folder_path}`);
+    }catch(e){
+      // Revert optimistic update
+      setStaging(prev=>prev.map(s=>
+        s.id===stagingId
+          ?{...s,folder_path:null,filed_at:null}
+          :s
+      ));
+      showToast('⚠ Failed to file item');
+    }
   };
 
   // ── IDEAS OPS — persisted ──────────────────────────────────
@@ -1462,22 +1504,78 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   style={{background:dragOver?"rgba(26,79,214,0.08)":C.surface,border:`2px dashed ${dragOver?C.blue:C.border}`,borderRadius:8,padding:16,textAlign:"center",marginBottom:12}}>
                   <div style={{fontSize:10,color:C.muted}}>🌀 Drag & drop files to stage them</div>
                 </div>
-                {staging.filter(s=>s.project===hubId).length===0
-                  ?<div style={{fontSize:10,color:C.dim,textAlign:"center",padding:"24px 0"}}>No staging items for {hub.name}.</div>
-                  :staging.filter(s=>s.project===hubId).map(item=>{const sc=REVIEW_STATUSES[item.status];return(
-                    <div key={item.id} style={{background:C.bg,border:`1px solid ${sc.color}25`,borderLeft:`3px solid ${sc.color}`,borderRadius:"0 6px 6px 0",padding:"10px 14px",marginBottom:7}}>
-                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,flexWrap:"wrap",gap:5}}>
-                        <span style={{fontSize:11}}>{item.name}</span><span style={S.badge(sc.color)}>{sc.icon} {sc.label}</span>
-                      </div>
-                      <div style={{fontSize:9,color:C.muted,marginBottom:6}}>{item.notes} · {item.added}</div>
-                      <div style={{display:"flex",gap:4}}>
-                        {["approved","rejected","deferred"].filter(s=>s!==item.status).map(s=>(
-                          <button key={s} style={{...S.btn(s==="approved"?"success":s==="rejected"?"danger":"ghost"),padding:"2px 8px",fontSize:8}} onClick={()=>updateStagingStatus(item.id,s)}>{REVIEW_STATUSES[s].icon} {s}</button>
-                        ))}
-                      </div>
-                    </div>
-                  );}
-                )}
+
+                {/* Phase 2.3: Filter toggle for review items */}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                  <span style={{fontSize:10,color:C.blue,letterSpacing:"0.1em",textTransform:"uppercase"}}>📋 Review Items</span>
+                  <select style={{...S.sel,fontSize:9}} value={reviewFilter} onChange={e=>setReviewFilter(e.target.value)}>
+                    <option value="pending">Pending</option>
+                    <option value="filed">Filed</option>
+                    <option value="all">All</option>
+                  </select>
+                </div>
+
+                {(() => {
+                  const filtered = staging
+                    .filter(s => s.project === hubId)
+                    .filter(s => {
+                      if (reviewFilter === 'pending') return !s.folder_path;
+                      if (reviewFilter === 'filed') return !!s.folder_path;
+                      return true;
+                    });
+
+                  return filtered.length === 0
+                    ? <div style={{fontSize:10,color:C.dim,textAlign:"center",padding:"24px 0"}}>No {reviewFilter!=='all'?reviewFilter+' ':''}items for {hub.name}.</div>
+                    : filtered.map(item => {
+                        const sc = REVIEW_STATUSES[item.status];
+                        return (
+                          <div key={item.id} style={{background:C.bg,border:`1px solid ${sc.color}25`,borderLeft:`3px solid ${sc.color}`,borderRadius:"0 6px 6px 0",padding:"10px 14px",marginBottom:7}}>
+                            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,flexWrap:"wrap",gap:5}}>
+                              <span style={{fontSize:11}}>{item.name}</span><span style={S.badge(sc.color)}>{sc.icon} {sc.label}</span>
+                            </div>
+                            <div style={{fontSize:9,color:C.muted,marginBottom:6}}>{item.notes} · {item.added}</div>
+
+                            {/* Phase 2.3: Show filing status or move interface */}
+                            {item.folder_path ? (
+                              <div style={{fontSize:9,color:C.green,padding:"4px 0",display:"flex",alignItems:"center",gap:4}}>
+                                <span>✓ Filed</span>
+                                <span style={{fontSize:8,color:C.dim}}>→ {item.folder_path}</span>
+                              </div>
+                            ) : (
+                              <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+                                {item.status === "approved" && (
+                                  <select
+                                    style={{...S.sel,flex:1,fontSize:9,minWidth:"120px",padding:"4px 6px"}}
+                                    defaultValue=""
+                                    onChange={e => {
+                                      if (e.target.value) moveToFolder(item.id, e.target.value);
+                                      e.target.value = '';
+                                    }}
+                                  >
+                                    <option value="">📁 Move to folder...</option>
+                                    {hubAllFolders
+                                      .filter(f => f.id !== 'staging')
+                                      .map(f => (
+                                        <option key={f.id} value={f.id}>
+                                          {f.icon} {f.label}
+                                        </option>
+                                      ))
+                                    }
+                                  </select>
+                                )}
+                                <div style={{display:"flex",gap:4}}>
+                                  {["approved","rejected","deferred"]
+                                    .filter(s => s !== item.status)
+                                    .map(s => (
+                                      <button key={s} style={{...S.btn(s==="approved"?"success":s==="rejected"?"danger":"ghost"),padding:"2px 8px",fontSize:8}} onClick={()=>updateStagingStatus(item.id,s)}>{REVIEW_STATUSES[s].icon} {s}</button>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      });
+                })()}
               </div>
             )}
 
