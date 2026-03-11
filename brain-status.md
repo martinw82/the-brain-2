@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 7.5 (Phase 3.3 Complete — Search Improvements)
+**Version:** 7.6 (Phase 3.4 Complete — Local File System Sync)
 **Live URL:** the-brain-2.vercel.app
 **Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, and Phase 3.1–3.3 complete; next is Phase 3.4 (Local File System Sync)
+**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, and Phase 3.1–3.4 complete; next is Phase 3.5 (File Validity Checker)
 
 ---
 
@@ -74,6 +74,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **ai_metadata_suggestions** — computed on-demand via `resource=ai-metadata-suggestions` API, no table needed (Phase 3.1)
 - **mermaid_diagrams** — rendered client-side via CDN, no table needed (Phase 3.2)
 - **search_improvements** — enhanced search modal with highlighting, filters, recent searches; localStorage only (Phase 3.3)
+- **sync_state** — `sync_state` and `sync_file_state` tables, `resource=sync_state` API, desktop folder sync (Phase 3.4)
 
 ---
 
@@ -138,6 +139,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **AI Metadata Suggestions (3.1)** — `resource=ai-metadata-suggestions` API endpoint; AI analyzes file content and suggests category, status, tags; suggestions shown in MetadataEditor panel as purple dashed pills; click to accept; ignores files matching patterns (node_modules, .git, etc.); content truncated to 3000 chars; confidence score displayed
 - **Mermaid Diagram Rendering (3.2)** — Mermaid loaded via CDN in index.html; `MermaidRenderer` component renders diagrams as SVG; `MarkdownPreview` component splits content and renders mermaid blocks; `renderMd` detects and extracts mermaid code blocks; default `system/DEPENDENCY_GRAPH.md` template with example diagrams (system architecture, data flow, project dependencies); MERMAID badge shown in editor when file contains diagrams
 - **Search Improvements (3.3)** — Enhanced search API with filters (project, folder, file type), highlighted excerpts, grouped results by project; `SearchModal` component with Cmd+K shortcut, recent searches (localStorage), filter dropdowns, highlighted match terms; search button with keyboard shortcut hint; debounced search with loading indicator
+- **Local File System Sync (3.4)** — `sync_state` and `sync_file_state` tables (migrations v16, v17); `resource=sync_state` API endpoints (GET/POST/PUT/DELETE); `desktop-sync.js` module with `selectFolder()`, `saveFolderHandle()`, `syncFiles()`, conflict detection; `FolderSyncSetup` component in Meta tab for folder connection; `SyncReviewModal` for conflict resolution; File System Access API for desktop folder access; bi-directional sync with overwrite confirmation
 
 ---
 
@@ -308,13 +310,17 @@ At the end of each build session, update this document with:
 - ✅ **Phase 3.1 — AI metadata suggestions** (2026-03-11) — `resource=ai-metadata-suggestions` API endpoint; AI analyzes file content and suggests category, status, tags; suggestions shown in MetadataEditor panel as purple dashed pills; click to accept; ignores files matching patterns (node_modules, .git, etc.); content truncated to 3000 chars; confidence score displayed
 - ✅ **Phase 3.2 — Mermaid diagram rendering** (2026-03-11) — Mermaid loaded via CDN; `MermaidRenderer` component renders diagrams as SVG; `MarkdownPreview` component splits content and renders mermaid blocks; default `system/DEPENDENCY_GRAPH.md` template with example diagrams
 - ✅ **Phase 3.3 — Search improvements** (2026-03-11) — Enhanced search API with filters (project, folder, file type), highlighted excerpts, grouped results by project; `SearchModal` component with Cmd+K shortcut, recent searches (localStorage), filter dropdowns, highlighted match terms
+- ✅ **Phase 3.4 — Local file system sync** (2026-03-11) — `sync_state`/`sync_file_state` tables (migrations v16, v17); `resource=sync_state` API; `desktop-sync.js` module; `FolderSyncSetup` component in Meta tab; `SyncReviewModal` for conflict resolution; File System Access API integration
 
 ### Next Up — Phase 3
-1. **Phase 3.4 — Local file system sync** ← NEXT — File System Access API, two-way sync
+1. **Phase 3.5 — File validity checker** ← NEXT — Missing files, orphaned entries, health check
 
 ### Parking Lot (after Phase 2 — not now)
 **Phase 3:**
 - ✅ AI metadata suggestions (3.1) — DONE
+- ✅ Mermaid diagram rendering (3.2) — DONE
+- ✅ Search improvements (3.3) — DONE
+- ✅ Local file system sync (3.4) — DONE
 - ✅ Mermaid diagram rendering (3.2) — DONE
 - ✅ Search improvements (3.3) — DONE
 - Search improvements — Cmd+K, cross-project, highlighted excerpts (3.3)
@@ -373,6 +379,17 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 11/03/26 session
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 17 — Phase 3.4 Local File System Sync complete):**
+- Version bumped to **7.6** (Phase 3.4 Complete — Local File System Sync)
+- DB schema: 23 tables; added `sync_state` and `sync_file_state` (migrations v16, v17)
+- API: New `resource=sync_state` endpoints (GET/POST/PUT/DELETE) in `api/data.js`
+- Core components already existed from Phase 2.4B: `desktop-sync.js` module, `FolderSyncSetup.jsx`, `SyncReviewModal.jsx`
+- Integration: `FolderSyncSetup` component in Meta tab for folder connection; sync status badge; last sync time display
+- Features: File System Access API for desktop folder selection; bi-directional sync; conflict detection with desktop/cloud choice; IndexedDB for handle persistence
+- Priority Stack: 3.4 moved to Completed (Phase 3 Features section); Next Up now Phase 3.5 (File Validity Checker)
+- Next: **Phase 3.5 — File Validity Checker**
 
 ---
 **Edit 2026-03-11 (session 16 — Phase 3.3 Search Improvements complete):**

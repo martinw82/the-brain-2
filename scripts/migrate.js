@@ -213,6 +213,39 @@ const migrations = [
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
           INDEX idx_weekly_reviews_user_week (user_id, week_start)
         );`
+    },
+    {
+        version: 16,
+        name: 'create_sync_state_table',
+        sql: `CREATE TABLE IF NOT EXISTS sync_state (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          project_id VARCHAR(36) NOT NULL,
+          user_id VARCHAR(36) NOT NULL,
+          folder_handle_key VARCHAR(255),
+          sync_status VARCHAR(32) DEFAULT 'idle',
+          last_sync_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          UNIQUE KEY unique_project_sync (project_id, user_id)
+        );`
+    },
+    {
+        version: 17,
+        name: 'create_sync_file_state_table',
+        sql: `CREATE TABLE IF NOT EXISTS sync_file_state (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          project_id VARCHAR(36) NOT NULL,
+          file_path VARCHAR(512) NOT NULL,
+          desktop_content_hash VARCHAR(64),
+          cloud_content_hash VARCHAR(64),
+          last_sync_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+          UNIQUE KEY unique_sync_file (project_id, file_path)
+        );`
     }
 ];
 

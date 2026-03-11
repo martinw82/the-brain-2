@@ -422,14 +422,15 @@ _These make the tool genuinely powerful. Each plugs into the foundations from Ph
 - **Done when:** ✅ Cmd+K opens a search that finds content across all projects with highlighted excerpts
 - **How:** Enhanced `resource=search` API with filters and grouped results; `SearchModal` component with Cmd+K shortcut, recent searches, filter dropdowns, highlighted match terms
 
-### 3.4 Local file system sync `[UI]`
+### 3.4 Local file system sync `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **Connect:** `window.showDirectoryPicker()` → store handle in state
-- [ ] **Save to local:** Recursively write project files to connected folder
-- [ ] **Load from local:** Recursively read folder, update project in DB
-- [ ] **Sync indicator:** Show "connected to: /path/to/folder" in project meta
-- [ ] **Caution:** Overwrite confirmation before any destructive sync
-- **Done when:** You can connect a local folder, save your project to it, and load changes back
+- [x] **Connect:** `window.showDirectoryPicker()` → store handle in state
+- [x] **Save to local:** Recursively write project files to connected folder
+- [x] **Load from local:** Recursively read folder, update project in DB
+- [x] **Sync indicator:** Show "connected to: /path/to/folder" in project meta
+- [x] **Caution:** Overwrite confirmation before any destructive sync
+- **Done when:** ✅ You can connect a local folder, save your project to it, and load changes back
+- **How:** `sync_state`/`sync_file_state` tables (migrations v16, v17); `resource=sync_state` API endpoints; `desktop-sync.js` module with File System Access API integration; `FolderSyncSetup` component in Meta tab; `SyncReviewModal` for conflict resolution with desktop/cloud choice
 
 ### 3.5 File validity checker `[UI]` `[API]`
 

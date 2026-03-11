@@ -4,6 +4,40 @@
 
 ---
 
+## Session 038 — 2026-03-11
+**Branch:** `session-038-local-file-sync`
+**Task:** Phase 3.4 — Local File System Sync
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented local file system sync using File System Access API. Note: Core functionality was built in Phase 2.4B; this session completed the missing pieces.
+
+**Database Changes:**
+- Migration v16: `sync_state` table — tracks folder connection per project
+- Migration v17: `sync_file_state` table — tracks file hashes for change detection
+- Updated `schema.sql` with new tables
+
+**API Changes (`api/data.js`):**
+- New `resource=sync_state` endpoints:
+  - `GET` — retrieve sync state for project
+  - `POST` — create/update sync state with folder handle
+  - `PUT` — update last_sync_at and sync_status
+  - `DELETE` — disconnect folder
+
+**Existing Components (from Phase 2.4B):**
+- `desktop-sync.js` — File System Access API wrapper with `selectFolder()`, `saveFolderHandle()`, `syncFiles()`, conflict detection
+- `FolderSyncSetup.jsx` — UI for connecting/disconnecting folders, sync now button
+- `SyncReviewModal.jsx` — Conflict resolution UI (desktop vs cloud choice)
+
+**Integration:**
+- `FolderSyncSetup` already integrated in Meta tab
+- Components imported and used in TheBrain.jsx
+
+### Done When
+✅ You can connect a local folder, save your project to it, and load changes back
+
+---
+
 ## Session 037 — 2026-03-11
 **Branch:** `session-037-search-improvements`
 **Task:** Phase 3.3 — Search Improvements
