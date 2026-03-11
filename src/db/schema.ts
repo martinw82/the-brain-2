@@ -508,3 +508,25 @@ export const daily_checkins = mysqlTable(
     userDateIdx: index("idx_user_date").on(table.user_id, table.date),
   })
 );
+
+// ────────────────────────────────────────────────────────────────
+// TRAINING LOG (Phase 2.6 - Training Session Tracking)
+// Log individual training sessions with type, duration, notes
+// ────────────────────────────────────────────────────────────────
+export const training_logs = mysqlTable(
+  "training_logs",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
+    user_id: varchar("user_id", { length: 36 }).notNull(),
+    date: varchar("date", { length: 10 }).notNull(),
+    duration_minutes: int("duration_minutes").notNull(),
+    type: varchar("type", { length: 32 }).notNull().default("solo"),
+    notes: text("notes"),
+    energy_after: int("energy_after"),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    userDateIdx: index("idx_training_user_date").on(table.user_id, table.date),
+  })
+);
