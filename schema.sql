@@ -365,3 +365,32 @@ CREATE TABLE IF NOT EXISTS templates (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_user_templates (user_id, category)
 );
+
+-- ── SYNC STATE (Phase 2.4B / 3.4) ────────────────────────────
+CREATE TABLE IF NOT EXISTS sync_state (
+  id                VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
+  project_id        VARCHAR(36)   NOT NULL,
+  user_id           VARCHAR(36)   NOT NULL,
+  folder_handle_key VARCHAR(255),              -- IndexedDB key reference
+  sync_status       VARCHAR(32)   DEFAULT 'idle', -- idle, syncing, error
+  last_sync_at      DATETIME,
+  created_at        DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  updated_at        DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_project_sync (project_id, user_id)
+);
+
+-- ── SYNC FILE STATE (Phase 2.4B) ─────────────────────────────
+CREATE TABLE IF NOT EXISTS sync_file_state (
+  id                  VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
+  project_id          VARCHAR(36)   NOT NULL,
+  file_path           VARCHAR(512)  NOT NULL,
+  desktop_content_hash VARCHAR(64),             -- SHA256 of desktop version
+  cloud_content_hash   VARCHAR(64),             -- SHA256 of cloud version
+  last_sync_at        DATETIME,
+  created_at          DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  updated_at          DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_sync_file (project_id, file_path)
+);

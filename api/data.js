@@ -1101,6 +1101,67 @@ Provide metadata suggestions as JSON.`;
       }
     }
 
+    // ── SYNC STATE (Phase 2.4B / 3.4) ─────────────────────────
+    if (resource === 'sync_state') {
+      if (req.method === 'GET') {
+        const { project_id } = req.query;
+        if (!project_id) return err(res, 'project_id required');
+        const [rows] = await db.execute(
+          'SELECT * FROM sync_state WHERE project_id = ? AND user_id = ?',
+          [project_id, auth.userId]
+        );
+        return ok(res, { sync_state: rows[0] || null });
+      }
+      
+      if (req.method === 'POST') {
+        const { project_id, folder_handle_key, sync_status } = req.body || {};
+        if (!project_id) return err(res, 'project_id required');
+        
+        // Check if exists
+        const [existing] = await db.execute(
+          'SELECT id FROM sync_state WHERE project_id = ? AND user_id = ?',
+          [project_id, auth.userId]
+        );
+        
+        if (existing.length > 0) {
+          // Update
+          await db.execute(
+            `UPDATE sync_state SET folder_handle_key = ?, sync_status = ?, updated_at = NOW() WHERE id = ?`,
+            [folder_handle_key || null, sync_status || 'idle', existing[0].id]
+          );
+          return ok(res, { success: true, id: existing[0].id });
+        } else {
+          // Create
+          const id = crypto.randomUUID();
+          await db.execute(
+            `INSERT INTO sync_state (id, project_id, user_id, folder_handle_key, sync_status) VALUES (?, ?, ?, ?, ?)`,
+            [id, project_id, auth.userId, folder_handle_key || null, sync_status || 'idle']
+          );
+          return ok(res, { success: true, id }, 201);
+        }
+      }
+      
+      if (req.method === 'PUT') {
+        const { project_id, last_sync_at, sync_status } = req.body || {};
+        if (!project_id) return err(res, 'project_id required');
+        await db.execute(
+          `UPDATE sync_state SET last_sync_at = ?, sync_status = ?, updated_at = NOW() WHERE project_id = ? AND user_id = ?`,
+          [last_sync_at || new Date().toISOString(), sync_status || 'idle', project_id, auth.userId]
+        );
+        return ok(res, { success: true });
+      }
+      
+      if (req.method === 'DELETE') {
+        const { project_id } = req.query;
+        if (!project_id) return err(res, 'project_id required');
+        await db.execute(
+          'DELETE FROM sync_state WHERE project_id = ? AND user_id = ?',
+          [project_id, auth.userId]
+        );
+        return ok(res, { success: true });
+      }
+    }
+
     // ── DRIFT CHECK (Phase 2.10) ──────────────────────────────
     if (resource === 'drift-check') {
       if (req.method === 'GET') {
