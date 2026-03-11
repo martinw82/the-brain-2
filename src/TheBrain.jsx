@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, token } from "./api.js";
+import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token } from "./api.js";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -47,6 +47,79 @@ const Modal=({title,onClose,children,width=400})=>(
 const Toast=({msg,onDone})=>{
   useEffect(()=>{const t=setTimeout(onDone,2200);return()=>clearTimeout(t);},[]);
   return <div style={{position:"fixed",bottom:24,right:24,background:C.surface,border:`1px solid ${C.green}40`,borderRadius:8,padding:"10px 18px",fontSize:11,color:C.green,zIndex:9999,boxShadow:`0 4px 24px rgba(0,0,0,0.4)`}}>{msg}</div>;
+};
+
+// ── METADATA EDITOR (Roadmap 2.3) ──────────────────────────
+const MetadataEditor=({file,projectId,metadata,onSave,allTags})=>{
+  const [category,setCategory]=useState(metadata?.category||'');
+  const [status,setStatus]=useState(metadata?.status||'draft');
+  const [customFields,setCustomFields]=useState(metadata?.metadata_json?.custom||{});
+  const [newFieldKey,setNewFieldKey]=useState('');
+  const [newFieldValue,setNewFieldValue]=useState('');
+  const [expanded,setExpanded]=useState(false);
+
+  const save=async()=>{
+    await onSave({category,status,metadata_json:{custom:customFields}});
+  };
+
+  const addCustomField=()=>{
+    if(newFieldKey.trim()){
+      setCustomFields(prev=>({...prev,[newFieldKey]:newFieldValue}));
+      setNewFieldKey('');
+      setNewFieldValue('');
+    }
+  };
+
+  return(
+    <div style={{borderLeft:`1px solid ${C.border}`,padding:12,minWidth:250,overflowY:"auto"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",marginBottom:expanded?8:0}} onClick={()=>setExpanded(!expanded)}>
+        <span style={{fontSize:10,color:C.blue,letterSpacing:"0.1em",textTransform:"uppercase"}}>📋 Metadata</span>
+        <span style={{fontSize:12}}>{expanded?'▼':'▶'}</span>
+      </div>
+
+      {expanded&&(
+        <div>
+          {/* Category */}
+          <div style={{marginBottom:10}}>
+            <label style={{fontSize:9,color:C.dim}}>Category</label>
+            <input type="text" style={{...S.input,fontSize:9,width:"100%"}} placeholder="design, docs..." value={category} onChange={e=>setCategory(e.target.value)}/>
+          </div>
+
+          {/* Status */}
+          <div style={{marginBottom:10}}>
+            <label style={{fontSize:9,color:C.dim}}>Status</label>
+            <select style={{...S.sel,fontSize:9,width:"100%"}} value={status} onChange={e=>setStatus(e.target.value)}>
+              <option value="draft">Draft</option>
+              <option value="in-progress">In Progress</option>
+              <option value="review">Review</option>
+              <option value="final">Final</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+
+          {/* Custom Fields */}
+          <div style={{marginBottom:10}}>
+            <label style={{fontSize:9,color:C.dim}}>Custom Fields</label>
+            {Object.entries(customFields).map(([key,value])=>(
+              <div key={key} style={{display:"flex",gap:4,marginBottom:4,fontSize:8}}>
+                <span style={{flex:1,color:C.dim,wordBreak:"break-word"}}>{key}:</span>
+                <span style={{flex:1,color:C.text,wordBreak:"break-word"}}>{value}</span>
+                <button style={{...S.btn("ghost"),padding:"2px 4px",color:C.red,flexShrink:0}} onClick={()=>setCustomFields(prev=>{const next={...prev};delete next[key];return next;})}>✕</button>
+              </div>
+            ))}
+            <div style={{display:"flex",gap:4,marginTop:6}}>
+              <input type="text" style={{...S.input,flex:1,fontSize:8,padding:"4px"}} placeholder="key" value={newFieldKey} onChange={e=>setNewFieldKey(e.target.value)}/>
+              <input type="text" style={{...S.input,flex:1,fontSize:8,padding:"4px"}} placeholder="value" value={newFieldValue} onChange={e=>setNewFieldValue(e.target.value)}/>
+              <button style={{...S.btn("success"),fontSize:8,padding:"4px 8px",flexShrink:0}} onClick={addCustomField}>+</button>
+            </div>
+          </div>
+
+          {/* Save Button */}
+          <button style={{...S.btn("primary"),width:"100%",fontSize:9}} onClick={save}>💾 Save</button>
+        </div>
+      )}
+    </div>
+  );
 };
 
 // ── CONSTANTS ─────────────────────────────────────────────────
@@ -359,6 +432,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [tagInput,setTagInput]       = useState({}); // {[entityKey]: inputValue}
   const [selectedTagId,setSelectedTagId] = useState(null); // for Tags brain tab
   const [userSettings,setUserSettings]   = useState({font:"JetBrains Mono",fontSize:11});
+  const [fileMetadata,setFileMetadata]   = useState(null); // Roadmap 2.3: current file's metadata
+  const [loadingMetadata,setLoadingMetadata] = useState(false);
   const [settingsForm,setSettingsForm]   = useState({font:"JetBrains Mono",fontSize:11});
 
   // Hub links
@@ -683,6 +758,36 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const deleteFile=async(projId,path)=>{
     setProjects(prev=>prev.map(p=>{if(p.id!==projId)return p;const f={...p.files};delete f[path];return{...p,files:f,activeFile:p.activeFile===path?"PROJECT_OVERVIEW.md":p.activeFile};}));
     await projectsApi.deleteFile(projId,path).catch(()=>{});
+  };
+
+  // ── METADATA OPS (Roadmap 2.3) ──────────────────────────
+  const fetchMetadata=async(projId,filePath)=>{
+    setLoadingMetadata(true);
+    try{
+      const res=await fileMetadata.get(projId,filePath);
+      setFileMetadata(res.metadata||null);
+    }catch(e){
+      console.error("Failed to fetch metadata:",e);
+      setFileMetadata(null);
+    }finally{
+      setLoadingMetadata(false);
+    }
+  };
+
+  const saveMetadata=async(projId,filePath,data)=>{
+    try{
+      if(fileMetadata?.id){
+        await fileMetadata.update(fileMetadata.id,data);
+      }else{
+        await fileMetadata.create({project_id:projId,file_path:filePath,...data});
+      }
+      // Fetch fresh to sync state
+      await fetchMetadata(projId,filePath);
+      showToast("✓ Metadata saved");
+    }catch(e){
+      console.error("Failed to save metadata:",e);
+      showToast("⚠ Metadata save failed");
+    }
   };
 
   const addCustomFolder=async(projId,folder)=>{
@@ -1422,18 +1527,29 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
               <div style={{display:"flex",gap:10,height:"calc(100vh-160px)",minHeight:500}}>
                 <div style={{width:210,flexShrink:0,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
                   <FileTree files={hub.files||{}} activeFile={hub.activeFile} customFolders={hub.customFolders||[]}
-                    onSelect={path=>{setProjects(prev=>prev.map(p=>p.id===hubId?{...p,activeFile:path}:p));projectsApi.setActiveFile(hubId,path).catch(()=>{});}}
+                    onSelect={path=>{
+                      setProjects(prev=>prev.map(p=>p.id===hubId?{...p,activeFile:path}:p));
+                      projectsApi.setActiveFile(hubId,path).catch(()=>{});
+                      fetchMetadata(hubId,path);  // Roadmap 2.3: fetch metadata when file selected
+                    }}
                     onNewFile={()=>setModal("new-file")}
                     onDelete={path=>deleteFile(hubId,path)}/>
                 </div>
-                <div style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative"}}
+
+                {/* Roadmap 2.3: Editor pane now in flex layout with metadata panel */}
+                <div style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden",display:"flex",flexDirection:"row",position:"relative"}}
                   onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>handleDrop(e,hubId)}>
-                  {dragOver&&<div style={{position:"absolute",inset:0,background:"rgba(26,79,214,0.12)",border:`2px dashed ${C.blue}`,borderRadius:8,zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}><span style={{fontSize:14,color:C.blue}}>Drop to stage →</span></div>}
-                  {hub.activeFile&&<div style={{padding:"4px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",background:C.bg}}>
-                    <span style={{fontSize:8,color:C.dim,textTransform:"uppercase",letterSpacing:"0.1em",flexShrink:0}}>tags</span>
-                    <QuickTagRow entityType="file" entityId={`${hubId}/${hub.activeFile}`}/>
-                  </div>}
-                  {hub.activeFile&&(() => {const fileType=getFileType(hub.activeFile);const content=(hub.files||{})[hub.activeFile]||"";if(fileType==="image")return <ImageViewer path={hub.activeFile} content={content}/>;if(fileType==="audio")return <AudioPlayer path={hub.activeFile} content={content}/>;if(fileType==="video")return <VideoPlayer path={hub.activeFile} content={content}/>;if(fileType==="binary"||fileType==="document"||fileType==="archive")return <BinaryViewer path={hub.activeFile} content={content}/>;return <MarkdownEditor path={hub.activeFile} content={content} onChange={()=>{}} onSave={handleHubSave} saving={saving} files={hub.files||{}}/>;})()||null}
+                  <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+                    {dragOver&&<div style={{position:"absolute",inset:0,background:"rgba(26,79,214,0.12)",border:`2px dashed ${C.blue}`,borderRadius:8,zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}><span style={{fontSize:14,color:C.blue}}>Drop to stage →</span></div>}
+                    {hub.activeFile&&<div style={{padding:"4px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",background:C.bg}}>
+                      <span style={{fontSize:8,color:C.dim,textTransform:"uppercase",letterSpacing:"0.1em",flexShrink:0}}>tags</span>
+                      <QuickTagRow entityType="file" entityId={`${hubId}/${hub.activeFile}`}/>
+                    </div>}
+                    {hub.activeFile&&(() => {const fileType=getFileType(hub.activeFile);const content=(hub.files||{})[hub.activeFile]||"";if(fileType==="image")return <ImageViewer path={hub.activeFile} content={content}/>;if(fileType==="audio")return <AudioPlayer path={hub.activeFile} content={content}/>;if(fileType==="video")return <VideoPlayer path={hub.activeFile} content={content}/>;if(fileType==="binary"||fileType==="document"||fileType==="archive")return <BinaryViewer path={hub.activeFile} content={content}/>;return <MarkdownEditor path={hub.activeFile} content={content} onChange={()=>{}} onSave={handleHubSave} saving={saving} files={hub.files||{}}/>;})()||null}
+                  </div>
+
+                  {/* Metadata panel (right side) */}
+                  {hub.activeFile&&<MetadataEditor file={hub.activeFile} projectId={hubId} metadata={fileMetadata} onSave={data=>saveMetadata(hubId,hub.activeFile,data)} allTags={userTags}/>}
                 </div>
               </div>
             )}

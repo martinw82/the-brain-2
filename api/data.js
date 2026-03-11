@@ -188,6 +188,38 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── FILE METADATA (Roadmap 2.3) ───────────────────────────
+    if (resource === 'file_metadata') {
+      if (req.method === 'GET') {
+        if (!project_id || !file_path) return err(res, 'project_id and file_path required');
+        const [rows] = await db.execute('SELECT * FROM file_metadata WHERE user_id = ? AND project_id = ? AND file_path = ?', [auth.userId, project_id, file_path]);
+        const metadata = rows.length > 0 ? { ...rows[0], metadata_json: safeJson(rows[0].metadata_json, {}) } : null;
+        return ok(res, { metadata });
+      }
+      if (req.method === 'POST') {
+        const { project_id: pid, file_path: fp, category, status, metadata_json } = req.body || {};
+        if (!pid || !fp) return err(res, 'project_id and file_path required');
+        await db.execute(
+          'INSERT INTO file_metadata (project_id, user_id, file_path, category, status, metadata_json) VALUES (?, ?, ?, ?, ?, ?)',
+          [pid, auth.userId, fp, category || null, status || 'draft', metadata_json ? JSON.stringify(metadata_json) : null]
+        );
+        return ok(res, { success: true }, 201);
+      }
+      if (req.method === 'PUT' && resourceId) {
+        const { category, status, metadata_json } = req.body || {};
+        const fields = ['updated_at = NOW()'], values = [];
+        if (category !== undefined) { fields.push('category = ?'); values.push(category); }
+        if (status !== undefined) { fields.push('status = ?'); values.push(status); }
+        if (metadata_json !== undefined) { fields.push('metadata_json = ?'); values.push(metadata_json ? JSON.stringify(metadata_json) : null); }
+        if (fields.length > 1) { values.push(resourceId, auth.userId); await db.execute(`UPDATE file_metadata SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`, values); }
+        return ok(res, { success: true });
+      }
+      if (req.method === 'DELETE' && resourceId) {
+        await db.execute('DELETE FROM file_metadata WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+        return ok(res, { success: true });
+      }
+    }
+
     // ── AREAS ─────────────────────────────────────────────────
     if (resource === 'areas') {
       if (req.method === 'GET') {

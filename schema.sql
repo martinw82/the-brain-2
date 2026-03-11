@@ -89,6 +89,27 @@ CREATE TABLE IF NOT EXISTS project_files (
   FULLTEXT INDEX ft_file_content (content)    -- enables full-text search
 );
 
+-- ── FILE METADATA (Roadmap 2.3) ───────────────────────────
+-- Metadata for files: category, status, custom fields, tags
+-- Flexible JSON column allows extensibility without schema changes
+CREATE TABLE IF NOT EXISTS file_metadata (
+  id          INT           AUTO_INCREMENT PRIMARY KEY,
+  file_id     INT           NOT NULL,
+  project_id  VARCHAR(64)   NOT NULL,
+  user_id     VARCHAR(36)   NOT NULL,
+  file_path   VARCHAR(512)  NOT NULL,
+  category    VARCHAR(64)   DEFAULT NULL,     -- e.g., "design", "documentation", "research"
+  status      VARCHAR(32)   DEFAULT 'draft',  -- draft/in-progress/review/final/archived
+  metadata_json JSON        DEFAULT NULL,     -- {custom: {key: value}} for extensibility
+  created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_file_metadata (project_id, file_path),
+  INDEX idx_project_metadata (project_id, category, status),
+  INDEX idx_file_status (project_id, status)
+);
+
 -- ── STAGING ──────────────────────────────────────────────────
 -- MIGRATION NOTE (Phase 2.3):
 -- Files can now be moved from staging/ to project folders.
