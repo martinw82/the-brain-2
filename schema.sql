@@ -303,6 +303,22 @@ CREATE TABLE IF NOT EXISTS daily_checkins (
   INDEX idx_user_date (user_id, date)
 );
 
+-- ── TRAINING LOGS (Phase 2.6) ─────────────────────────────
+-- Track individual training sessions for weekly count + correlation with energy
+CREATE TABLE IF NOT EXISTS training_logs (
+  id                VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
+  user_id           VARCHAR(36)   NOT NULL,
+  date              VARCHAR(10)   NOT NULL,          -- YYYY-MM-DD
+  duration_minutes  INT           NOT NULL,          -- session length in minutes
+  type              VARCHAR(32)   NOT NULL DEFAULT 'solo',  -- solo/class/sparring/conditioning/other
+  notes             TEXT,
+  energy_after      INT           DEFAULT NULL,      -- 0-10
+  created_at        DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  updated_at        DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_training_user_date (user_id, date)
+);
+
 -- ── TEMPLATES ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS templates (
   id              VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),

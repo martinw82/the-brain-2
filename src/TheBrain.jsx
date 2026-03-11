@@ -6,6 +6,7 @@ import { desktopSync } from "./desktop-sync.js";
 import FolderSyncSetup from "./components/FolderSyncSetup.jsx";
 import SyncReviewModal from "./components/SyncReviewModal.jsx";
 import DailyCheckinModal from "./components/DailyCheckinModal.jsx";
+import TrainingLogModal from "./components/TrainingLogModal.jsx";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -523,6 +524,10 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [showCheckinModal, setShowCheckinModal] = useState(false);
   const [checkinLastDate, setCheckinLastDate] = useState(localStorage.getItem('lastCheckinDate'));
 
+  // Training log state (Phase 2.6)
+  const [showTrainingModal, setShowTrainingModal] = useState(false);
+  const [weeklyTraining, setWeeklyTraining] = useState({ count: 0, minutes: 0 });
+
   const showToast = (msg) => setToast({msg});
 
   // ── TAG HELPERS ───────────────────────────────────────────
@@ -797,6 +802,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       };
       dailyCheckinsApi();
     }
+    // Load weekly training count
+    if (user) loadWeeklyTraining();
   }, [user?.id]);
 
   // ── NAVIGATION — lazy-loads files on first hub open ────────
@@ -1172,6 +1179,46 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     }
   };
 
+  // ── TRAINING LOG (Phase 2.6) ─────────────────────────────────
+  const loadWeeklyTraining=async()=>{
+    try{
+      const res=await fetch(`/api/data?resource=training-logs&days=7`,{
+        headers:{'Authorization':`Bearer ${token.get()}`}
+      });
+      if(!res.ok)return;
+      const data=await res.json();
+      const logs=data.logs||[];
+      setWeeklyTraining({count:logs.length,minutes:logs.reduce((s,l)=>s+(l.duration_minutes||0),0)});
+    }catch(e){console.error('Training load error:',e);}
+  };
+
+  const saveTraining=async(log)=>{
+    try{
+      const res=await fetch(`/api/data?resource=training-logs`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${token.get()}`},
+        body:JSON.stringify(log)
+      });
+      if(!res.ok)throw new Error('Save failed');
+      setShowTrainingModal(false);
+      showToast("🥋 Training logged");
+      loadWeeklyTraining();
+      // Also update today's checkin training_done if we have a checkin
+      if(todayCheckin&&!todayCheckin.training_done){
+        const updated={...todayCheckin,training_done:1};
+        fetch(`/api/data?resource=daily-checkins`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':`Bearer ${token.get()}`},
+          body:JSON.stringify({...updated,date:new Date().toISOString().split('T')[0]})
+        }).catch(()=>{});
+        setTodayCheckin(updated);
+      }
+    }catch(e){
+      console.error('Training save error:',e);
+      showToast("⚠ Failed to log training");
+    }
+  };
+
   // ── DRAG & DROP ────────────────────────────────────────────
   const handleDrop=useCallback((e,projId)=>{
     e.preventDefault();setDragOver(false);
@@ -1241,7 +1288,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     if (todayCheckin) {
       const energy = todayCheckin.energy_level;
       let stateLabel = energy <= 4 ? "Recovery day" : energy <= 7 ? "Steady work" : "Power day";
-      stateContext = `\nToday's State: Energy ${energy}/10 (${stateLabel}), Sleep ${todayCheckin.sleep_hours}h, Gut ${todayCheckin.gut_symptoms}/10${todayCheckin.training_done ? ", Training done" : ""}\nTask routing: ${energy <= 4 ? "Low-complexity only (admin, comms, review)" : energy <= 7 ? "Shipping, outreach, communications" : "Deep work, architecture, new features"}`;
+      stateContext = `\nToday's State: Energy ${energy}/10 (${stateLabel}), Sleep ${todayCheckin.sleep_hours}h, Gut ${todayCheckin.gut_symptoms}/10${todayCheckin.training_done ? ", Training done" : ""}\nTraining this week: ${weeklyTraining.count}/3 sessions (${weeklyTraining.minutes} min)${weeklyTraining.count<3?" — BELOW TARGET":""}\nTask routing: ${energy <= 4 ? "Low-complexity only (admin, comms, review)" : energy <= 7 ? "Shipping, outreach, communications" : "Deep work, architecture, new features"}`;
     }
     const sys=`You are The Brain AI Coach for ${user?.name||"this builder"}, targeting £${user?.monthly_target||3000}/mo. Direct, max 250 words. Reference specific projects.${stateContext}\n\nContext:\n${buildCtx()}`;
     try{
@@ -1331,6 +1378,15 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   </div>
                 </div>
               )}
+              {/* Training count (Phase 2.6) */}
+              <div style={{textAlign:"center",cursor:"pointer"}} onClick={()=>setShowTrainingModal(true)} title="Log training">
+                <div style={{fontSize:14,fontWeight:700,color:weeklyTraining.count>=3?C.green:weeklyTraining.count>=1?C.amber:C.dim}}>
+                  🥋
+                </div>
+                <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>
+                  {weeklyTraining.count}/3
+                </div>
+              </div>
               {[{v:projects.length,l:"Projects"},{v:`${activeGoal?.currency==='USD'?'$':activeGoal?.currency==='EUR'?'€':'£'}${totalIncome}`,l:activeGoal?.title||"Goal"},{v:`${Math.round(totalIncome/(activeGoal?.target_amount||3000)*100)}%`,l:"Status"},atRisk>0?{v:atRisk,l:"⚠ At Risk",c:C.amber}:null].filter(Boolean).map(s=>(
                 <div key={s.l} style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:s.c||C.blue2}}>{s.v}</div><div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>{s.l}</div></div>
               ))}
@@ -1539,6 +1595,13 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
           onSave={saveCheckin}
           onDismiss={() => setShowCheckinModal(false)}
           lastCheckin={todayCheckin}
+        />
+      )}
+
+      {showTrainingModal && (
+        <TrainingLogModal
+          onSave={saveTraining}
+          onDismiss={() => setShowTrainingModal(false)}
         />
       )}
 
@@ -2073,6 +2136,30 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>{projects.filter(p=>p.health<50).map(p=><div key={p.id} style={{display:"flex",gap:6,alignItems:"center"}}><span>{p.emoji}</span><span style={{fontSize:10}}>{p.name}</span><HealthBar score={p.health}/></div>)}</div>
                 </div>
               )}
+              {/* Training Log card (Phase 2.6) */}
+              <div style={S.card(weeklyTraining.count>=3, C.green)}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <span style={{fontSize:10,color:C.green,letterSpacing:"0.11em",textTransform:"uppercase"}}>🥋 Training This Week</span>
+                  <button style={{...S.btn("success"),fontSize:9}} onClick={()=>setShowTrainingModal(true)}>+ Log Training</button>
+                </div>
+                <div style={{display:"flex",gap:16,alignItems:"center"}}>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:22,fontWeight:700,color:weeklyTraining.count>=3?C.green:weeklyTraining.count>=1?C.amber:C.dim}}>{weeklyTraining.count}</div>
+                    <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>Sessions</div>
+                  </div>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:22,fontWeight:700,color:C.blue}}>{weeklyTraining.minutes}</div>
+                    <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>Minutes</div>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{height:6,background:C.border,borderRadius:3,overflow:"hidden"}}>
+                      <div style={{width:`${Math.min(100,Math.round(weeklyTraining.count/3*100))}%`,height:"100%",background:weeklyTraining.count>=3?C.green:C.amber,borderRadius:3,transition:"width 0.3s"}}/>
+                    </div>
+                    <div style={{fontSize:8,color:C.dim,marginTop:4}}>{weeklyTraining.count>=3?"✓ Target met":"Target: 3 sessions/week"}</div>
+                  </div>
+                </div>
+              </div>
+
               <div style={S.card(true)}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
                   <span style={{fontSize:10,color:C.blue,letterSpacing:"0.11em",textTransform:"uppercase"}}>⚡ Today's Focus</span>

@@ -162,6 +162,23 @@ const migrations = [
           UNIQUE KEY unique_user_date (user_id, date),
           INDEX idx_user_date (user_id, date)
         );`
+    },
+    {
+        version: 13,
+        name: 'create_training_logs_table',
+        sql: `CREATE TABLE IF NOT EXISTS training_logs (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          date VARCHAR(10) NOT NULL,
+          duration_minutes INT NOT NULL,
+          type VARCHAR(32) NOT NULL DEFAULT 'solo',
+          notes TEXT,
+          energy_after INT DEFAULT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          INDEX idx_training_user_date (user_id, date)
+        );`
     }
 ];
 

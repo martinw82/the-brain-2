@@ -606,6 +606,123 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── TRAINING LOGS (Phase 2.6) ────────────────────────────
+    if (resource === 'training-logs') {
+      const { date, days, weeks } = req.query;
+
+      if (req.method === 'GET') {
+        // Stats mode: weekly counts + averages
+        if (weeks) {
+          const numWeeks = parseInt(weeks) || 4;
+          const sinceDate = new Date();
+          sinceDate.setDate(sinceDate.getDate() - numWeeks * 7);
+          const since = sinceDate.toISOString().split('T')[0];
+          const [rows] = await db.execute(
+            `SELECT date, duration_minutes, type, energy_after
+             FROM training_logs WHERE user_id = ? AND date >= ? ORDER BY date DESC`,
+            [auth.userId, since]
+          );
+          // Compute weekly buckets
+          const weekMap = {};
+          for (const r of rows) {
+            const d = new Date(r.date);
+            // ISO week start (Monday)
+            const day = d.getDay() || 7;
+            const monday = new Date(d);
+            monday.setDate(d.getDate() - day + 1);
+            const weekKey = monday.toISOString().split('T')[0];
+            if (!weekMap[weekKey]) weekMap[weekKey] = { sessions: 0, total_minutes: 0, types: {} };
+            weekMap[weekKey].sessions++;
+            weekMap[weekKey].total_minutes += r.duration_minutes || 0;
+            weekMap[weekKey].types[r.type] = (weekMap[weekKey].types[r.type] || 0) + 1;
+          }
+          const totalSessions = rows.length;
+          const totalMinutes = rows.reduce((s, r) => s + (r.duration_minutes || 0), 0);
+          const avgEnergy = rows.filter(r => r.energy_after != null);
+          return ok(res, {
+            stats: {
+              total_sessions: totalSessions,
+              total_minutes: totalMinutes,
+              avg_duration: totalSessions ? Math.round(totalMinutes / totalSessions) : 0,
+              avg_energy_after: avgEnergy.length ? Math.round(avgEnergy.reduce((s, r) => s + r.energy_after, 0) / avgEnergy.length * 10) / 10 : null,
+              weeks: weekMap,
+            },
+            logs: rows,
+          });
+        }
+        // Single date
+        if (date) {
+          const [rows] = await db.execute(
+            'SELECT * FROM training_logs WHERE user_id = ? AND date = ? ORDER BY created_at DESC',
+            [auth.userId, date]
+          );
+          return ok(res, { logs: rows });
+        }
+        // Recent N days
+        if (days) {
+          const numDays = parseInt(days) || 7;
+          const sinceDate = new Date();
+          sinceDate.setDate(sinceDate.getDate() - numDays);
+          const since = sinceDate.toISOString().split('T')[0];
+          const [rows] = await db.execute(
+            'SELECT * FROM training_logs WHERE user_id = ? AND date >= ? ORDER BY date DESC',
+            [auth.userId, since]
+          );
+          return ok(res, { logs: rows });
+        }
+        // Default: all
+        const [rows] = await db.execute(
+          'SELECT * FROM training_logs WHERE user_id = ? ORDER BY date DESC LIMIT 100',
+          [auth.userId]
+        );
+        return ok(res, { logs: rows });
+      }
+
+      if (req.method === 'POST') {
+        const { date: logDate, duration_minutes, type, notes, energy_after } = req.body || {};
+        if (!logDate) return err(res, 'date required');
+        if (!duration_minutes || duration_minutes < 1) return err(res, 'duration_minutes required (>0)');
+        const validTypes = ['solo', 'class', 'sparring', 'conditioning', 'other'];
+        const safeType = validTypes.includes(type) ? type : 'solo';
+
+        const id = crypto.randomUUID();
+        await db.execute(
+          `INSERT INTO training_logs (id, user_id, date, duration_minutes, type, notes, energy_after)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [id, auth.userId, logDate, duration_minutes, safeType, notes || null, energy_after != null ? energy_after : null]
+        );
+        return ok(res, { success: true, id }, 201);
+      }
+
+      if (req.method === 'PUT' && resourceId) {
+        const { duration_minutes, type, notes, energy_after } = req.body || {};
+        const validTypes = ['solo', 'class', 'sparring', 'conditioning', 'other'];
+        const safeType = type && validTypes.includes(type) ? type : undefined;
+        const sets = [];
+        const vals = [];
+        if (duration_minutes != null) { sets.push('duration_minutes = ?'); vals.push(duration_minutes); }
+        if (safeType) { sets.push('type = ?'); vals.push(safeType); }
+        if (notes !== undefined) { sets.push('notes = ?'); vals.push(notes || null); }
+        if (energy_after !== undefined) { sets.push('energy_after = ?'); vals.push(energy_after); }
+        if (sets.length === 0) return err(res, 'No fields to update');
+        sets.push('updated_at = NOW()');
+        vals.push(resourceId, auth.userId);
+        await db.execute(
+          `UPDATE training_logs SET ${sets.join(', ')} WHERE id = ? AND user_id = ?`,
+          vals
+        );
+        return ok(res, { success: true });
+      }
+
+      if (req.method === 'DELETE' && resourceId) {
+        await db.execute(
+          'DELETE FROM training_logs WHERE id = ? AND user_id = ?',
+          [resourceId, auth.userId]
+        );
+        return ok(res, { success: true });
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e);

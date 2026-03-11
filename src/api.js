@@ -398,6 +398,20 @@ export const dailyCheckins = {
     get(`${BASE}/api/data?resource=daily-checkins&days=${days}`),
 };
 
+// ── TRAINING LOGS (Phase 2.6) ────────────────────────────────
+export const trainingLogs = {
+  save: (log) =>
+    post(`${BASE}/api/data?resource=training-logs`, log),
+  list: (days = 7) =>
+    get(`${BASE}/api/data?resource=training-logs&days=${days}`),
+  stats: (weeks = 4) =>
+    get(`${BASE}/api/data?resource=training-logs&weeks=${weeks}`),
+  update: (id, data) =>
+    put(`${BASE}/api/data?resource=training-logs&id=${id}`, data),
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=training-logs&id=${id}`),
+};
+
 // ── AI ────────────────────────────────────────────────────────
 export const ai = {
   ask: (prompt, system) =>
