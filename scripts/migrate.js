@@ -143,6 +143,25 @@ const migrations = [
         version: 11,
         name: 'add_settings_to_users',
         sql: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS settings TEXT DEFAULT NULL;'
+    },
+    {
+        version: 12,
+        name: 'create_daily_checkins_table',
+        sql: `CREATE TABLE IF NOT EXISTS daily_checkins (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          date VARCHAR(10) NOT NULL,
+          sleep_hours INT DEFAULT NULL,
+          energy_level INT DEFAULT NULL,
+          gut_symptoms INT DEFAULT NULL,
+          training_done TINYINT(1) DEFAULT 0,
+          notes TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          UNIQUE KEY unique_user_date (user_id, date),
+          INDEX idx_user_date (user_id, date)
+        );`
     }
 ];
 
