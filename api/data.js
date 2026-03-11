@@ -723,6 +723,68 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── OUTREACH LOG (Phase 2.7) ────────────────────────────
+    if (resource === 'outreach-log') {
+      const { date, days } = req.query;
+
+      if (req.method === 'GET') {
+        // Daily count stats mode
+        if (days) {
+          const numDays = parseInt(days) || 7;
+          const sinceDate = new Date();
+          sinceDate.setDate(sinceDate.getDate() - numDays);
+          const since = sinceDate.toISOString().split('T')[0];
+          const [rows] = await db.execute(
+            'SELECT * FROM outreach_log WHERE user_id = ? AND date >= ? ORDER BY date DESC, created_at DESC',
+            [auth.userId, since]
+          );
+          // Build daily counts map
+          const dailyCounts = {};
+          for (const r of rows) {
+            dailyCounts[r.date] = (dailyCounts[r.date] || 0) + 1;
+          }
+          return ok(res, { logs: rows, daily_counts: dailyCounts, total: rows.length });
+        }
+        // Single date
+        if (date) {
+          const [rows] = await db.execute(
+            'SELECT * FROM outreach_log WHERE user_id = ? AND date = ? ORDER BY created_at DESC',
+            [auth.userId, date]
+          );
+          return ok(res, { logs: rows, count: rows.length });
+        }
+        // Default: recent 30 days
+        const [rows] = await db.execute(
+          'SELECT * FROM outreach_log WHERE user_id = ? ORDER BY date DESC, created_at DESC LIMIT 200',
+          [auth.userId]
+        );
+        return ok(res, { logs: rows });
+      }
+
+      if (req.method === 'POST') {
+        const { date: logDate, type, target, project_id, notes } = req.body || {};
+        if (!logDate) return err(res, 'date required');
+        const validTypes = ['message', 'post', 'call', 'email', 'other'];
+        const safeType = validTypes.includes(type) ? type : 'message';
+
+        const id = crypto.randomUUID();
+        await db.execute(
+          `INSERT INTO outreach_log (id, user_id, date, type, target, project_id, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [id, auth.userId, logDate, safeType, target || null, project_id || null, notes || null]
+        );
+        return ok(res, { success: true, id }, 201);
+      }
+
+      if (req.method === 'DELETE' && resourceId) {
+        await db.execute(
+          'DELETE FROM outreach_log WHERE id = ? AND user_id = ?',
+          [resourceId, auth.userId]
+        );
+        return ok(res, { success: true });
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e);

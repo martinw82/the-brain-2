@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 6.8 (Phase 2.6 Complete)
+**Version:** 6.9 (Phase 2.7 Complete)
 **Live URL:** the-brain-2.vercel.app
 **Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 0, Phase 1, and Phase 2.1–2.6 complete; next is 2.7 (Outreach Tracking)
+**Status:** Beta — All Phase 0, Phase 1, and Phase 2.1–2.7 complete; next is 2.8 (Agent System Prompt Upgrade)
 
 ---
 
@@ -40,7 +40,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 
 ---
 
-## 3. Database Schema (19 tables)
+## 3. Database Schema (20 tables)
 
 **Core (original):**
 - **users** — email, password_hash, name, goal, monthly_target, currency, timezone, `settings` JSON (theme, font_family, font_size, sidebar_width, default_template_id, etc.)
@@ -68,6 +68,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **sync_state** + **sync_file_state** — desktop folder sync state, conflict detection (Phase 2.4B)
 - **daily_checkins** — daily user state: sleep_hours, energy_level, gut_symptoms, training_done, notes (Phase 2.5; migration v12)
 - **training_logs** — training sessions: date, duration_minutes, type (solo/class/sparring/conditioning/other), notes, energy_after (Phase 2.6; migration v13)
+- **outreach_log** — outreach actions: date, type (message/post/call/email/other), target, project_id, notes (Phase 2.7; migration v14)
 
 ---
 
@@ -123,6 +124,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **Desktop File Sync (2.4B BONUS)** — `sync_state`/`sync_file_state` tables; `desktop-sync.js` module; folder handle persistence via `FolderSyncSetup.jsx`; conflict detection with `SyncReviewModal.jsx`
 - **Daily Check-in System (2.5)** — `daily_checkins` table (migration v12); `DailyCheckinModal.jsx` with sleep/energy/gut sliders + training checkbox + notes; auto-prompts on first visit of day (tracked via localStorage `lastCheckinDate`); energy level emoji in top bar; check-in data passed to AI Coach for state-based task routing (energy ≤4 = low-complexity, 5-7 = shipping/outreach, 8+ = deep work); POST/GET `/api/data?resource=daily-checkins`
 - **Training Log (2.6)** — `training_logs` table (migration v13); `TrainingLogModal.jsx` with type selector (solo/class/sparring/conditioning/other), duration + quick presets (30/45/60/90m), energy-after slider, notes; Command Centre training card: weekly sessions/minutes + progress bar toward 3/week target; 🥋 top bar indicator (click to log); auto-marks today's check-in `training_done=true`; weekly training count + below-target flag in AI Coach context; stats endpoint with weekly bucket aggregation
+- **Outreach Tracking (2.7)** — `outreach_log` table (migration v14); `OutreachLogModal.jsx` with type selector (5 types), target input, optional project link, notes; Command Centre outreach card: today's count + weekly total + last 3 entries preview + ⚠ warning when none; 📣 top bar indicator (purple when done, dim when zero, click to log); AI Coach context includes outreach count + "NOT DONE (mandatory)" flag
 
 ---
 
@@ -232,7 +234,7 @@ The Brain's AI Coach currently has a one-line system prompt. The full agent rule
 ### What needs building for the agent layer
 - ✅ **Daily check-in fields** — `daily_checkins` table, modal UI, energy routing (Phase 2.5 DONE)
 - ✅ **Training log** — `training_logs` table, `TrainingLogModal`, weekly count in top bar + Command Centre card (Phase 2.6 DONE)
-- **Outreach tracking** — daily outreach actions logged (Phase 2.7)
+- ✅ **Outreach tracking** — `outreach_log` table, `OutreachLogModal`, daily indicator in top bar + Command Centre card, AI coach mandatory enforcement (Phase 2.7 DONE)
 - **Agent system prompt upgrade** — replace one-liner with full structured ruleset (Phase 2.8)
 - **Weekly review automation** — query sessions, projects, check-ins and generate summary (Phase 2.9)
 - **Drift detection** — background check on training/outreach/energy minimums (Phase 2.10)
@@ -284,9 +286,10 @@ At the end of each build session, update this document with:
 - ✅ **Phase 2.4B — Desktop file sync (BONUS)** (2026-03-11) — folder handle sync, conflict detection, `SyncReviewModal`
 - ✅ **Phase 2.5 — Daily check-in system** (2026-03-11) — `daily_checkins` table (migration v12), `DailyCheckinModal`, energy routing, top bar indicator
 - ✅ **Phase 2.6 — Training log** (2026-03-11) — `training_logs` table (migration v13), `TrainingLogModal`, Command Centre card, 🥋 top bar indicator, AI Coach context integration
+- ✅ **Phase 2.7 — Outreach tracking** (2026-03-11) — `outreach_log` table (migration v14), `OutreachLogModal`, Command Centre card, 📣 top bar indicator, AI Coach mandatory enforcement
 
 ### Next Up — Phase 2 (continued)
-1. **Phase 2.7 — Outreach tracking** ← NEXT — `outreach_log` table, daily outreach indicator, AI coach enforces mandatory minimum
+1. **Phase 2.8 — Agent system prompt upgrade + context compression** ← NEXT — `agent-config.json`, dynamic system prompt built server-side from real data (check-in + training + outreach + goals + projects), state-based task routing, token budget < 4k
 2. **Phase 2.7 — Outreach tracking** — `outreach_log` table, daily outreach indicator, AI coach enforces mandatory minimum
 3. **Phase 2.8 — Agent system prompt upgrade + context compression** — `agent-config.json`, dynamic system prompt from real data (check-in + goals + projects + rules), state-based task routing, token budget < 4k
 4. **Phase 2.9 — Weekly review automation** — `/api/review/weekly` aggregation, review dashboard UI, AI-generated analysis
@@ -352,6 +355,15 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 11/03/26 session
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 10 — Phase 2.7 Outreach Tracking complete):**
+- Version bumped to **6.9** (Phase 2.7 Complete)
+- DB schema: 19 → 20 tables; added `outreach_log` (migration v14)
+- What's Built: added Outreach Tracking (2.7) entry in Phase 2 Features block
+- Agent Layer: outreach updated from pending to DONE
+- Priority Stack: 2.7 moved to Completed; Next Up now 2.8 (Agent Prompt Upgrade)
+- Next: **Phase 2.8 — Agent System Prompt Upgrade + Context Compression**
 
 ---
 **Edit 2026-03-11 (session 9 — Phase 2.6 Training Log complete):**

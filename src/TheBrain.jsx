@@ -7,6 +7,7 @@ import FolderSyncSetup from "./components/FolderSyncSetup.jsx";
 import SyncReviewModal from "./components/SyncReviewModal.jsx";
 import DailyCheckinModal from "./components/DailyCheckinModal.jsx";
 import TrainingLogModal from "./components/TrainingLogModal.jsx";
+import OutreachLogModal from "./components/OutreachLogModal.jsx";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -528,6 +529,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [showTrainingModal, setShowTrainingModal] = useState(false);
   const [weeklyTraining, setWeeklyTraining] = useState({ count: 0, minutes: 0 });
 
+  // Outreach log state (Phase 2.7)
+  const [showOutreachModal, setShowOutreachModal] = useState(false);
+  const [todayOutreach, setTodayOutreach] = useState([]); // today's entries
+  const [weeklyOutreach, setWeeklyOutreach] = useState(0); // total this week
+
   const showToast = (msg) => setToast({msg});
 
   // ── TAG HELPERS ───────────────────────────────────────────
@@ -802,8 +808,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       };
       dailyCheckinsApi();
     }
-    // Load weekly training count
-    if (user) loadWeeklyTraining();
+    // Load weekly training count + today's outreach
+    if (user) { loadWeeklyTraining(); loadTodayOutreach(); }
   }, [user?.id]);
 
   // ── NAVIGATION — lazy-loads files on first hub open ────────
@@ -1219,6 +1225,41 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     }
   };
 
+  // ── OUTREACH LOG (Phase 2.7) ─────────────────────────────────
+  const loadTodayOutreach=async()=>{
+    try{
+      const today=new Date().toISOString().split('T')[0];
+      const res=await fetch(`/api/data?resource=outreach-log&date=${today}`,{
+        headers:{'Authorization':`Bearer ${token.get()}`}
+      });
+      if(!res.ok)return;
+      const data=await res.json();
+      setTodayOutreach(data.logs||[]);
+      // Also load this week's count
+      const wRes=await fetch(`/api/data?resource=outreach-log&days=7`,{
+        headers:{'Authorization':`Bearer ${token.get()}`}
+      });
+      if(wRes.ok){const wData=await wRes.json();setWeeklyOutreach((wData.logs||[]).length);}
+    }catch(e){console.error('Outreach load error:',e);}
+  };
+
+  const saveOutreach=async(entry)=>{
+    try{
+      const res=await fetch(`/api/data?resource=outreach-log`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${token.get()}`},
+        body:JSON.stringify(entry)
+      });
+      if(!res.ok)throw new Error('Save failed');
+      setShowOutreachModal(false);
+      showToast("📣 Outreach logged");
+      loadTodayOutreach();
+    }catch(e){
+      console.error('Outreach save error:',e);
+      showToast("⚠ Failed to log outreach");
+    }
+  };
+
   // ── DRAG & DROP ────────────────────────────────────────────
   const handleDrop=useCallback((e,projId)=>{
     e.preventDefault();setDragOver(false);
@@ -1288,7 +1329,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     if (todayCheckin) {
       const energy = todayCheckin.energy_level;
       let stateLabel = energy <= 4 ? "Recovery day" : energy <= 7 ? "Steady work" : "Power day";
-      stateContext = `\nToday's State: Energy ${energy}/10 (${stateLabel}), Sleep ${todayCheckin.sleep_hours}h, Gut ${todayCheckin.gut_symptoms}/10${todayCheckin.training_done ? ", Training done" : ""}\nTraining this week: ${weeklyTraining.count}/3 sessions (${weeklyTraining.minutes} min)${weeklyTraining.count<3?" — BELOW TARGET":""}\nTask routing: ${energy <= 4 ? "Low-complexity only (admin, comms, review)" : energy <= 7 ? "Shipping, outreach, communications" : "Deep work, architecture, new features"}`;
+      stateContext = `\nToday's State: Energy ${energy}/10 (${stateLabel}), Sleep ${todayCheckin.sleep_hours}h, Gut ${todayCheckin.gut_symptoms}/10${todayCheckin.training_done ? ", Training done" : ""}\nTraining this week: ${weeklyTraining.count}/3 sessions (${weeklyTraining.minutes} min)${weeklyTraining.count<3?" — BELOW TARGET":""}\nOutreach today: ${todayOutreach.length} action${todayOutreach.length===1?"":"s"}${todayOutreach.length===0?" — NOT DONE (mandatory)":" — done"} (${weeklyOutreach} this week)\nTask routing: ${energy <= 4 ? "Low-complexity only (admin, comms, review)" : energy <= 7 ? "Shipping, outreach, communications" : "Deep work, architecture, new features"}`;
     }
     const sys=`You are The Brain AI Coach for ${user?.name||"this builder"}, targeting £${user?.monthly_target||3000}/mo. Direct, max 250 words. Reference specific projects.${stateContext}\n\nContext:\n${buildCtx()}`;
     try{
@@ -1385,6 +1426,15 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 </div>
                 <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>
                   {weeklyTraining.count}/3
+                </div>
+              </div>
+              {/* Outreach indicator (Phase 2.7) */}
+              <div style={{textAlign:"center",cursor:"pointer"}} onClick={()=>setShowOutreachModal(true)} title="Log outreach">
+                <div style={{fontSize:14,fontWeight:700,color:todayOutreach.length>0?C.purple:C.dim}}>
+                  📣
+                </div>
+                <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>
+                  {todayOutreach.length>0?`${todayOutreach.length} today`:"none"}
                 </div>
               </div>
               {[{v:projects.length,l:"Projects"},{v:`${activeGoal?.currency==='USD'?'$':activeGoal?.currency==='EUR'?'€':'£'}${totalIncome}`,l:activeGoal?.title||"Goal"},{v:`${Math.round(totalIncome/(activeGoal?.target_amount||3000)*100)}%`,l:"Status"},atRisk>0?{v:atRisk,l:"⚠ At Risk",c:C.amber}:null].filter(Boolean).map(s=>(
@@ -1602,6 +1652,14 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
         <TrainingLogModal
           onSave={saveTraining}
           onDismiss={() => setShowTrainingModal(false)}
+        />
+      )}
+
+      {showOutreachModal && (
+        <OutreachLogModal
+          onSave={saveOutreach}
+          onDismiss={() => setShowOutreachModal(false)}
+          projects={projects}
         />
       )}
 
@@ -2156,6 +2214,37 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                       <div style={{width:`${Math.min(100,Math.round(weeklyTraining.count/3*100))}%`,height:"100%",background:weeklyTraining.count>=3?C.green:C.amber,borderRadius:3,transition:"width 0.3s"}}/>
                     </div>
                     <div style={{fontSize:8,color:C.dim,marginTop:4}}>{weeklyTraining.count>=3?"✓ Target met":"Target: 3 sessions/week"}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Outreach card (Phase 2.7) */}
+              <div style={S.card(todayOutreach.length>0, C.purple)}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <span style={{fontSize:10,color:C.purple,letterSpacing:"0.11em",textTransform:"uppercase"}}>📣 Outreach</span>
+                  <button style={{...S.btn("ghost"),fontSize:9,borderColor:C.purple+"50",color:C.purple}} onClick={()=>setShowOutreachModal(true)}>+ Log</button>
+                </div>
+                <div style={{display:"flex",gap:16,alignItems:"center"}}>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:22,fontWeight:700,color:todayOutreach.length>0?C.purple:C.dim}}>{todayOutreach.length}</div>
+                    <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>Today</div>
+                  </div>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:22,fontWeight:700,color:C.blue}}>{weeklyOutreach}</div>
+                    <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>This week</div>
+                  </div>
+                  <div style={{flex:1}}>
+                    {todayOutreach.length>0?(
+                      <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                        {todayOutreach.slice(-3).map((o,i)=>(
+                          <div key={i} style={{fontSize:9,color:C.dim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                            {o.type==="message"?"💬":o.type==="post"?"📣":o.type==="call"?"📞":o.type==="email"?"📧":"🤝"} {o.target||o.notes||o.type}
+                          </div>
+                        ))}
+                      </div>
+                    ):(
+                      <div style={{fontSize:9,color:C.red}}>⚠ No outreach yet today</div>
+                    )}
                   </div>
                 </div>
               </div>

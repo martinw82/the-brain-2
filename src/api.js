@@ -398,6 +398,20 @@ export const dailyCheckins = {
     get(`${BASE}/api/data?resource=daily-checkins&days=${days}`),
 };
 
+// ── OUTREACH LOG (Phase 2.7) ─────────────────────────────────
+export const outreachLog = {
+  save: (entry) =>
+    post(`${BASE}/api/data?resource=outreach-log`, entry),
+  list: (days = 7) =>
+    get(`${BASE}/api/data?resource=outreach-log&days=${days}`),
+  today: () => {
+    const today = new Date().toISOString().split('T')[0];
+    return get(`${BASE}/api/data?resource=outreach-log&date=${today}`);
+  },
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=outreach-log&id=${id}`),
+};
+
 // ── TRAINING LOGS (Phase 2.6) ────────────────────────────────
 export const trainingLogs = {
   save: (log) =>
