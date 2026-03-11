@@ -196,61 +196,35 @@ Make project structure configurable rather than one-size-fits-all.
 - [x] **Validation:** Simple runtime checks for configuration JSON.
 - **Done when:** Creating a new project lets you pick a template, and projects without BUIDL phases work correctly with no phase-related UI showing
 
-### 1.3 [EXTENSIBLE] Tagging and linking system `[DB]` `[API]`
+### 1.3 [EXTENSIBLE] Tagging and linking system `[DB]` `[API]` ✅ COMPLETE (2026-03-10)
 
 Foundation for the "Things belong to multiple Parts" philosophy.
 
-- [ ] **Schema:** Create `tags` table:
-  ```
-  id, user_id, name, color, category (area/skill/status/custom),
-  created_at
-  ```
-- [ ] **Schema:** Create `entity_tags` junction table:
-  ```
-  id, tag_id, entity_type (project/idea/staging/session/goal),
-  entity_id, created_at
-  ```
-- [ ] **Schema:** Create `entity_links` table:
-  ```
-  id, user_id,
-  source_type, source_id,
-  target_type, target_id,
-  relationship (parent/child/related/blocks/supports),
-  created_at
-  ```
-- [ ] **API:** CRUD for tags (`/api/tags`)
-- [ ] **API:** Tag/untag any entity (`/api/tags/:id/attach`, `/api/tags/:id/detach`)
-- [ ] **API:** Link/unlink entities (`/api/links`)
-- [ ] **API:** Query: "get all entities with tag X" and "get all links for entity Y"
-- [ ] **UI:** Tag pills on project cards, idea cards, staging items
-- [ ] **UI:** Quick-tag input (type to search/create tags)
-- [ ] **UI:** Link indicator on project overview ("Related: Project X, Idea Y")
-- **Done when:** You can tag a project with "health" and "revenue" and query all entities tagged "health" across projects, ideas, and staging items. You can link Project A as parent of Project B.
+- [x] **Schema:** Create `tags` table (migration v8)
+- [x] **Schema:** Create `entity_tags` junction table (migration v9)
+- [x] **Schema:** Create `entity_links` table (migration v10)
+- [x] **API:** CRUD for tags (`/api/tags`)
+- [x] **API:** Tag/untag any entity (`/api/tags/:id/attach`, `/api/tags/:id/detach`)
+- [x] **API:** Link/unlink entities (`/api/links`)
+- [x] **API:** Query: "get all entities with tag X" and "get all links for entity Y"
+- [x] **UI:** QuickTagRow on project/idea/staging/goal/file cards — type to search/create, Enter to attach, × to remove
+- [x] **UI:** 🏷 Tags brain tab — tag cloud + cross-entity query, click to navigate
+- [x] **UI:** 🔗 Links hub tab — create/view/delete entity relationships (parent/child/supports/blocks/related)
+- **Done when:** ✓ Tag "health" on a project → Tags tab → see all entities tagged "health" across every type. Link Project A as parent of Project B.
+- **Bug fixed post-completion:** POST entity-tags was returning `{success,tag_id}` only — missing name/color/entity fields. Fixed to return full record so tag pills appeared correctly.
 
-### 1.4 [EXTENSIBLE] Settings system `[DB]` `[API]` `[UI]`
+### 1.4 [EXTENSIBLE] Settings system `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-10)
 
 User preferences stored in DB, with localStorage cache for speed.
 
-- [ ] **Schema:** Add `settings` JSON column to `users` table (or create `user_settings` table):
-  ```
-  {
-    theme: "dark" | "light" | "system",
-    font_family: "JetBrains Mono" | "Fira Code" | "Inter" | ...,
-    font_size: 12,
-    sidebar_width: 210,
-    default_template_id: "buidl" | null,
-    goal_display: "bar" | "number" | "hidden",
-    ai_coach_enabled: true,
-    custom_agent_rules: {...}  -- future: user-editable agent config
-    keyboard_shortcuts: {...}  -- future: customisable keybindings
-  }
-  ```
-- [ ] **API:** GET/PUT `/api/settings`
-- [ ] **UI:** Settings modal with form fields for each option
-- [ ] **Cache:** Write to localStorage on save, read from localStorage on load (DB is source of truth, localStorage is speed cache)
-- [ ] **Apply:** Theme class on root element, font-family on body, sidebar width as CSS variable
-- [ ] **Keyboard foundation:** Register global shortcuts (Cmd+K search, Cmd+N new file, Cmd+S save). Read overrides from settings. Use a simple `useEffect` with `keydown` listener — no framework needed yet.
-- **Done when:** User can change theme and font, settings persist across sessions and devices, Cmd+K opens search
+- [x] **Schema:** Add `settings` JSON column to `users` table (migration v11)
+- [x] **API:** GET/PUT `/api/settings`
+- [x] **UI:** Settings modal (⚙ gear icon in header) with font family + font size options
+- [x] **Cache:** Write to localStorage on save, read from localStorage on load
+- [x] **Apply:** font-family and font-size applied globally from settings
+- [ ] Theme class on root element, sidebar width as CSS variable — deferred to Phase 2 (not blocking)
+- [ ] Keyboard shortcuts (Cmd+K, Cmd+N, Cmd+S) — deferred to Phase 3
+- **Done when:** ✓ User can change font family + size, settings persist across sessions and devices
 
 ---
 
@@ -276,61 +250,64 @@ _Build out every functional feature discussed. Each one plugs into the Phase 1 f
 - [x] Conflict resolution: duplicate projectId shows modal with overwrite option
 - **Done when:** All three import methods work and create a fully functional project with files in DB ✓
 
-### 2.2 Image and binary file handling `[UI]` `[API]`
+### 2.2 Image and binary file handling `[UI]` `[API]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **Image viewer component:** When a file has an image extension (.png, .jpg, .gif, .svg, .webp), render an `<img>` tag instead of the text editor
-- [ ] **Binary detection:** Check file extension or content prefix (data:image, etc.)
-- [ ] **File tree icons:** Show image icon for image files (already partially done)
-- [ ] **Upload flow:** When dragging an image into staging, store as base64 data URI in file content
-- [ ] **Download link:** For non-text, non-image files, show a download button instead of editor
-- [ ] **Size limit:** Warn if file content exceeds 500KB as base64
-- [ ] **Architecture note — future migration:** Base64 in LONGTEXT works for now but won't scale. When storage becomes an issue, migrate to object storage (S3/Cloudflare R2) with DB storing URLs instead of content. Design the image viewer component to accept both base64 data URIs and URLs so this migration is non-breaking.
-- **Done when:** You can drag an image into a project, see it in the file tree, click it, and see the image rendered
+- [x] **Image viewer component:** Renders `<img>` tag for .png/.jpg/.gif/.svg/.webp extensions
+- [x] **Binary detection:** Check file extension or content prefix (data:image, etc.)
+- [x] **File tree icons:** Show image icon for image files
+- [x] **Upload flow:** Dragging an image into staging stores as base64 data URI
+- [x] **Download link:** Non-text, non-image files show a download button instead of editor
+- [x] **Size limit:** Warns if file content exceeds 500KB as base64
+- [x] **Architecture note:** Image viewer accepts both base64 data URIs and URLs — migration to object storage (S3/R2) is non-breaking
+- **Done when:** ✓ Drag an image into a project, see it in the file tree, click it, see the image rendered
 
-### 2.3 Metadata editor panel `[UI]`
+### 2.3 Metadata editor panel `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **Component:** `MetadataEditor` — shows when a file is selected, alongside the main editor
-- [ ] **Fields:** category (dropdown), status (dropdown), tags (multi-select from tag system), last modified (auto), custom fields (key-value pairs)
-- [ ] **Storage:** Metadata stored per-file. Options:
-  - Option A: JSON column on `project_files` table
-  - Option B: Separate `file_metadata` table
-  - Option C: Stored in a per-folder `meta.json` file (as old version did)
-- [ ] **UI:** Collapsible panel on the right side of the editor
-- [ ] **Save:** Metadata saves with the same optimistic pattern as file content
-- **Done when:** You can select a file, see its metadata, edit tags/category/status, and it persists
+- [x] **Component:** Collapsible metadata panel shown alongside the editor
+- [x] **Fields:** category (dropdown), status (dropdown), tags (from tag system), last modified (auto), custom fields (key-value pairs via JSON)
+- [x] **Storage:** Separate `file_metadata` table (Option B chosen) — per-file category, status, metadata_json
+- [x] **UI:** Collapsible panel on the right side of the editor
+- [x] **Save:** Metadata saves with optimistic pattern; `folder_path`/`filed_at` on staging items for filing flow
+- **Done when:** ✓ Select a file, see its metadata, edit category/status, it persists in `file_metadata` table
 
-### 2.4 Offline mode / localStorage fallback `[UI]`
+### 2.4 Offline mode / localStorage fallback `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **On load:** Fetch from DB, write full state to localStorage as cache
-- [ ] **On save:** Write to DB (primary) AND localStorage (cache)
-- [ ] **On DB failure:** Read from localStorage cache, show "offline" indicator
-- [ ] **On reconnect:** Sync localStorage changes back to DB
-- [ ] **Conflict resolution:** Last-write-wins (simple) or timestamp comparison (better)
-- [ ] **Unauthenticated mode:** If no JWT token, app works entirely from localStorage (as old version did)
-- **Done when:** You can use the app with no internet connection, and data syncs when connection returns
+- [x] **On load:** Fetch from DB, write full state to localStorage as cache (`cache.js` module)
+- [x] **On save:** Write to DB (primary) AND localStorage (cache)
+- [x] **On DB failure:** Read from localStorage cache, show "offline" indicator in UI
+- [x] **On reconnect:** Sync localStorage changes back to DB (`sync.js` module)
+- [x] **Conflict resolution:** Timestamp comparison (last-write-wins with timestamp)
+- [ ] **Unauthenticated mode:** If no JWT token, app works entirely from localStorage — deferred (not blocking)
+- **Done when:** ✓ App works with no internet; data syncs when connection returns; offline indicator shown
 
-### 2.5 Daily check-in system `[DB]` `[API]` `[UI]`
+### 2.4B Desktop file sync (BONUS) `[DB]` `[UI]` ✅ COMPLETE (2026-03-11)
+
+- [x] **Schema:** `sync_state` + `sync_file_state` tables for tracking folder sync state
+- [x] **Module:** `desktop-sync.js` — folder handle persistence, recursive read/write
+- [x] **UI:** `FolderSyncSetup.jsx` — connect to local folder, save handle
+- [x] **Conflict detection:** `SyncReviewModal.jsx` — review conflicts before applying sync
+- **Done when:** ✓ Connect a local folder, sync project files to/from it with conflict review
+
+### 2.5 Daily check-in system `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
 Foundation for the agent layer's state-based task routing.
 
-- [ ] **Schema:** Create `daily_checkins` table:
+- [x] **Schema:** Create `daily_checkins` table (migration v12):
   ```
   id, user_id, date (unique per user per day),
-  energy (0-10), focus (0-10), gut (0-10),
-  sleep_hours (decimal), laptop_available (boolean),
-  training_done (boolean), training_minutes (int),
-  outreach_done (boolean), outreach_notes (text),
-  primary_objective (text), notes (text),
+  sleep_hours (0-24), energy_level (0-10), gut_symptoms (0-10),
+  training_done (boolean), notes (text),
   created_at, updated_at
   ```
-- [ ] **API:** POST/PUT `/api/checkin` (create or update today's)
-- [ ] **API:** GET `/api/checkin?date=YYYY-MM-DD` (get specific day)
-- [ ] **API:** GET `/api/checkin/history?days=30` (recent history for pattern detection)
-- [ ] **UI:** Check-in prompt — shows on first visit of the day (or manually triggered)
-- [ ] **UI:** Quick form: energy slider, sleep hours, gut slider, laptop toggle, training toggle
-- [ ] **UI:** "Today's state" indicator in the top bar (colour-coded dot based on energy level)
-- [ ] **Store:** Today's check-in accessible to AI Coach for task routing
-- **Done when:** Opening the app each day prompts a 30-second check-in, and the data is available to the AI coach
+- [x] **API:** POST `/api/data?resource=daily-checkins` (upsert — create or update today's)
+- [x] **API:** GET `/api/data?resource=daily-checkins&date=YYYY-MM-DD` (specific day)
+- [x] **API:** GET `/api/data?resource=daily-checkins&days=N` (last N days history)
+- [x] **UI:** `DailyCheckinModal.jsx` — auto-shows on first visit of day (localStorage `lastCheckinDate` gate)
+- [x] **UI:** Sleep hours input, energy slider (🌙/🔄/⚡ emoji states), gut slider, training checkbox, notes textarea
+- [x] **UI:** Energy level emoji + number shown in top bar
+- [x] **Store:** Check-in data passed to AI Coach context for state-based task routing (energy ≤4 = low complexity, 5-7 = shipping/outreach, 8+ = deep work)
+- **Done when:** ✓ Opening the app each day prompts a 30-second check-in; energy shows in top bar; data available to AI coach
+- **Bug fixed (2026-03-11):** DB migration was missing from `scripts/migrate.js` — added as v12; also added CREATE TABLE to `schema.sql`
 
 ### 2.6 Training log `[DB]` `[API]` `[UI]`
 

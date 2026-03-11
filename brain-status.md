@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 6.5 (Phase 1 Complete)
+**Version:** 6.7 (Phase 2.5 Complete)
 **Live URL:** the-brain-2.vercel.app
 **Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 1 complete (1.0–1.4 + Phase 0 fixes); Phase 2 starting — next is 2.1 (Project import), following roadmap order through 2.10
+**Status:** Beta — All Phase 0, Phase 1, and Phase 2.1–2.5 complete; next is 2.6 (Training Log)
 
 ---
 
@@ -40,25 +40,33 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 
 ---
 
-## 3. Database Schema (14 tables)
+## 3. Database Schema (18 tables)
 
 **Core (original):**
 - **users** — email, password_hash, name, goal, monthly_target, currency, timezone, `settings` JSON (theme, font_family, font_size, sidebar_width, default_template_id, etc.)
 - **projects** — slug IDs, phase, priority, health, momentum, revenue_ready, blockers/tags/skills (JSON), active_file, `life_area_id` FK
 - **project_custom_folders** — per-project folder structure
 - **project_files** — LONGTEXT content, full-text search indexed, `deleted_at` for soft deletes
-- **staging** — review pipeline items, tagged, linked to projects
+- **staging** — review pipeline items, tagged, linked to projects, `folder_path`/`filed_at` for Phase 2.3 filing
 - **ideas** — scored idea bank (1-10)
 - **sessions** — work session logging with duration and notes
 - **comments** — per-file comments with resolved flag
 - **refresh_tokens** — auth token store
 
 **Phase 1 additions:**
-- **schema_migrations** — versioned migration tracking
+- **schema_migrations** — versioned migration tracking (v1–v12)
 - **life_areas** — "Parts" entities (Business, Health, Relationships, Creative, Personal) with health_score
 - **goals** — configurable financial/personal goals (title, target_amount, currency, timeframe, status)
 - **goal_contributions** — project contributions toward a goal (amount, date, notes)
+- **tags** — user-created tags with color and category
+- **entity_tags** — junction: tags attached to any entity type (project/idea/staging/goal/file)
+- **entity_links** — entity relationships (parent/child/supports/blocks/related)
 - **templates** — project structure templates with JSON config (phases, folders, files, skills)
+
+**Phase 2 additions:**
+- **file_metadata** — per-file category, status, JSON custom fields (Phase 2.3)
+- **sync_state** + **sync_file_state** — desktop folder sync state, conflict detection (Phase 2.4B)
+- **daily_checkins** — daily user state: sleep_hours, energy_level, gut_symptoms, training_done, notes (Phase 2.5; migration v12)
 
 ---
 
@@ -106,6 +114,14 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **Tagging & Linking (1.3)** — `tags`/`entity_tags`/`entity_links` tables + API + UI; QuickTagRow on projects/ideas/staging/goals/files; 🏷 Tags brain tab (cross-entity query); 🔗 Links hub tab (create/view/delete entity relationships)
 - **Settings (1.4)** — `settings` JSON column on `users`, GET/PUT `/api/settings`, settings modal (⚙ gear icon in header), font family + font size persist to DB across devices, localStorage cache for speed
 
+### Phase 2 Features (2.1–2.5)
+- **Project Import (2.1)** — BUIDL format paste, JSON file upload, folder picker (File System Access API); conflict resolution with overwrite option; auto-navigate on success
+- **Image & Binary File Handling (2.2)** — image viewer component (renders `<img>` for .png/.jpg/.gif/.svg/.webp), binary detection by extension, base64 upload via drag-drop into staging, download link for non-text files, size warning >500KB
+- **Metadata Editor Panel (2.3)** — `file_metadata` table + API; collapsible right panel per file; category/status dropdowns; `folder_path`/`filed_at` fields on staging for "file to folder" flow; JSON custom fields extensible
+- **Offline Mode / localStorage Fallback (2.4)** — full state cached to localStorage on load; DB-first with cache fallback; sync-on-reconnect; offline indicator in UI; `cache.js` + `sync.js` modules
+- **Desktop File Sync (2.4B BONUS)** — `sync_state`/`sync_file_state` tables; `desktop-sync.js` module; folder handle persistence via `FolderSyncSetup.jsx`; conflict detection with `SyncReviewModal.jsx`
+- **Daily Check-in System (2.5)** — `daily_checkins` table (migration v12); `DailyCheckinModal.jsx` with sleep/energy/gut sliders + training checkbox + notes; auto-prompts on first visit of day (tracked via localStorage `lastCheckinDate`); energy level emoji in top bar; check-in data passed to AI Coach for state-based task routing (energy ≤4 = low-complexity, 5-7 = shipping/outreach, 8+ = deep work); POST/GET `/api/data?resource=daily-checkins`
+
 ---
 
 ## 5. Known Bugs (Must Fix for Beta)
@@ -142,13 +158,13 @@ These are features that existed in the original Next.js version or are needed fo
 
 ### Tier 2 — Required for usable daily tool
 
-**Image handling.** The old version displayed images inline and handled binary files. V6 is text-only. Need: image viewer in editor pane, proper binary file handling, image preview in file tree.
+✅ **Image handling (2.2)** — DONE (2026-03-11). Image viewer renders inline for .png/.jpg/.gif/.svg/.webp. Binary detection, base64 upload, download link for non-image binaries.
 
-**Metadata editor panel.** The old version had a dedicated UI for per-file metadata (category, status, tags, timestamps, custom fields). V6 stores metadata in manifest.json but has no visual editor for individual files.
+✅ **Metadata editor panel (2.3)** — DONE (2026-03-11). `file_metadata` table + API + collapsible right panel. Category/status/custom fields per file. Staging items can be filed to project folders with `folder_path`.
 
-**Project import.** Import from: pasted text (BUIDL export format), local folder selection (File System Access API), JSON upload. The state variables exist — the UI doesn't.
+✅ **Project import (2.1)** — DONE (2026-03-11). BUIDL format paste, JSON upload, folder picker. Conflict resolution, auto-navigate on success.
 
-**Offline mode / localStorage fallback.** The old version worked without auth via localStorage. V6 requires DB connection. For a tool you'll use daily (including on phone with bad signal), offline resilience is essential.
+✅ **Offline mode / localStorage fallback (2.4)** — DONE (2026-03-11). Full state cached; DB-first with offline fallback; sync on reconnect; offline indicator.
 
 ✅ **Settings UI (1.4)** — DONE. Settings modal with font family + size, persists to DB via `settings` JSON column on users. Theme/sidebar-width extension deferred to Phase 2 (not blocking anything).
 
@@ -198,24 +214,26 @@ The Brain's AI Coach currently has a one-line system prompt. The full agent rule
 9. **Risk budget control** — Checklist for high-risk opportunities (legality, reversibility, etc.)
 10. **Weekly reality alignment** — Shipped work, money actions, health baseline, next priorities
 
-### Daily Check-In Protocol (designed, not yet built)
-- Morning: sleep hours, energy (0-10), gut symptoms (0-10), laptop available?, training sessions this week
-- Output: primary objective, 1-3 matched tasks, stabiliser if needed
-- State-based routing: energy ≤4 = low-complexity only, 5-7 = shipping/outreach, 8+ = deep work
+### Daily Check-In Protocol ✅ BUILT (Phase 2.5)
+- `DailyCheckinModal.jsx` prompts on first visit of day
+- Fields: sleep hours (0-24), energy slider (0-10), gut symptoms slider (0-10), training done checkbox, notes
+- Energy emoji shown in top bar (🌙/🔄/⚡ based on level)
+- Check-in data passed to AI Coach: energy ≤4 = low-complexity only, 5-7 = shipping/outreach, 8+ = deep work
+- DB: `daily_checkins` table (migration v12), POST/GET via `/api/data?resource=daily-checkins`
 
-### Training as Infrastructure (designed, not yet tracked)
+### Training as Infrastructure (designed, not yet tracked — Phase 2.6 next)
 - Training is not optional — it's revenue infrastructure (combat sports → cognitive function → shipping capacity)
 - Weekly minimum: 3 × 30-minute solo sessions
 - Track correlation: training days vs cognitive performance days
 - Drift detection: 2 consecutive missed weeks triggers root-cause analysis
 
 ### What needs building for the agent layer
-- **Daily check-in fields** — extend sessions table or create new `daily_checkin` table (energy, focus, gut, sleep, training_done)
-- **Training log** — date, duration, type, weekly count query
-- **Outreach tracking** — daily outreach actions logged
-- **Agent system prompt upgrade** — replace one-liner with full structured ruleset
-- **Weekly review automation** — query sessions, projects, check-ins and generate summary
-- **Drift detection** — background check on training/outreach minimums
+- ✅ **Daily check-in fields** — `daily_checkins` table, modal UI, energy routing (Phase 2.5 DONE)
+- **Training log** — date, duration, type, weekly count query (Phase 2.6 — NEXT)
+- **Outreach tracking** — daily outreach actions logged (Phase 2.7)
+- **Agent system prompt upgrade** — replace one-liner with full structured ruleset (Phase 2.8)
+- **Weekly review automation** — query sessions, projects, check-ins and generate summary (Phase 2.9)
+- **Drift detection** — background check on training/outreach/energy minimums (Phase 2.10)
 
 ---
 
@@ -256,19 +274,20 @@ At the end of each build session, update this document with:
 - ✅ Tagging & linking system (1.3) — QuickTagRow on projects/ideas/staging/goals/files; 🏷 Tags brain tab; 🔗 Links hub tab; DB tables v8–v10; API handlers; attach/detach/persist
 - ✅ Settings system (1.4) — `settings` JSON on users, GET/PUT API, settings modal, font family + size, localStorage cache
 
-### Next Up — Phase 2 (roadmap order)
-1. ✅ **Phase 2.1 — Project import** (2026-03-11) — BUIDL format paste, JSON file upload, folder picker (File System Access API); import modal with conflict resolution
-2. **Phase 2.2 — Image & binary file handling** ← NEXT — image viewer in editor pane, binary detection, base64 upload, download link for non-text files
-3. **Phase 2.3 — Metadata editor panel** — per-file category/status/tags/custom fields, collapsible right panel, JSON column on project_files
+### Completed (Phase 2 — so far)
+- ✅ **Phase 2.1 — Project import** (2026-03-11) — BUIDL format paste, JSON file upload, folder picker; conflict resolution modal
+- ✅ **Phase 2.2 — Image & binary file handling** (2026-03-11) — image viewer, binary detection, base64 upload, download link
+- ✅ **Phase 2.3 — Metadata editor panel** (2026-03-11) — `file_metadata` table, collapsible panel, category/status/custom fields, staging filing
+- ✅ **Phase 2.4 — Offline mode / localStorage fallback** (2026-03-11) — cache layer, sync module, offline indicator
+- ✅ **Phase 2.4B — Desktop file sync (BONUS)** (2026-03-11) — folder handle sync, conflict detection, `SyncReviewModal`
+- ✅ **Phase 2.5 — Daily check-in system** (2026-03-11) — `daily_checkins` table (migration v12), `DailyCheckinModal`, energy routing, top bar indicator
 
-### Then (Phase 2 continued — in order)
-4. **Phase 2.4 — Offline mode / localStorage fallback** — cache full state to localStorage, DB-first with offline fallback, sync on reconnect
-5. **Phase 2.5 — Daily check-in system** — `daily_checkins` table, energy/sleep/gut/training fields, check-in prompt on first visit of day, today's state in top bar; gates AI task routing
-6. **Phase 2.6 — Training log** — `training_log` table, quick-log UI, weekly count, correlation with check-in energy scores
-7. **Phase 2.7 — Outreach tracking** — `outreach_log` table, daily outreach indicator, AI coach enforces mandatory minimum
-8. **Phase 2.8 — Agent system prompt upgrade + context compression** — `agent-config.json`, dynamic system prompt from real data (check-in + goals + projects + rules), state-based task routing, token budget < 4k
-9. **Phase 2.9 — Weekly review automation** — `/api/review/weekly` aggregation, review dashboard UI, AI-generated analysis, persists to sessions/reviews table
-10. **Phase 2.10 — Drift detection** — background checks on training/outreach/energy/session minimums, alerts in Command Centre, included in AI coach context
+### Next Up — Phase 2 (continued)
+1. **Phase 2.6 — Training log** ← NEXT — `training_log` table, quick-log UI in Command Centre, weekly count in top bar, correlation with check-in energy scores
+2. **Phase 2.7 — Outreach tracking** — `outreach_log` table, daily outreach indicator, AI coach enforces mandatory minimum
+3. **Phase 2.8 — Agent system prompt upgrade + context compression** — `agent-config.json`, dynamic system prompt from real data (check-in + goals + projects + rules), state-based task routing, token budget < 4k
+4. **Phase 2.9 — Weekly review automation** — `/api/review/weekly` aggregation, review dashboard UI, AI-generated analysis
+5. **Phase 2.10 — Drift detection** — background checks on training/outreach/energy/session minimums, alerts in Command Centre
 
 ### Parking Lot (after Phase 2 — not now)
 **Phase 3:**
@@ -330,6 +349,17 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 11/03/26 session
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 8 — Phase 2.5 complete, docs updated to reflect 2.1–2.5):**
+- Version bumped to **6.7** (Phase 2.5 Complete)
+- **Bug fixed:** `daily_checkins` table was missing from `scripts/migrate.js` and `schema.sql` — the Phase 2.5 code (Drizzle schema, API routes, UI) was complete but the DB migration was never written. Added migration v12 and CREATE TABLE in schema.sql.
+- **DB Schema section** updated: 14 → 18 tables; added file_metadata, sync_state, sync_file_state, daily_checkins with notes on which phase added each
+- **What's Built section** updated: added Phase 2 Features block documenting 2.1–2.5 completions
+- **Missing Features Tier 2** updated: image handling (2.2), metadata editor (2.3), project import (2.1), offline mode (2.4) all marked ✅ DONE
+- **Agent Layer section** updated: Daily Check-In Protocol changed from "not yet built" to "✅ BUILT (Phase 2.5)"; Training log and others updated with correct phase references
+- **Priority Stack** fully rewritten: added "Completed Phase 2 so far" block (2.1–2.5), "Next Up" now starts at 2.6 (Training Log)
+- Next: **Phase 2.6 — Training Log**
 
 ---
 **Edit 2026-03-11 (session 7 — Phase 2.1 Project Import complete):**
