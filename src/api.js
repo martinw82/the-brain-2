@@ -148,6 +148,9 @@ export const staging = {
 
   delete: (id) =>
     del(`${BASE}/api/data?resource=staging&id=${id}`),
+
+  moveToFolder: (id, folderId, filename) =>
+    put(`${BASE}/api/data?resource=staging&id=${id}&action=moveToFolder`, { folder_id: folderId, filename }),
 };
 
 // ── IDEAS ─────────────────────────────────────────────────────

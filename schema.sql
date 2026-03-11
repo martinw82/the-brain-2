@@ -90,6 +90,10 @@ CREATE TABLE IF NOT EXISTS project_files (
 );
 
 -- ── STAGING ──────────────────────────────────────────────────
+-- MIGRATION NOTE (Phase 2.3):
+-- Files can now be moved from staging/ to project folders.
+-- folder_path tracks the final location (e.g., "design-assets/logo.png")
+-- filed_at records when the item was moved from staging to folder.
 CREATE TABLE IF NOT EXISTS staging (
   id          VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
   user_id     VARCHAR(36)   NOT NULL,
@@ -98,12 +102,15 @@ CREATE TABLE IF NOT EXISTS staging (
   tag         VARCHAR(32)   DEFAULT 'IDEA_',
   status      VARCHAR(32)   DEFAULT 'in-review',
   notes       TEXT,
+  folder_path VARCHAR(512)  DEFAULT NULL,     -- e.g., "design-assets/logo.png" (Phase 2.3)
+  filed_at    DATETIME      DEFAULT NULL,     -- When moved from staging to folder (Phase 2.3)
   added       VARCHAR(8),                      -- YYYY-MM
   created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-  INDEX idx_user_staging (user_id, status)
+  INDEX idx_user_staging (user_id, status),
+  INDEX idx_filing (project_id, folder_path, status)  -- Phase 2.3: for filtering filed items
 );
 
 -- ── IDEAS ────────────────────────────────────────────────────
