@@ -857,7 +857,7 @@ const ScriptRunner=({projectId,projectFiles})=>{
     
     if(type==='wordcount'){
       name='Word Count';
-      script=\`
+      script=`
 const mdFiles = Object.entries(projectFiles).filter(([path]) => 
   path.endsWith('.md') || path.endsWith('.txt')
 );
@@ -881,11 +881,11 @@ fileStats.sort((a, b) => b.words - a.words);
 console.log('Total words:', totalWords);
 console.log('Files:', mdFiles.length);
 console.log('\\nTop 5 files by word count:');
-fileStats.slice(0, 5).forEach(f => console.log(\`  \${f.path}: \${f.words} words\`));
-\`;
+fileStats.slice(0, 5).forEach(f => console.log(\`  ${f.path}: ${f.words} words\`));
+`;
     }else if(type==='todos'){
       name='List TODOs';
-      script=\`
+      script=`
 const todos = [];
 
 for (const [path, content] of Object.entries(projectFiles)) {
@@ -904,15 +904,15 @@ for (const [path, content] of Object.entries(projectFiles)) {
   });
 }
 
-console.log(\`Found \${todos.length} items:\\n\`);
+console.log(\`Found ${todos.length} items:\`);
 todos.slice(0, 20).forEach(t => {
-  console.log(\`[\${t.type}] \${t.path}:\${t.line}\`);
-  console.log(\`  \${t.text}\\n\`);
+  console.log(\`[${t.type}] ${t.path}:${t.line}\`);
+  console.log(\`  ${t.text}\`);
 });
-\`;
+`;
     }else if(type==='export'){
       name='Export Stats';
-      script=\`
+      script=`
 const stats = {
   totalFiles: Object.keys(projectFiles).length,
   folders: [...new Set(Object.keys(projectFiles).map(p => p.split('/')[0]))],
@@ -931,15 +931,15 @@ console.log('\\nFolders:', stats.folders.join(', '));
 console.log('\\nFiles by type:');
 Object.entries(stats.byExtension)
   .sort((a, b) => b[1] - a[1])
-  .forEach(([ext, count]) => console.log(\`  .\${ext}: \${count}\`));
-\`;
+  .forEach(([ext, count]) => console.log(\`  .${ext}: ${count}\`));
+`;
     }
     
     setSelectedScript({content:script,meta:{name,language:'javascript'}});
     setOutput('');
   };
   
-  return<div style={{border:\`1px solid \${C.border}\`,borderRadius:8,padding:12,marginBottom:16,background:C.surface}}>
+  return<div style={{border:`1px solid ${C.border}`,borderRadius:8,padding:12,marginBottom:16,background:C.surface}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setExpanded(!expanded)}>
       <span style={{fontSize:10,color:C.blue,letterSpacing:"0.1em",textTransform:"uppercase"}}>⚡ Script Runner</span>
       <span style={{fontSize:12,color:C.dim}}>{expanded?'▼':'▶'}</span>
@@ -998,7 +998,7 @@ Object.entries(stats.byExtension)
             <div style={{fontSize:9,color:C.dim,marginBottom:4}}>Output:</div>
             <pre style={{
               background:C.bg,
-              border:\`1px solid \${C.border}\`,
+              border:`1px solid ${C.border}`,
               borderRadius:4,
               padding:10,
               fontSize:9,
