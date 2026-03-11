@@ -257,8 +257,8 @@ At the end of each build session, update this document with:
 - ✅ Settings system (1.4) — `settings` JSON on users, GET/PUT API, settings modal, font family + size, localStorage cache
 
 ### Next Up — Phase 2 (roadmap order)
-1. **Phase 2.1 — Project import** ← NEXT — BUIDL format paste, JSON file upload, folder picker (File System Access API); wire existing `importText`/`importError` state to new UI
-2. **Phase 2.2 — Image & binary file handling** — image viewer in editor pane, binary detection, base64 upload, download link for non-text files
+1. ✅ **Phase 2.1 — Project import** (2026-03-11) — BUIDL format paste, JSON file upload, folder picker (File System Access API); import modal with conflict resolution
+2. **Phase 2.2 — Image & binary file handling** ← NEXT — image viewer in editor pane, binary detection, base64 upload, download link for non-text files
 3. **Phase 2.3 — Metadata editor panel** — per-file category/status/tags/custom fields, collapsible right panel, JSON column on project_files
 
 ### Then (Phase 2 continued — in order)
@@ -328,8 +328,30 @@ At the end of each build session, update this document with:
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
 *************APPEND AND ANNOTATE ALL EDITS***************
-Last edited 08/03/26 14:51
+Last edited 11/03/26 session
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 7 — Phase 2.1 Project Import complete):**
+- Version bumped to **6.6** (Phase 2.1 Complete)
+- Phase 2.1 implementation complete:
+  - Added `parseBuildlFormat()`, `validateImportJson()`, `parseFileSystemEntries()` to src/api.js
+  - Added `projects.import()` API call to src/api.js
+  - Added POST `/api/projects?action=import` handler to api/projects.js
+  - Supports three import methods: BUIDL format paste, JSON upload, Folder picker (showDirectoryPicker)
+  - Conflict resolution: duplicate projectId returns 409 with overwrite option
+  - Added complete import modal UI to src/TheBrain.jsx with:
+    - Tab-based method selection
+    - Form fields: projectId, name, lifeAreaId, templateId
+    - Client-side projectId validation (lowercase, numbers, hyphens)
+    - Folder picker with skip patterns (.git, node_modules, .env*)
+    - Binary file skipping (>1MB or known binary extensions)
+    - Conflict modal: show option to overwrite existing project
+    - Success navigation: auto-navigate to imported project + toast
+- Import button added to Brain → Projects tab
+- Build passes without errors
+- Commit: Phase 2.1: Project Import — BUIDL, JSON, and Folder Support
+- Next: Phase 2.2 (Image & binary file handling)
 
 ---
 **Edit 2026-03-11 (session 6 — docs alignment: Phase 1 complete, Phase 2 roadmap corrected):**

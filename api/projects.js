@@ -311,6 +311,119 @@ export default async function handler(req, res) {
       return ok(res, { success: true });
     }
 
+    // ── POST import ──────────────────────────────────────────
+    if (req.method === 'POST' && action === 'import') {
+      const { method, projectId, name, data, lifeAreaId, templateId, overwrite } = req.body || {};
+      if (!method || !projectId || !name) return err(res, 'method, projectId, and name required');
+
+      // Validate projectId format
+      if (!/^[a-z0-9-]+$/.test(projectId)) {
+        return err(res, 'Invalid projectId: must contain only lowercase letters, numbers, and hyphens');
+      }
+
+      let parsedData;
+      try {
+        if (method === 'buidl') {
+          // Parse BUIDL format
+          const manifestMatch = data.match(/MANIFEST_START\n([\s\S]*?)\nMANIFEST_END/);
+          const filesMatch = data.match(/FILES_START\n([\s\S]*?)\nFILES_END/);
+          if (!manifestMatch || !filesMatch) throw new Error('Invalid BUIDL format');
+          const manifest = JSON.parse(manifestMatch[1]);
+          const files = [];
+          const fileBlocks = filesMatch[1].split('\n---FILE---\n').filter(Boolean);
+          for (const block of fileBlocks) {
+            const lines = block.split('\n');
+            if (!lines[0].startsWith('PATH: ')) continue;
+            const path = lines[0].substring(6);
+            const content = lines.slice(1).join('\n');
+            files.push({ path, content });
+          }
+          parsedData = { projectId, name, files, description: manifest.description || '' };
+        } else if (method === 'json') {
+          // Parse JSON import
+          if (!data || typeof data !== 'object') throw new Error('Invalid JSON data');
+          if (!data.projectId || !data.name || !Array.isArray(data.files)) throw new Error('Missing projectId, name, or files');
+          for (let i = 0; i < data.files.length; i++) {
+            if (!data.files[i].path || typeof data.files[i].content !== 'string') {
+              throw new Error(`files[${i}]: missing path or content`);
+            }
+          }
+          parsedData = {
+            projectId: data.projectId,
+            name: data.name,
+            files: data.files,
+            description: data.description || '',
+          };
+        } else if (method === 'folder') {
+          // Folder method — data comes from client-side File System API, already parsed
+          if (!data.files || !Array.isArray(data.files)) throw new Error('Invalid folder data');
+          parsedData = {
+            projectId,
+            name,
+            files: data.files,
+            description: data.description || '',
+          };
+        } else {
+          throw new Error('Invalid method');
+        }
+      } catch (e) {
+        return err(res, `Parse error: ${e.message}`);
+      }
+
+      // Check if project exists
+      const [existing] = await db.execute('SELECT id FROM projects WHERE id = ? AND user_id = ?', [projectId, auth.userId]);
+      if (existing.length && !overwrite) {
+        return res.status(409).json({ error: 'Project exists', code: 'CONFLICT', projectId });
+      }
+
+      try {
+        if (overwrite && existing.length) {
+          // Update existing project, keep files that exist, add new files
+          await db.execute('UPDATE projects SET name = ?, description = ? WHERE id = ? AND user_id = ?',
+            [name, parsedData.description, projectId, auth.userId]);
+        } else {
+          // Create new project
+          try {
+            await db.execute(
+              `INSERT INTO projects (id, user_id, life_area_id, name, emoji, phase, status, priority, revenue_ready, income_target, momentum, last_touched, description, next_action, blockers, tags, skills, integrations, active_file, health)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [projectId, auth.userId, lifeAreaId || null, name, '📁', 'BOOTSTRAP', 'active', 99, 0, 0, 3, null, parsedData.description || '', '', '[]', '[]', '[]', '{}', 'PROJECT_OVERVIEW.md', 100]
+            );
+          } catch (e) {
+            if (e.message.includes('Unknown column \'life_area_id\'')) {
+              await db.execute(
+                `INSERT INTO projects (id, user_id, name, emoji, phase, status, priority, revenue_ready, income_target, momentum, last_touched, description, next_action, blockers, tags, skills, integrations, active_file, health)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [projectId, auth.userId, name, '📁', 'BOOTSTRAP', 'active', 99, 0, 0, 3, null, parsedData.description || '', '', '[]', '[]', '[]', '{}', 'PROJECT_OVERVIEW.md', 100]
+              );
+            } else {
+              throw e;
+            }
+          }
+        }
+
+        // Insert files
+        let fileCount = 0;
+        for (const file of parsedData.files) {
+          await db.execute(
+            `INSERT INTO project_files (project_id, user_id, path, content, deleted_at) VALUES (?, ?, ?, ?, NULL) ON DUPLICATE KEY UPDATE content = VALUES(content), deleted_at = NULL, updated_at = CURRENT_TIMESTAMP`,
+            [projectId, auth.userId, file.path, file.content || '']
+          );
+          fileCount++;
+        }
+
+        return ok(res, {
+          success: true,
+          project: { id: projectId, name },
+          filesCreated: fileCount,
+          warnings: [],
+        }, 201);
+      } catch (e) {
+        console.error('Import error:', e);
+        return err(res, `Import failed: ${e.message}`);
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Projects error:', e);
