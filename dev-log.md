@@ -4,6 +4,50 @@
 
 ---
 
+## Session 040 — 2026-03-11
+**Branch:** `session-040-script-execution`
+**Task:** Phase 3.6 — Script Execution
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented sandboxed script execution with ScriptRunner component.
+
+**API Changes (`api/data.js`):**
+- New `resource=scripts` POST endpoint
+- Sandboxed JavaScript execution using Function constructor
+- Safety controls:
+  - 30-second timeout (Promise.race with timeout)
+  - Whitelisted languages: javascript, js, python, py
+  - No network access (fetch, XMLHttpRequest, WebSocket undefined)
+  - Restricted globals (no Buffer, process, require, timers)
+  - Safe globals only (JSON, Math, Date, Array, Object, etc.)
+- Custom console.log capture to collect output
+- Returns result, output, execution time, and errors
+
+**Client Changes (`src/api.js`):**
+- Added `scripts.run()` method
+
+**UI Changes (`src/TheBrain.jsx`):**
+- New `ScriptRunner` component in Meta tab
+- Quick scripts: Word Count, List TODOs, Stats
+- Custom script selector from `/tools/` folder
+- Script metadata extraction (name, description, language)
+- Run button with loading state
+- Output display panel with monospace formatting
+- Expandable panel design
+
+**Default Files:**
+- Added `tools` folder to `STANDARD_FOLDERS`
+- Predefined scripts created in `makeDefaultFiles()`:
+  - `export-zip.js` — Export all files as ZIP
+  - `word-count.js` — Count words across markdown files
+  - `list-todos.js` — Find TODO/FIXME/HACK/XXX items
+
+### Done When
+✅ You can write a script in a project's /tools/ folder and run it from the UI
+
+---
+
 ## Session 039 — 2026-03-11
 **Branch:** `session-039-file-validity-checker`
 **Task:** Phase 3.5 — File Validity Checker
