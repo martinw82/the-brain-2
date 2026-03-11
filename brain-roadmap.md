@@ -309,21 +309,25 @@ Foundation for the agent layer's state-based task routing.
 - **Done when:** ✓ Opening the app each day prompts a 30-second check-in; energy shows in top bar; data available to AI coach
 - **Bug fixed (2026-03-11):** DB migration was missing from `scripts/migrate.js` — added as v12; also added CREATE TABLE to `schema.sql`
 
-### 2.6 Training log `[DB]` `[API]` `[UI]`
+### 2.6 Training log `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **Schema:** Create `training_log` table:
+- [x] **Schema:** Create `training_logs` table (migration v13):
   ```
   id, user_id, date, duration_minutes,
   type (solo/class/sparring/conditioning/other),
   notes, energy_after (0-10),
-  created_at
+  created_at, updated_at
   ```
-- [ ] **API:** CRUD routes for training (`/api/training`)
-- [ ] **API:** GET `/api/training/stats?weeks=4` — weekly counts, averages
-- [ ] **UI:** Quick-log in command centre ("Log training" button)
-- [ ] **UI:** Training count in top bar or daily check-in (e.g., "2/3 this week")
-- [ ] **Correlation:** Query: compare training days vs energy/focus scores from check-ins
-- **Done when:** You can log training sessions and see your weekly count. AI coach can reference training data.
+- [x] **API:** GET `/api/data?resource=training-logs&days=N` — recent logs
+- [x] **API:** GET `/api/data?resource=training-logs&weeks=N` — stats mode: weekly buckets, session counts, total minutes, avg energy_after
+- [x] **API:** POST/PUT/DELETE CRUD via `/api/data?resource=training-logs`
+- [x] **Client:** `trainingLogs.save/list/stats/update/delete` in `src/api.js`
+- [x] **UI:** `TrainingLogModal.jsx` — type selector (5 types with emoji), duration input with quick presets (30/45/60/90m), energy-after slider, notes
+- [x] **UI:** Training card in Command Centre — session count, total minutes, progress bar toward 3/week target, "+ Log Training" button
+- [x] **UI:** 🥋 indicator in top bar showing weekly count (e.g., `2/3`), clickable to open log modal; green when ≥3, amber when ≥1, dim when 0
+- [x] **Auto-sync:** Logging training auto-marks today's check-in `training_done = true`
+- [x] **Correlation:** Weekly training data included in AI Coach context with "BELOW TARGET" flag if < 3 sessions
+- **Done when:** ✓ Log training sessions, see weekly count in top bar and Command Centre card, AI coach references training data
 
 ### 2.7 Outreach tracking `[DB]` `[API]` `[UI]`
 

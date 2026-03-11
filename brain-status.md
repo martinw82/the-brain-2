@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 6.7 (Phase 2.5 Complete)
+**Version:** 6.8 (Phase 2.6 Complete)
 **Live URL:** the-brain-2.vercel.app
 **Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 0, Phase 1, and Phase 2.1–2.5 complete; next is 2.6 (Training Log)
+**Status:** Beta — All Phase 0, Phase 1, and Phase 2.1–2.6 complete; next is 2.7 (Outreach Tracking)
 
 ---
 
@@ -40,7 +40,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 
 ---
 
-## 3. Database Schema (18 tables)
+## 3. Database Schema (19 tables)
 
 **Core (original):**
 - **users** — email, password_hash, name, goal, monthly_target, currency, timezone, `settings` JSON (theme, font_family, font_size, sidebar_width, default_template_id, etc.)
@@ -67,6 +67,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **file_metadata** — per-file category, status, JSON custom fields (Phase 2.3)
 - **sync_state** + **sync_file_state** — desktop folder sync state, conflict detection (Phase 2.4B)
 - **daily_checkins** — daily user state: sleep_hours, energy_level, gut_symptoms, training_done, notes (Phase 2.5; migration v12)
+- **training_logs** — training sessions: date, duration_minutes, type (solo/class/sparring/conditioning/other), notes, energy_after (Phase 2.6; migration v13)
 
 ---
 
@@ -121,6 +122,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **Offline Mode / localStorage Fallback (2.4)** — full state cached to localStorage on load; DB-first with cache fallback; sync-on-reconnect; offline indicator in UI; `cache.js` + `sync.js` modules
 - **Desktop File Sync (2.4B BONUS)** — `sync_state`/`sync_file_state` tables; `desktop-sync.js` module; folder handle persistence via `FolderSyncSetup.jsx`; conflict detection with `SyncReviewModal.jsx`
 - **Daily Check-in System (2.5)** — `daily_checkins` table (migration v12); `DailyCheckinModal.jsx` with sleep/energy/gut sliders + training checkbox + notes; auto-prompts on first visit of day (tracked via localStorage `lastCheckinDate`); energy level emoji in top bar; check-in data passed to AI Coach for state-based task routing (energy ≤4 = low-complexity, 5-7 = shipping/outreach, 8+ = deep work); POST/GET `/api/data?resource=daily-checkins`
+- **Training Log (2.6)** — `training_logs` table (migration v13); `TrainingLogModal.jsx` with type selector (solo/class/sparring/conditioning/other), duration + quick presets (30/45/60/90m), energy-after slider, notes; Command Centre training card: weekly sessions/minutes + progress bar toward 3/week target; 🥋 top bar indicator (click to log); auto-marks today's check-in `training_done=true`; weekly training count + below-target flag in AI Coach context; stats endpoint with weekly bucket aggregation
 
 ---
 
@@ -229,7 +231,7 @@ The Brain's AI Coach currently has a one-line system prompt. The full agent rule
 
 ### What needs building for the agent layer
 - ✅ **Daily check-in fields** — `daily_checkins` table, modal UI, energy routing (Phase 2.5 DONE)
-- **Training log** — date, duration, type, weekly count query (Phase 2.6 — NEXT)
+- ✅ **Training log** — `training_logs` table, `TrainingLogModal`, weekly count in top bar + Command Centre card (Phase 2.6 DONE)
 - **Outreach tracking** — daily outreach actions logged (Phase 2.7)
 - **Agent system prompt upgrade** — replace one-liner with full structured ruleset (Phase 2.8)
 - **Weekly review automation** — query sessions, projects, check-ins and generate summary (Phase 2.9)
@@ -281,9 +283,10 @@ At the end of each build session, update this document with:
 - ✅ **Phase 2.4 — Offline mode / localStorage fallback** (2026-03-11) — cache layer, sync module, offline indicator
 - ✅ **Phase 2.4B — Desktop file sync (BONUS)** (2026-03-11) — folder handle sync, conflict detection, `SyncReviewModal`
 - ✅ **Phase 2.5 — Daily check-in system** (2026-03-11) — `daily_checkins` table (migration v12), `DailyCheckinModal`, energy routing, top bar indicator
+- ✅ **Phase 2.6 — Training log** (2026-03-11) — `training_logs` table (migration v13), `TrainingLogModal`, Command Centre card, 🥋 top bar indicator, AI Coach context integration
 
 ### Next Up — Phase 2 (continued)
-1. **Phase 2.6 — Training log** ← NEXT — `training_log` table, quick-log UI in Command Centre, weekly count in top bar, correlation with check-in energy scores
+1. **Phase 2.7 — Outreach tracking** ← NEXT — `outreach_log` table, daily outreach indicator, AI coach enforces mandatory minimum
 2. **Phase 2.7 — Outreach tracking** — `outreach_log` table, daily outreach indicator, AI coach enforces mandatory minimum
 3. **Phase 2.8 — Agent system prompt upgrade + context compression** — `agent-config.json`, dynamic system prompt from real data (check-in + goals + projects + rules), state-based task routing, token budget < 4k
 4. **Phase 2.9 — Weekly review automation** — `/api/review/weekly` aggregation, review dashboard UI, AI-generated analysis
@@ -349,6 +352,15 @@ At the end of each build session, update this document with:
 *************APPEND AND ANNOTATE ALL EDITS***************
 Last edited 11/03/26 session
 *THE BRAIN v6 · Wired Edition · Bootstrap → Freedom*
+
+---
+**Edit 2026-03-11 (session 9 — Phase 2.6 Training Log complete):**
+- Version bumped to **6.8** (Phase 2.6 Complete)
+- DB schema: 18 → 19 tables; added `training_logs` (migration v13)
+- What's Built: added Training Log (2.6) entry in Phase 2 Features block
+- Agent Layer: Training log updated from "NEXT" to "DONE"
+- Priority Stack: 2.6 moved to Completed; Next Up now 2.7 (Outreach Tracking)
+- Next: **Phase 2.7 — Outreach Tracking**
 
 ---
 **Edit 2026-03-11 (session 8 — Phase 2.5 complete, docs updated to reflect 2.1–2.5):**
