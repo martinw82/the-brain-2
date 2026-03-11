@@ -785,6 +785,136 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── WEEKLY REVIEW (Phase 2.9) ─────────────────────────────
+    if (resource === 'weekly-review') {
+      if (req.method === 'GET') {
+        const { week, list } = req.query;
+
+        // List recent reviews
+        if (list) {
+          const n = Math.min(parseInt(list) || 8, 52);
+          const [rows] = await db.execute(
+            `SELECT id, week_start, what_shipped, what_blocked, next_priority, ai_analysis, created_at, updated_at
+             FROM weekly_reviews WHERE user_id = ? ORDER BY week_start DESC LIMIT ?`,
+            [auth.userId, n]
+          );
+          return ok(res, { reviews: rows });
+        }
+
+        // Get single week with aggregated data
+        const weekStart = week || (() => {
+          const d = new Date();
+          const day = d.getDay();
+          const diff = (day === 0 ? -6 : 1 - day);
+          d.setDate(d.getDate() + diff);
+          return d.toISOString().split('T')[0];
+        })();
+
+        const weekEnd = (() => {
+          const d = new Date(weekStart);
+          d.setDate(d.getDate() + 6);
+          return d.toISOString().split('T')[0];
+        })();
+
+        // Fetch saved review + aggregated stats in parallel
+        const [
+          [reviewRows],
+          [sessionRows],
+          [checkinRows],
+          [trainingRows],
+          [outreachRows],
+          [stagingRows],
+        ] = await Promise.all([
+          db.execute(
+            'SELECT * FROM weekly_reviews WHERE user_id = ? AND week_start = ?',
+            [auth.userId, weekStart]
+          ),
+          db.execute(
+            `SELECT s.id, s.duration_s, s.log, s.ended_at, p.name as project_name
+             FROM sessions s LEFT JOIN projects p ON p.id = s.project_id
+             WHERE s.user_id = ? AND DATE(s.ended_at) BETWEEN ? AND ?
+             ORDER BY s.ended_at DESC`,
+            [auth.userId, weekStart, weekEnd]
+          ),
+          db.execute(
+            `SELECT date, energy_level, sleep_hours, gut_symptoms, mood_score
+             FROM daily_checkins WHERE user_id = ? AND date BETWEEN ? AND ?`,
+            [auth.userId, weekStart, weekEnd]
+          ),
+          db.execute(
+            `SELECT COUNT(*) as count, SUM(duration_minutes) as total_minutes
+             FROM training_logs WHERE user_id = ? AND date BETWEEN ? AND ?`,
+            [auth.userId, weekStart, weekEnd]
+          ),
+          db.execute(
+            `SELECT COUNT(*) as count FROM outreach_log
+             WHERE user_id = ? AND date BETWEEN ? AND ?`,
+            [auth.userId, weekStart, weekEnd]
+          ),
+          db.execute(
+            `SELECT COUNT(*) as count FROM staging
+             WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?)
+             AND status = 'done'
+             AND updated_at BETWEEN ? AND ?`,
+            [auth.userId, weekStart + ' 00:00:00', weekEnd + ' 23:59:59']
+          ),
+        ]);
+
+        const review = reviewRows[0] || null;
+        const avgEnergy = checkinRows.length
+          ? Math.round(checkinRows.reduce((s, r) => s + (r.energy_level || 0), 0) / checkinRows.length * 10) / 10
+          : null;
+        const avgSleep = checkinRows.length
+          ? Math.round(checkinRows.reduce((s, r) => s + (r.sleep_hours || 0), 0) / checkinRows.length * 10) / 10
+          : null;
+
+        return ok(res, {
+          week_start: weekStart,
+          week_end: weekEnd,
+          review,
+          stats: {
+            sessions: sessionRows.length,
+            session_minutes: Math.round(sessionRows.reduce((s, r) => s + (r.duration_s || 0), 0) / 60),
+            checkin_days: checkinRows.length,
+            avg_energy: avgEnergy,
+            avg_sleep: avgSleep,
+            training_count: Number(trainingRows[0]?.count || 0),
+            training_minutes: Number(trainingRows[0]?.total_minutes || 0),
+            outreach_count: Number(outreachRows[0]?.count || 0),
+            staging_done: Number(stagingRows[0]?.count || 0),
+          },
+          sessions: sessionRows,
+        });
+      }
+
+      if (req.method === 'POST') {
+        const { week_start, what_shipped, what_blocked, next_priority, ai_analysis, data_json } = req.body || {};
+        if (!week_start) return err(res, 'week_start required');
+
+        // Upsert
+        const [existing] = await db.execute(
+          'SELECT id FROM weekly_reviews WHERE user_id = ? AND week_start = ?',
+          [auth.userId, week_start]
+        );
+
+        if (existing.length > 0) {
+          await db.execute(
+            `UPDATE weekly_reviews SET what_shipped=?, what_blocked=?, next_priority=?, ai_analysis=?, data_json=?, updated_at=NOW()
+             WHERE user_id = ? AND week_start = ?`,
+            [what_shipped || null, what_blocked || null, next_priority || null, ai_analysis || null, data_json || null, auth.userId, week_start]
+          );
+          return ok(res, { success: true, id: existing[0].id });
+        } else {
+          const [result] = await db.execute(
+            `INSERT INTO weekly_reviews (user_id, week_start, what_shipped, what_blocked, next_priority, ai_analysis, data_json)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [auth.userId, week_start, what_shipped || null, what_blocked || null, next_priority || null, ai_analysis || null, data_json || null]
+          );
+          return ok(res, { success: true, id: result.insertId }, 201);
+        }
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e);
