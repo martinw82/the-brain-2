@@ -459,16 +459,17 @@ _These make the tool genuinely powerful. Each plugs into the foundations from Ph
 
 _Make it work everywhere, reliably._
 
-### 4.1 Mobile responsive layout `[UI]`
+### 4.1 Mobile responsive layout `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **Breakpoints:** Define mobile (<768px), tablet (768-1024px), desktop (>1024px)
-- [ ] **Mobile nav:** Hamburger menu or bottom tab bar replacing top tab row
-- [ ] **File tree:** Slide-out drawer instead of persistent sidebar
-- [ ] **Editor:** Full-width on mobile, no side panels
-- [ ] **Command centre:** Stack cards vertically
-- [ ] **Touch targets:** All buttons minimum 44px hit area
-- [ ] **Session timer:** Floating or sticky on mobile
-- **Done when:** All tabs and features are usable on a phone screen
+- [x] **Breakpoints:** Define mobile (<768px), tablet (768-1024px), desktop (>1024px)
+- [x] **Mobile nav:** Hamburger menu with slide-out drawer
+- [x] **File tree:** Slide-out drawer instead of persistent sidebar
+- [x] **Editor:** Full-width on mobile, no side panels
+- [x] **Command centre:** Stack cards vertically
+- [x] **Touch targets:** All buttons minimum 44px hit area
+- [x] **Session timer:** Floating pill button on mobile
+- **Done when:** ✅ All tabs and features are usable on a phone screen
+- **How:** `useBreakpoint()` hook, conditional rendering with `isMobile` flag, slide-out drawers for nav and file tree, responsive grid layouts, floating session timer
 
 ### 4.2 Onboarding flow `[UI]`
 

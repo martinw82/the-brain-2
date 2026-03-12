@@ -4,6 +4,66 @@
 
 ---
 
+## Session 041 — 2026-03-11
+**Branch:** `session-041-phase-4`
+**Task:** Phase 4.1 — Mobile Responsive Layout
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented comprehensive mobile responsive layout for all screen sizes.
+
+**Responsive Infrastructure (`src/TheBrain.jsx`):**
+- `useBreakpoint()` hook — detects mobile (<768px), tablet (768-1024px), desktop (>1024px)
+- Reactive `isMobile`, `isTablet` flags for conditional rendering
+
+**Mobile Navigation:**
+- Hamburger menu (☰) in mobile header
+- Slide-out drawer (280px width) with navigation links
+- Stats summary in drawer (Projects count, Goal %, At Risk)
+- Settings and Sign Out buttons
+
+**Editor Mobile Experience:**
+- File tree converted to slide-out drawer on mobile
+- "📁 Files" toggle button in top-left of editor
+- Full-width editor with no side panels
+- Metadata panel hidden on mobile (focus on editing)
+- Responsive height calculations
+
+**Command Centre Mobile:**
+- Area cards stack vertically (single column)
+- Training/Outreach cards stack vertically below stats
+- Responsive grid layouts
+
+**All Grids Updated:**
+- Command Centre area cards: `1fr` on mobile, auto-fill on desktop
+- Hub Overview: single column on mobile
+- Hub Folders: single column on mobile
+- Hub Meta: single column on mobile
+- Bootstrap steps: single column on mobile
+- Staging form: single column on mobile
+- Skills SOP/Permissions: single column on mobile
+- Integrations: single column on mobile
+
+**Touch Targets (44px minimum):**
+- All buttons now have `minHeight: 44px`
+- Tabs have `minHeight: 44px`
+- Button padding increased for better touchability
+
+**Session Timer Mobile:**
+- Condensed to just ▶ icon in mobile header
+- Floating pill button when session active (bottom-right)
+- Shows timer + End button
+
+**Tab Navigation:**
+- Horizontal scrollable tabs on mobile
+- Larger touch targets (10px 16px padding)
+- `flex-shrink: 0` to prevent squishing
+
+### Done When
+✅ All tabs and features are usable on a phone screen
+
+---
+
 ## Session 040 — 2026-03-11
 **Branch:** `session-040-script-execution`
 **Task:** Phase 3.6 — Script Execution

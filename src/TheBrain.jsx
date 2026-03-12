@@ -15,6 +15,41 @@ import WeeklyReviewPanel from "./components/WeeklyReviewPanel.jsx";
 // Full persistence via TiDB/MySQL + Netlify Functions
 // ============================================================
 
+// ═══════════════════════════════════════════════════════════
+// RESPONSIVE BREAKPOINTS (Phase 4.1)
+// ═══════════════════════════════════════════════════════════
+const BREAKPOINTS = {
+  mobile: 768,
+  tablet: 1024,
+};
+
+const useBreakpoint = () => {
+  const [bp, setBp] = useState(() => {
+    const w = window.innerWidth;
+    if (w < BREAKPOINTS.mobile) return 'mobile';
+    if (w < BREAKPOINTS.tablet) return 'tablet';
+    return 'desktop';
+  });
+  
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      if (w < BREAKPOINTS.mobile) setBp('mobile');
+      else if (w < BREAKPOINTS.tablet) setBp('tablet');
+      else setBp('desktop');
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  return {
+    breakpoint: bp,
+    isMobile: bp === 'mobile',
+    isTablet: bp === 'tablet',
+    isDesktop: bp === 'desktop',
+  };
+};
+
 const C = {
   bg:"#070b14", surface:"#0a0f1e", border:"#0f1e3a",
   blue:"#1a4fd6", blue2:"#3b82f6", green:"#10b981",
@@ -27,8 +62,9 @@ const S = {
   card:  (hi,col)=>({background:C.surface,border:`1px solid ${hi?(col||C.blue):C.border}`,borderRadius:8,padding:"14px 18px",marginBottom:10,boxShadow:hi?`0 0 18px ${col||C.blue}18`:"none"}),
   input: {background:"#0d1424",border:`1px solid ${C.border}`,borderRadius:6,color:"#e2e8f0",fontFamily:C.mono,fontSize:12,padding:"7px 11px",outline:"none",width:"100%",boxSizing:"border-box"},
   sel:   {background:"#0d1424",border:`1px solid ${C.border}`,borderRadius:6,color:"#e2e8f0",fontFamily:C.mono,fontSize:12,padding:"7px 11px",outline:"none",width:"100%",boxSizing:"border-box"},
-  btn:   (v="primary",c)=>({background:v==="primary"?(c||C.blue):v==="success"?"rgba(16,185,129,0.15)":v==="danger"?"rgba(239,68,68,0.15)":"transparent",border:v==="ghost"?`1px solid ${C.border}`:v==="success"?"1px solid #10b98140":v==="danger"?"1px solid #ef444440":"none",color:v==="success"?C.green:v==="danger"?C.red:"#e2e8f0",borderRadius:5,padding:"5px 12px",fontSize:10,letterSpacing:"0.08em",textTransform:"uppercase",cursor:"pointer",fontFamily:C.mono,whiteSpace:"nowrap"}),
-  tab:   (a,c=C.blue2)=>({background:"none",border:"none",cursor:"pointer",fontFamily:C.mono,fontSize:10,letterSpacing:"0.1em",textTransform:"uppercase",padding:"7px 13px",color:a?c:C.dim,borderBottom:a?`2px solid ${c}`:"2px solid transparent"}),
+  // Phase 4.1: Added minHeight:44 for mobile touch targets (44px minimum)
+  btn:   (v="primary",c)=>({background:v==="primary"?(c||C.blue):v==="success"?"rgba(16,185,129,0.15)":v==="danger"?"rgba(239,68,68,0.15)":"transparent",border:v==="ghost"?`1px solid ${C.border}`:v==="success"?"1px solid #10b98140":v==="danger"?"1px solid #ef444440":"none",color:v==="success"?C.green:v==="danger"?C.red:"#e2e8f0",borderRadius:5,padding:"5px 12px",fontSize:10,letterSpacing:"0.08em",textTransform:"uppercase",cursor:"pointer",fontFamily:C.mono,whiteSpace:"nowrap",minHeight:44,display:"inline-flex",alignItems:"center",justifyContent:"center"}),
+  tab:   (a,c=C.blue2)=>({background:"none",border:"none",cursor:"pointer",fontFamily:C.mono,fontSize:10,letterSpacing:"0.1em",textTransform:"uppercase",padding:"7px 13px",color:a?c:C.dim,borderBottom:a?`2px solid ${c}`:"2px solid transparent",minHeight:44}),
   badge: (c=C.blue2)=>({fontSize:9,padding:"2px 6px",borderRadius:3,background:`${c}18`,color:c,border:`1px solid ${c}35`,letterSpacing:"0.09em",fontWeight:700,whiteSpace:"nowrap"}),
   label: (c=C.blue)=>({fontSize:9,color:c,textTransform:"uppercase",letterSpacing:"0.14em",marginBottom:6,display:"block"}),
 };
@@ -1350,6 +1386,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [hubTab,setHubTab]           = useState("editor");
   const [reviewFilter,setReviewFilter] = useState("pending");  // Phase 2.3: 'all'|'pending'|'filed'
   const [focusId,setFocusId]         = useState(initialProjects[0]?.id || null);
+  
+  // Mobile responsive (Phase 4.1)
+  const { isMobile, isTablet } = useBreakpoint();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [mobileFileTreeOpen, setMobileFileTreeOpen] = useState(false);
 
   // Session timer
   const [sessionActive,setSessionOn] = useState(false);
@@ -2366,28 +2407,59 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       {toast&&<Toast msg={toast.msg} onDone={()=>setToast(null)}/>}
 
       {/* ── TOP BAR ── */}
-      <div style={{background:"linear-gradient(180deg,#0a0f1e,#070b14)",borderBottom:`1px solid ${C.border}`,padding:"12px 20px 0"}}>
+      <div style={{background:"linear-gradient(180deg,#0a0f1e,#070b14)",borderBottom:`1px solid ${C.border}`,padding:isMobile?"10px 12px 0":"12px 20px 0"}}>
         <div style={{maxWidth:1200,margin:"0 auto"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8,marginBottom:8}}>
-            <div style={{display:"flex",alignItems:"center",gap:14}}>
-              <div>
-                <div style={{fontSize:9,color:C.blue,letterSpacing:"0.2em",textTransform:"uppercase"}}>Project OS · v6 · {user?.name||user?.email||"Builder"}</div>
-                <div style={{fontSize:18,fontWeight:700,color:"#f1f5f9",lineHeight:1.1}}>{view==="hub"&&hub?`${hub.emoji} ${hub.name}`:"THE BRAIN 🧠"}</div>
-              </div>
-              <div style={{display:"flex",gap:3}}>
-                <button style={S.btn(view==="brain"?"primary":"ghost")} onClick={()=>setView("brain")}>🧠 Brain</button>
-                {hub&&<button style={S.btn(view==="hub"?"primary":"ghost")} onClick={()=>setView("hub")}>🗂 Hub</button>}
-                <button style={{...S.btn("ghost"),fontSize:9}} onClick={()=>setModal("new-project")}>+ Project</button>
-              </div>
-              {/* Search - Phase 3.3: New Search Modal with Cmd+K */}
-              <button style={{...S.btn("ghost"),fontSize:10,padding:"5px 12px",display:"flex",alignItems:"center",gap:6}} onClick={()=>setShowSearchModal(true)}>
-                <span>🔍</span>
-                <span>Search</span>
-                <span style={{fontSize:9,color:C.dim,background:C.bg,padding:"2px 5px",borderRadius:3}}>⌘K</span>
+          {/* Mobile Header */}
+          {isMobile ? (
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              {/* Hamburger Menu */}
+              <button 
+                style={{...S.btn("ghost"),padding:"8px 10px",fontSize:18,minWidth:44,minHeight:44}} 
+                onClick={()=>setMobileNavOpen(true)}
+                aria-label="Open menu"
+              >
+                ☰
               </button>
+              
+              {/* App Title */}
+              <div style={{textAlign:"center",flex:1}}>
+                <div style={{fontSize:16,fontWeight:700,color:"#f1f5f9",lineHeight:1.1}}>
+                  {view==="hub"&&hub?`${hub.emoji} ${hub.name}`:"THE BRAIN 🧠"}
+                </div>
+              </div>
+              
+              {/* Session Timer (condensed) */}
+              <div 
+                onClick={()=>{if(!sessionActive)setSessionOn(true);else endSession();}} 
+                style={{background:sessionActive?"rgba(16,185,129,0.08)":C.surface,border:`1px solid ${sessionActive?"#10b98140":C.border}`,borderRadius:6,padding:"6px 10px",textAlign:"center",cursor:"pointer",minWidth:44}}
+              >
+                <div style={{fontSize:14,fontWeight:700,color:sessionActive?C.green:"#475569",fontVariantNumeric:"tabular-nums"}}>
+                  {sessionActive?fmtTime(sessionSecs):"▶"}
+                </div>
+              </div>
             </div>
+          ) : (
+            /* Desktop Header */
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8,marginBottom:8}}>
+              <div style={{display:"flex",alignItems:"center",gap:14}}>
+                <div>
+                  <div style={{fontSize:9,color:C.blue,letterSpacing:"0.2em",textTransform:"uppercase"}}>Project OS · v6 · {user?.name||user?.email||"Builder"}</div>
+                  <div style={{fontSize:18,fontWeight:700,color:"#f1f5f9",lineHeight:1.1}}>{view==="hub"&&hub?`${hub.emoji} ${hub.name}`:"THE BRAIN 🧠"}</div>
+                </div>
+                <div style={{display:"flex",gap:3}}>
+                  <button style={S.btn(view==="brain"?"primary":"ghost")} onClick={()=>setView("brain")}>🧠 Brain</button>
+                  {hub&&<button style={S.btn(view==="hub"?"primary":"ghost")} onClick={()=>setView("hub")}>🗂 Hub</button>}
+                  <button style={{...S.btn("ghost"),fontSize:9}} onClick={()=>setModal("new-project")}>+ Project</button>
+                </div>
+                {/* Search - Phase 3.3: New Search Modal with Cmd+K */}
+                <button style={{...S.btn("ghost"),fontSize:10,padding:"5px 12px",display:"flex",alignItems:"center",gap:6}} onClick={()=>setShowSearchModal(true)}>
+                  <span>🔍</span>
+                  <span>Search</span>
+                  <span style={{fontSize:9,color:C.dim,background:C.bg,padding:"2px 5px",borderRadius:3}}>⌘K</span>
+                </button>
+              </div>
 
-            <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
+              <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
               {/* Settings gear */}
               <button style={{...S.btn("ghost"),padding:"5px 8px",fontSize:14}} title="Settings" onClick={()=>{setSettingsForm({...userSettings});setModal("settings");}}>🔧</button>
               {/* Session timer */}
@@ -2440,16 +2512,18 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
               <button style={{...S.btn("ghost"),fontSize:9}} onClick={onLogout}>Sign Out</button>
             </div>
           </div>
+          )}
 
           {sessionActive&&<div style={{display:"flex",gap:6,marginBottom:8}}>
             <input style={{...S.input,fontSize:11}} placeholder="What are you working on?" value={sessionLog} onChange={e=>setSessionLog(e.target.value)}/>
             <button style={{...S.btn("danger"),fontSize:9}} onClick={endSession}>End & Log</button>
           </div>}
 
-          <div style={{display:"flex",gap:0,flexWrap:"wrap"}}>
-            {view==="brain"?BRAIN_TABS.map(t=><button key={t.id} style={S.tab(mainTab===t.id)} onClick={()=>{setMainTab(t.id); if(t.id!=="command") setActiveAreaFilter(null);}}>{t.label}</button>)
-              :HUB_TABS.map(t=><button key={t.id} style={S.tab(hubTab===t.id,"#10b981")} onClick={()=>setHubTab(t.id)}>{t.label}</button>)}
-            {view==="hub"&&hub&&<div style={{marginLeft:"auto",display:"flex",gap:4,paddingBottom:4}}>
+          {/* Tabs - scrollable on mobile */}
+          <div style={{display:"flex",gap:0,overflowX:isMobile?"auto":"visible",flexWrap:isMobile?"nowrap":"wrap",WebkitOverflowScrolling:"touch"}}>
+            {view==="brain"?BRAIN_TABS.map(t=><button key={t.id} style={{...S.tab(mainTab===t.id),flexShrink:isMobile?0:"auto",padding:isMobile?"10px 16px":"7px 13px"}} onClick={()=>{setMainTab(t.id); if(t.id!=="command") setActiveAreaFilter(null);}}>{t.label}</button>)
+              :HUB_TABS.map(t=><button key={t.id} style={{...S.tab(hubTab===t.id,"#10b981"),flexShrink:isMobile?0:"auto",padding:isMobile?"10px 16px":"7px 13px"}} onClick={()=>setHubTab(t.id)}>{t.label}</button>)}
+            {view==="hub"&&hub&&!isMobile&&<div style={{marginLeft:"auto",display:"flex",gap:4,paddingBottom:4}}>
               <button style={{...S.btn("ghost"),fontSize:9}} onClick={()=>setModal("new-custom-folder")}>+ Folder</button>
               <button style={{...S.btn("ghost"),fontSize:9}} onClick={()=>{setRenameValue(hub.name);setModal("rename-project");}}>✏ Rename</button>
               <button style={{...S.btn("ghost"),fontSize:9}} onClick={()=>exportProject(hubId)}>⬇ Export</button>
@@ -2458,6 +2532,55 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
           </div>
         </div>
       </div>
+
+      {/* ── MOBILE NAVIGATION DRAWER ── */}
+      {mobileNavOpen&&(
+        <div style={{position:"fixed",inset:0,zIndex:400}} onClick={()=>setMobileNavOpen(false)}>
+          <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)"}} />
+          <div style={{position:"absolute",top:0,left:0,bottom:0,width:280,background:C.surface,borderRight:`1px solid ${C.border}`,padding:16,overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+              <span style={{fontSize:14,fontWeight:700}}>🧠 The Brain</span>
+              <button style={{...S.btn("ghost"),padding:"6px 10px",fontSize:16}} onClick={()=>setMobileNavOpen(false)}>✕</button>
+            </div>
+            
+            {/* Main Navigation */}
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10}}>Navigation</div>
+              <button style={{...S.btn(view==="brain"?"primary":"ghost"),width:"100%",marginBottom:8,justifyContent:"flex-start",minHeight:44}} onClick={()=>{setView("brain");setMobileNavOpen(false);}}>🧠 Brain</button>
+              {hub&&<button style={{...S.btn(view==="hub"?"primary":"ghost"),width:"100%",marginBottom:8,justifyContent:"flex-start",minHeight:44}} onClick={()=>{setView("hub");setMobileNavOpen(false);}}>🗂 Hub ({hub.name})</button>}
+              <button style={{...S.btn("ghost"),width:"100%",marginBottom:8,justifyContent:"flex-start",minHeight:44}} onClick={()=>{setModal("new-project");setMobileNavOpen(false);}}>+ New Project</button>
+              <button style={{...S.btn("ghost"),width:"100%",marginBottom:8,justifyContent:"flex-start",minHeight:44}} onClick={()=>{setShowSearchModal(true);setMobileNavOpen(false);}}>🔍 Search</button>
+            </div>
+            
+            {/* Quick Stats */}
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10}}>Status</div>
+              <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:16,fontWeight:700,color:C.blue2}}>{projects.length}</div>
+                  <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>Projects</div>
+                </div>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:16,fontWeight:700,color:C.green}}>{Math.round(totalIncome/(activeGoal?.target_amount||3000)*100)}%</div>
+                  <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>Goal</div>
+                </div>
+                {atRisk>0&&(
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:16,fontWeight:700,color:C.amber}}>{atRisk}</div>
+                    <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>At Risk</div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Settings */}
+            <div>
+              <button style={{...S.btn("ghost"),width:"100%",justifyContent:"flex-start",minHeight:44}} onClick={()=>{setSettingsForm({...userSettings});setModal("settings");setMobileNavOpen(false);}}>🔧 Settings</button>
+              <button style={{...S.btn("ghost"),width:"100%",marginTop:8,justifyContent:"flex-start",minHeight:44}} onClick={onLogout}>Sign Out</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── MODALS ── */}
       {modal==="new-project"&&(
@@ -2814,7 +2937,20 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       />
 
       {/* ── BODY ── */}
-      <div style={{maxWidth:1200,margin:"0 auto",padding:"16px 20px"}}>
+      <div style={{maxWidth:1200,margin:"0 auto",padding:isMobile?"12px":"16px 20px"}}>
+        
+        {/* Mobile: Floating Session Timer */}
+        {isMobile&&sessionActive&&(
+          <div style={{position:"fixed",bottom:16,right:16,zIndex:200}}>
+            <div 
+              onClick={()=>endSession()} 
+              style={{background:"rgba(16,185,129,0.95)",border:"1px solid #10b981",borderRadius:50,padding:"12px 16px",textAlign:"center",cursor:"pointer",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",display:"flex",alignItems:"center",gap:8}}
+            >
+              <div style={{fontSize:14,fontWeight:700,color:"#fff",fontVariantNumeric:"tabular-nums"}}>{fmtTime(sessionSecs)}</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.8)",textTransform:"uppercase"}}>⏹ End</div>
+            </div>
+          </div>
+        )}
 
         {/* ═══════════════════════════════════════════
             HUB VIEW
@@ -2833,41 +2969,82 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
           return <div>
 
             {hubTab==="editor"&&(
-              <div style={{display:"flex",gap:10,height:"calc(100vh-160px)",minHeight:500}}>
-                <div style={{width:210,flexShrink:0,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
-                  <FileTree files={hub.files||{}} activeFile={hub.activeFile} customFolders={hub.customFolders||[]}
-                    onSelect={path=>{
-                      setProjects(prev=>prev.map(p=>p.id===hubId?{...p,activeFile:path}:p));
-                      projectsApi.setActiveFile(hubId,path).catch(()=>{});
-                      fetchMetadata(hubId,path);  // Roadmap 2.3: fetch metadata when file selected
-                    }}
-                    onNewFile={()=>setModal("new-file")}
-                    onDelete={path=>deleteFile(hubId,path)}/>
-                </div>
+              <div style={{display:"flex",gap:isMobile?0:10,height:isMobile?"calc(100vh - 140px)":"calc(100vh-160px)",minHeight:500,flexDirection:isMobile?"column":"row",position:"relative"}}>
+                {/* Mobile: File tree toggle button */}
+                {isMobile&&(
+                  <button 
+                    style={{...S.btn("ghost"),position:"absolute",top:8,left:8,zIndex:10,background:C.surface,border:`1px solid ${C.border}`,padding:"8px 12px",minHeight:44}}
+                    onClick={()=>setMobileFileTreeOpen(true)}
+                  >
+                    📁 Files
+                  </button>
+                )}
+                
+                {/* Desktop: Persistent sidebar / Mobile: Slide-out drawer */}
+                {(!isMobile||mobileFileTreeOpen)&&(
+                  <>
+                    {isMobile&&mobileFileTreeOpen&&(
+                      <div style={{position:"fixed",inset:0,zIndex:350}} onClick={()=>setMobileFileTreeOpen(false)}>
+                        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)"}} />
+                      </div>
+                    )}
+                    <div style={{
+                      width:isMobile?280:210,
+                      flexShrink:0,
+                      background:C.surface,
+                      border:`1px solid ${C.border}`,
+                      borderRadius:isMobile?0:8,
+                      overflow:"hidden",
+                      position:isMobile?"fixed":"relative",
+                      top:isMobile?0:"auto",
+                      left:isMobile?0:"auto",
+                      bottom:isMobile?0:"auto",
+                      zIndex:isMobile?360:"auto",
+                    }}>
+                      {isMobile&&(
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",borderBottom:`1px solid ${C.border}`}}>
+                          <span style={{fontSize:12,fontWeight:700}}>📁 Files</span>
+                          <button style={{...S.btn("ghost"),padding:"6px 10px",fontSize:16}} onClick={()=>setMobileFileTreeOpen(false)}>✕</button>
+                        </div>
+                      )}
+                      <div style={{height:isMobile?"calc(100% - 50px)":"100%",overflow:"auto"}}>
+                        <FileTree files={hub.files||{}} activeFile={hub.activeFile} customFolders={hub.customFolders||[]}
+                          onSelect={path=>{
+                            setProjects(prev=>prev.map(p=>p.id===hubId?{...p,activeFile:path}:p));
+                            projectsApi.setActiveFile(hubId,path).catch(()=>{});
+                            fetchMetadata(hubId,path);
+                            if(isMobile) setMobileFileTreeOpen(false);
+                          }}
+                          onNewFile={()=>setModal("new-file")}
+                          onDelete={path=>deleteFile(hubId,path)}/>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Roadmap 2.3: Editor pane now in flex layout with metadata panel */}
-                <div style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden",display:"flex",flexDirection:"row",position:"relative"}}
+                <div style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:isMobile?0:8,overflow:"hidden",display:"flex",flexDirection:isMobile?"column":"row",position:"relative",marginLeft:isMobile?0:"auto"}}
                   onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>handleDrop(e,hubId)}>
                   <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-                    {dragOver&&<div style={{position:"absolute",inset:0,background:"rgba(26,79,214,0.12)",border:`2px dashed ${C.blue}`,borderRadius:8,zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}><span style={{fontSize:14,color:C.blue}}>Drop to stage →</span></div>}
-                    {hub.activeFile&&<div style={{padding:"4px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",background:C.bg}}>
+                    {dragOver&&<div style={{position:"absolute",inset:0,background:"rgba(26,79,214,0.12)",border:`2px dashed ${C.blue}`,borderRadius:isMobile?0:8,zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}><span style={{fontSize:14,color:C.blue}}>Drop to stage →</span></div>}
+                    {hub.activeFile&&<div style={{padding:"4px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",background:C.bg,marginTop:isMobile?50:0}}>
                       <span style={{fontSize:8,color:C.dim,textTransform:"uppercase",letterSpacing:"0.1em",flexShrink:0}}>tags</span>
                       <QuickTagRow entityType="file" entityId={`${hubId}/${hub.activeFile}`}/>
                     </div>}
                     {hub.activeFile&&(() => {const fileType=getFileType(hub.activeFile);const content=(hub.files||{})[hub.activeFile]||"";if(fileType==="image")return <ImageViewer path={hub.activeFile} content={content}/>;if(fileType==="audio")return <AudioPlayer path={hub.activeFile} content={content}/>;if(fileType==="video")return <VideoPlayer path={hub.activeFile} content={content}/>;if(fileType==="binary"||fileType==="document"||fileType==="archive")return <BinaryViewer path={hub.activeFile} content={content}/>;return <MarkdownEditor path={hub.activeFile} content={content} onChange={()=>{}} onSave={handleHubSave} saving={saving} files={hub.files||{}}/>;})()||null}
                   </div>
 
-                  {/* Metadata panel (right side) */}
-                  {hub.activeFile&&<MetadataEditor file={hub.activeFile} projectId={hubId} metadata={fileMetadata} onSave={data=>saveMetadata(hubId,hub.activeFile,data)} allTags={userTags} aiSuggestions={aiSuggestions} onRequestSuggestions={requestAiSuggestions} loadingSuggestions={loadingAiSuggestions} onAcceptSuggestion={acceptAiSuggestion}/>}
+                  {/* Metadata panel (right side) - hidden on mobile */}
+                  {hub.activeFile&&!isMobile&&<MetadataEditor file={hub.activeFile} projectId={hubId} metadata={fileMetadata} onSave={data=>saveMetadata(hubId,hub.activeFile,data)} allTags={userTags} aiSuggestions={aiSuggestions} onRequestSuggestions={requestAiSuggestions} loadingSuggestions={loadingAiSuggestions} onAcceptSuggestion={acceptAiSuggestion}/>}
                 </div>
               </div>
             )}
 
             {hubTab==="overview"&&(
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:10}}>
                 <div style={S.card(true)}>
                   <span style={S.label()}>Status</span>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10}}>
+                  <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:6,marginBottom:10}}>
                     {[{l:"Phase",v:hub.phase},{l:"Status",v:<BadgeStatus status={hub.status}/>},{l:"Priority",v:`#${hub.priority}`},{l:"Health",v:<HealthBar score={hub.health}/>},{l:"Momentum",v:<Dots n={hub.momentum}/>},{l:"Income",v:`${activeGoal?.currency==='USD'?'$':activeGoal?.currency==='EUR'?'€':'£'}${hub.incomeTarget||0}/mo`}].map(r=>(
                       <div key={r.l} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:5,padding:"7px 10px"}}>
                         <div style={{fontSize:8,color:C.dim,textTransform:"uppercase",marginBottom:3}}>{r.l}</div>
@@ -2903,7 +3080,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   <span style={{fontSize:10,color:C.blue,letterSpacing:"0.1em",textTransform:"uppercase"}}>📁 All Folders</span>
                   <button style={S.btn("ghost")} onClick={()=>setModal("new-custom-folder")}>+ Custom Folder</button>
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:8}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(auto-fill,minmax(220px,1fr))",gap:8}}>
                   {hubAllFolders.map(f=>{
                     const files=hub.files||{};
                     const count=Object.keys(files).filter(k=>k.startsWith(f.id+"/")&&!k.endsWith(".gitkeep")).length;
@@ -3081,7 +3258,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 />
 
                 {/* Manifest and Folder Summary */}
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:10}}>
                   <div style={S.card(false)}>
                     <span style={S.label()}>manifest.json <span style={S.badge(C.purple)}>portability contract</span></span>
                     <pre style={{fontSize:9,color:C.muted,background:C.bg,border:`1px solid ${C.border}`,borderRadius:5,padding:12,overflow:"auto",maxHeight:300,lineHeight:1.6,margin:0}}>{(hub.files||{})["manifest.json"]||"{}"}</pre>
@@ -3206,8 +3383,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
           {mainTab==="command"&&(
             <div>
-              {/* Area summary cards */}
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10,marginBottom:14}}>
+              {/* Area summary cards - stack on mobile */}
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(auto-fill,minmax(220px,1fr))",gap:10,marginBottom:14}}>
                 {areaStats.map(a=>(
                   <div key={a.id} style={S.card(activeAreaFilter===a.id, a.color)} onClick={()=>setActiveAreaFilter(activeAreaFilter===a.id?null:a.id)}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
@@ -3252,16 +3429,18 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   <span style={{fontSize:10,color:C.green,letterSpacing:"0.11em",textTransform:"uppercase"}}>🥋 Training This Week</span>
                   <button style={{...S.btn("success"),fontSize:9}} onClick={()=>setShowTrainingModal(true)}>+ Log Training</button>
                 </div>
-                <div style={{display:"flex",gap:16,alignItems:"center"}}>
-                  <div style={{textAlign:"center"}}>
-                    <div style={{fontSize:22,fontWeight:700,color:weeklyTraining.count>=3?C.green:weeklyTraining.count>=1?C.amber:C.dim}}>{weeklyTraining.count}</div>
-                    <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>Sessions</div>
+                <div style={{display:"flex",gap:isMobile?8:16,alignItems:isMobile?"flex-start":"center",flexDirection:isMobile?"column":"row"}}>
+                  <div style={{display:"flex",gap:16}}>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:22,fontWeight:700,color:weeklyTraining.count>=3?C.green:weeklyTraining.count>=1?C.amber:C.dim}}>{weeklyTraining.count}</div>
+                      <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>Sessions</div>
+                    </div>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:22,fontWeight:700,color:C.blue}}>{weeklyTraining.minutes}</div>
+                      <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>Minutes</div>
+                    </div>
                   </div>
-                  <div style={{textAlign:"center"}}>
-                    <div style={{fontSize:22,fontWeight:700,color:C.blue}}>{weeklyTraining.minutes}</div>
-                    <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>Minutes</div>
-                  </div>
-                  <div style={{flex:1}}>
+                  <div style={{flex:1,width:isMobile?"100%":"auto"}}>
                     <div style={{height:6,background:C.border,borderRadius:3,overflow:"hidden"}}>
                       <div style={{width:`${Math.min(100,Math.round(weeklyTraining.count/3*100))}%`,height:"100%",background:weeklyTraining.count>=3?C.green:C.amber,borderRadius:3,transition:"width 0.3s"}}/>
                     </div>
@@ -3276,16 +3455,18 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   <span style={{fontSize:10,color:C.purple,letterSpacing:"0.11em",textTransform:"uppercase"}}>📣 Outreach</span>
                   <button style={{...S.btn("ghost"),fontSize:9,borderColor:C.purple+"50",color:C.purple}} onClick={()=>setShowOutreachModal(true)}>+ Log</button>
                 </div>
-                <div style={{display:"flex",gap:16,alignItems:"center"}}>
-                  <div style={{textAlign:"center"}}>
-                    <div style={{fontSize:22,fontWeight:700,color:todayOutreach.length>0?C.purple:C.dim}}>{todayOutreach.length}</div>
-                    <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>Today</div>
+                <div style={{display:"flex",gap:isMobile?8:16,alignItems:isMobile?"flex-start":"center",flexDirection:isMobile?"column":"row"}}>
+                  <div style={{display:"flex",gap:16}}>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:22,fontWeight:700,color:todayOutreach.length>0?C.purple:C.dim}}>{todayOutreach.length}</div>
+                      <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>Today</div>
+                    </div>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:22,fontWeight:700,color:C.blue}}>{weeklyOutreach}</div>
+                      <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>This week</div>
+                    </div>
                   </div>
-                  <div style={{textAlign:"center"}}>
-                    <div style={{fontSize:22,fontWeight:700,color:C.blue}}>{weeklyOutreach}</div>
-                    <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>This week</div>
-                  </div>
-                  <div style={{flex:1}}>
+                  <div style={{flex:1,width:isMobile?"100%":"auto"}}>
                     {todayOutreach.length>0?(
                       <div style={{display:"flex",flexDirection:"column",gap:3}}>
                         {todayOutreach.slice(-3).map((o,i)=>(
@@ -3393,7 +3574,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   <button style={{...S.btn("success"),fontSize:11,padding:"8px 16px"}} onClick={()=>setModal("new-project")}>+ New Project → Bootstrap</button>
                 </div>
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:8,marginBottom:14}}>
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(auto-fill,minmax(180px,1fr))",gap:8,marginBottom:14}}>
                 {BOOTSTRAP_STEPS.map((s,i)=>(
                   <div key={s.id} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"10px 12px"}}>
                     <div style={{fontSize:16,marginBottom:4}}>{s.icon}</div>
@@ -3433,7 +3614,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             <div>
               <div style={S.card(false)}>
                 <span style={S.label()}>🌀 Stage Something</span>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:6}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:6,marginBottom:6}}>
                   <select style={S.sel} value={newStaging.tag} onChange={e=>setNewStaging(s=>({...s,tag:e.target.value}))}>{ITEM_TAGS.map(t=><option key={t}>{t}</option>)}</select>
                   <select style={S.sel} value={newStaging.project} onChange={e=>setNewStaging(s=>({...s,project:e.target.value}))}>{projects.map(p=><option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}</select>
                 </div>
@@ -3480,7 +3661,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                     <button style={S.btn("primary")} onClick={()=>copy(buildBrief(activeSkill,briefProj))}>{copied?"✓ Copied!":"📋 Copy Briefing"}</button>
                   </div>
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:10}}>
                   <div><span style={S.label()}>SOP</span>{sk.sop.map((s,i)=><div key={i} style={{fontSize:10,color:C.muted,padding:"3px 0",borderBottom:`1px solid ${C.border}`,lineHeight:1.5}}>{i+1}. {s}</div>)}</div>
                   <div><span style={S.label(C.green)}>Permissions</span>{sk.permissions.map(p=><div key={p} style={{fontSize:10,color:C.green,padding:"2px 0"}}>✅ {p}</div>)}<span style={{...S.label(C.red),marginTop:8}}>agent.ignore</span>{sk.ignore.map(p=><div key={p} style={{fontSize:10,color:C.red,padding:"2px 0"}}>🚫 {p}</div>)}</div>
                 </div>
@@ -3511,7 +3692,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
           )}
 
           {mainTab==="integrations"&&(
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>
               {integrations.map(int=>(
                 <div key={int.id} style={S.card(showInt===int.id)}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
