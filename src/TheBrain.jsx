@@ -747,6 +747,331 @@ const SearchModal=({isOpen,onClose,projects,searchRes,runSearch,searchFilters,se
   </div>;
 };
 
+// ═══════════════════════════════════════════════════════════
+// ONBOARDING WIZARD (Phase 4.2)
+// ═══════════════════════════════════════════════════════════
+const OnboardingWizard=({user,templates,areas,onComplete,onSkip,onCreateGoal,onCreateProject,isMobile})=>{
+  const [step,setStep]=useState(1);
+  const [useCases,setUseCases]=useState([]);
+  const [goalForm,setGoalForm]=useState({title:"",target_amount:5000,currency:"USD",timeframe:"monthly",category:"income"});
+  const [selectedTemplate,setSelectedTemplate]=useState(null);
+  const [projectName,setProjectName]=useState("");
+  const [creating,setCreating]=useState(false);
+  
+  const totalSteps=4;
+  const progress=step/totalSteps;
+  
+  const useCaseOptions=[
+    {id:"business",icon:"💼",label:"Business / Work",desc:"Projects, clients, revenue goals"},
+    {id:"creative",icon:"🎨",label:"Creative Projects",desc:"Art, writing, design, music"},
+    {id:"health",icon:"💪",label:"Health & Fitness",desc:"Training, nutrition, wellness"},
+    {id:"personal",icon:"👤",label:"Personal / Life",desc:"Organization, learning, growth"},
+  ];
+  
+  const suggestedTemplates={
+    business:["BUIDL Framework","Software Project"],
+    creative:["Content Project"],
+    health:["Health & Fitness"],
+    personal:["Blank"],
+  };
+  
+  const suggestedGoals={
+    business:{title:"Reach $5k MRR",target_amount:5000,currency:"USD"},
+    creative:{title:"Launch 3 Projects",target_amount:3,currency:"USD"},
+    health:{title:"Train 150 Times",target_amount:150,currency:"USD"},
+    personal:{title:"Save $10,000",target_amount:10000,currency:"USD"},
+  };
+  
+  // Auto-suggest based on use cases
+  useEffect(()=>{
+    if(useCases.length>0){
+      const primary=useCases[0];
+      const suggestion=suggestedGoals[primary];
+      if(suggestion&&!goalForm.title){
+        setGoalForm(f=>({...f,...suggestion}));
+      }
+      // Auto-select template
+      const templateNames=suggestedTemplates[primary]||["Blank"];
+      const template=templates.find(t=>templateNames.includes(t.name));
+      if(template)setSelectedTemplate(template.id);
+      // Auto-fill project name
+      if(!projectName){
+        setProjectName(`${user?.name?.split(' ')[0]||'My'}'s First Project`);
+      }
+    }
+  },[useCases]);
+  
+  const toggleUseCase=(id)=>{
+    setUseCases(prev=>prev.includes(id)?prev.filter(u=>u!==id):[...prev,id]);
+  };
+  
+  const handleCreate=async()=>{
+    setCreating(true);
+    try{
+      // Step 2: Create goal
+      let goalId=null;
+      if(goalForm.title){
+        const goal=await onCreateGoal(goalForm);
+        goalId=goal?.id;
+      }
+      
+      // Step 3: Create project
+      const project=await onCreateProject({
+        name:projectName,
+        templateId:selectedTemplate,
+        goalId,
+      });
+      
+      onComplete(project);
+    }catch(e){
+      console.error("Onboarding error:",e);
+    }finally{
+      setCreating(false);
+    }
+  };
+  
+  const modalWidth=isMobile?"100vw":"500px";
+  const modalHeight=isMobile?"100vh":"auto";
+  const modalMaxHeight=isMobile?"100vh":"85vh";
+  
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:500,display:"flex",alignItems:isMobile?"flex-start":"center",justifyContent:"center",background:C.bg}}>
+      <div style={{width:modalWidth,height:modalHeight,maxHeight:modalMaxHeight,background:C.surface,border:isMobile?"none":`1px solid ${C.border}`,borderRadius:isMobile?0:12,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        
+        {/* Header */}
+        <div style={{padding:isMobile?"20px 16px 12px":"24px 24px 16px",borderBottom:`1px solid ${C.border}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <span style={{fontSize:isMobile?16:14,fontWeight:700,color:"#f1f5f9"}}>Welcome to The Brain 🧠</span>
+            <button style={{...S.btn("ghost"),fontSize:9,padding:"6px 12px"}} onClick={onSkip}>I know what I'm doing →</button>
+          </div>
+          
+          {/* Progress bar */}
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {[1,2,3,4].map(i=> (
+              <div key={i} style={{flex:1,height:4,borderRadius:2,background:i<=step?C.blue:C.border,transition:"background 0.3s"}}/>
+            ))}
+          </div>
+          <div style={{fontSize:9,color:C.dim,marginTop:6,textAlign:"center"}}>Step {step} of {totalSteps}</div>
+        </div>
+        
+        {/* Content */}
+        <div style={{flex:1,overflowY:"auto",padding:isMobile?"16px":"24px"}}>
+          
+          {/* Step 1: Welcome / Use Cases */}
+          {step===1&&(
+            <div>
+              <div style={{fontSize:isMobile?20:18,fontWeight:700,color:"#f1f5f9",marginBottom:8}}>What will you use The Brain for?</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:20}}>Select all that apply. This helps us set up your first project.</div>
+              
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:10}}>
+                {useCaseOptions.map(uc=>{
+                  const selected=useCases.includes(uc.id);
+                  return(
+                    <button key={uc.id} onClick={()=>toggleUseCase(uc.id)} style={{background:selected?`${C.blue}15`:C.bg,border:`2px solid ${selected?C.blue:C.border}`,borderRadius:10,padding:16,textAlign:"left",cursor:"pointer",transition:"all 0.2s"}}>
+                      <div style={{fontSize:28,marginBottom:8}}>{uc.icon}</div>
+                      <div style={{fontSize:12,fontWeight:600,color:selected?"#f1f5f9":C.text,marginBottom:4}}>{uc.label}</div>
+                      <div style={{fontSize:9,color:C.muted}}>{uc.desc}</div>
+                      {selected&&<div style={{marginTop:8,fontSize:10,color:C.blue}}>✓ Selected</div>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          
+          {/* Step 2: Goal */}
+          {step===2&&(
+            <div>
+              <div style={{fontSize:isMobile?20:18,fontWeight:700,color:"#f1f5f9",marginBottom:8}}>Set your first goal</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:20}}>What are you working toward? You can always change this later.</div>
+              
+              <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:16}}>
+                <div style={{marginBottom:12}}>
+                  <span style={S.label()}>Goal Title</span>
+                  <input style={S.input} value={goalForm.title} onChange={e=>setGoalForm(f=>({...f,title:e.target.value}))} placeholder="e.g., Reach $5k MRR"/>
+                </div>
+                
+                <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:10,marginBottom:12}}>
+                  <div>
+                    <span style={S.label()}>Target</span>
+                    <input style={S.input} type="number" value={goalForm.target_amount} onChange={e=>setGoalForm(f=>({...f,target_amount:parseInt(e.target.value)||0}))}/>
+                  </div>
+                  <div>
+                    <span style={S.label()}>Currency</span>
+                    <select style={S.sel} value={goalForm.currency} onChange={e=>setGoalForm(f=>({...f,currency:e.target.value}))}>
+                      <option value="USD">USD ($)</option>
+                      <option value="EUR">EUR (€)</option>
+                      <option value="GBP">GBP (£)</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <span style={S.label()}>Timeframe</span>
+                  <select style={S.sel} value={goalForm.timeframe} onChange={e=>setGoalForm(f=>({...f,timeframe:e.target.value}))}>
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div style={{marginTop:16,padding:12,background:`${C.blue}10`,borderRadius:8,border:`1px solid ${C.blue}30`}}>
+                <div style={{fontSize:10,color:C.blue}}>💡 Tip: Goals in The Brain track your project's income contributions automatically.</div>
+              </div>
+            </div>
+          )}
+          
+          {/* Step 3: Project */}
+          {step===3&&(
+            <div>
+              <div style={{fontSize:isMobile?20:18,fontWeight:700,color:"#f1f5f9",marginBottom:8}}>Create your first project</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:20}}>A project is a workspace for your work. Choose a template to get started quickly.</div>
+              
+              <div style={{marginBottom:16}}>
+                <span style={S.label()}>Project Name</span>
+                <input style={S.input} value={projectName} onChange={e=>setProjectName(e.target.value)} placeholder="My Awesome Project"/>
+              </div>
+              
+              <span style={S.label()}>Choose a Template</span>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {templates.filter(t=>t.is_system).map(t=>{
+                  const selected=selectedTemplate===t.id;
+                  const suggested=useCases.length>0&&suggestedTemplates[useCases[0]]?.includes(t.name);
+                  return(
+                    <button key={t.id} onClick={()=>setSelectedTemplate(t.id)} style={{background:selected?`${C.blue}15`:C.bg,border:`2px solid ${selected?C.blue:suggested?`${C.green}50`:C.border}`,borderRadius:8,padding:12,textAlign:"left",cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>
+                      <span style={{fontSize:24}}>{t.icon}</span>
+                      <div style={{flex:1}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{fontSize:12,fontWeight:600,color:selected?"#f1f5f9":C.text}}>{t.name}</span>
+                          {suggested&&<span style={{...S.badge(C.green),fontSize:8}}>Recommended</span>}
+                        </div>
+                        <div style={{fontSize:9,color:C.muted,marginTop:2}}>{t.description}</div>
+                      </div>
+                      {selected&&<span style={{color:C.blue,fontSize:14}}>✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          
+          {/* Step 4: Ready */}
+          {step===4&&(
+            <div>
+              <div style={{fontSize:isMobile?20:18,fontWeight:700,color:"#f1f5f9",marginBottom:8}}>You're all set! 🎉</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:24}}>Here's what we're creating for you:</div>
+              
+              <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:16,marginBottom:16}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12,paddingBottom:12,borderBottom:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:24}}>🎯</span>
+                  <div>
+                    <div style={{fontSize:10,color:C.dim,textTransform:"uppercase"}}>Goal</div>
+                    <div style={{fontSize:13,color:"#f1f5f9"}}>{goalForm.title||"No goal set"}</div>
+                  </div>
+                </div>
+                
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <span style={{fontSize:24}}>{templates.find(t=>t.id===selectedTemplate)?.icon||"📁"}</span>
+                  <div>
+                    <div style={{fontSize:10,color:C.dim,textTransform:"uppercase"}}>Project</div>
+                    <div style={{fontSize:13,color:"#f1f5f9"}}>{projectName||"Untitled Project"}</div>
+                    <div style={{fontSize:9,color:C.muted}}>{templates.find(t=>t.id===selectedTemplate)?.name||"Blank"} template</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{fontSize:10,color:C.muted,lineHeight:1.6}}>
+                After creating your project, we'll show you a quick tour of the key features.
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Footer */}
+        <div style={{padding:isMobile?"16px":"20px 24px",borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between"}}>
+          {step>1?(
+            <button style={{...S.btn("ghost"),minWidth:100}} onClick={()=>setStep(step-1)}>← Back</button>
+          ):<div/>}
+          
+          {step<4?(
+            <button 
+              style={{...S.btn("primary"),minWidth:120}} 
+              onClick={()=>setStep(step+1)}
+              disabled={step===1&&useCases.length===0}
+            >
+              Next →
+            </button>
+          ): (
+            <button 
+              style={{...S.btn("primary"),minWidth:140}} 
+              onClick={handleCreate}
+              disabled={creating||!selectedTemplate}
+            >
+              {creating?"Creating...":"Create Project →"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════
+// TOUR TOOLTIP COMPONENT (Phase 4.2)
+// ═══════════════════════════════════════════════════════════
+const TourTooltip=({step,totalSteps,title,content,position,targetRef,onNext,onSkip,onPrev,isMobile})=>{
+  const [coords,setCoords]=useState({top:0,left:0});
+  
+  useEffect(()=>{
+    if(targetRef?.current){
+      const rect=targetRef.current.getBoundingClientRect();
+      const tooltipWidth=320;
+      const tooltipHeight=180;
+      
+      let top=rect.bottom+16;
+      let left=rect.left+(rect.width/2)-(tooltipWidth/2);
+      
+      // Keep in viewport
+      if(left<16)left=16;
+      if(left+tooltipWidth>window.innerWidth-16)left=window.innerWidth-tooltipWidth-16;
+      if(top+tooltipHeight>window.innerHeight-16){
+        top=rect.top-tooltipHeight-16;
+      }
+      
+      setCoords({top,left});
+    }
+  },[targetRef,step]);
+  
+  return(
+    <>
+      {/* Spotlight overlay */}
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:450,pointerEvents:"none"}}/>
+      
+      {/* Tooltip */}
+      <div style={{position:"fixed",top:coords.top,left:coords.left,width:isMobile?"calc(100vw - 32px)":320,background:C.surface,border:`2px solid ${C.blue}`,borderRadius:12,padding:20,zIndex:460,boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <span style={{fontSize:10,color:C.blue,fontWeight:600}}>TOUR {step}/{totalSteps}</span>
+          <button style={{...S.btn("ghost"),padding:"4px 8px",fontSize:9}} onClick={onSkip}>Skip tour</button>
+        </div>
+        
+        <div style={{fontSize:14,fontWeight:700,color:"#f1f5f9",marginBottom:8}}>{title}</div>
+        <div style={{fontSize:11,color:C.text,lineHeight:1.6,marginBottom:16}}>{content}</div>
+        
+        <div style={{display:"flex",justifyContent:"space-between"}}>
+          {step>1?(
+            <button style={{...S.btn("ghost"),fontSize:10}} onClick={onPrev}>← Prev</button>
+          ):<div/>}
+          
+          <button style={{...S.btn("primary"),fontSize:10}} onClick={onNext}>
+            {step===totalSteps?"Got it!":"Next →"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+};
+
 // ── MARKDOWN EDITOR ───────────────────────────────────────────
 const MarkdownEditor=({path,content,onChange,onSave,saving,files={}})=>{
   const [mode,setMode]=useState("edit");
@@ -1443,6 +1768,17 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [importConflict,setImportConflict]   = useState(null); // {projectId, overwrite callback}
   const [renameValue,setRenameValue]         = useState("");
 
+  // Onboarding state (Phase 4.2)
+  const [showOnboarding,setShowOnboarding]   = useState(false);
+  const [tourStep,setTourStep]               = useState(0);
+  const [onboardingCompleted,setOnboardingCompleted] = useState(user?.onboarding_completed||false);
+  
+  // Tour refs (Phase 4.2)
+  const brainTabRef = useRef(null);
+  const hubTabRef = useRef(null);
+  const sessionTimerRef = useRef(null);
+  const aiCoachRef = useRef(null);
+
   // Persistence state
   const [saving,setSaving]   = useState(false);   // file save indicator
   const [toast,setToast]     = useState(null);    // {msg} or null
@@ -1568,6 +1904,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
         { name: "BUIDL Framework", icon: "🚀", category: "software", description: "The core BUIDL framework with all phases and standard folders.", config: { phases: ["BOOTSTRAP","UNLEASH","INNOVATE","DECENTRALIZE","LEARN","SHIP"], folders: STANDARD_FOLDERS.map(f=>f.id) }, is_system: true },
         { name: "Software Project", icon: "🛠", category: "software", description: "Code-focused project with planning, dev, and testing phases.", config: { phases: ["PLANNING", "DEVELOPMENT", "TESTING", "DEPLOYED"], folders: ["code-modules", "project-artifacts", "qa", "infrastructure", "system"] }, is_system: true },
         { name: "Content Project", icon: "✍️", category: "creative", description: "Content creation workflow from research to publishing.", config: { phases: ["RESEARCH", "DRAFTING", "REVIEW", "PUBLISHED"], folders: ["content-assets", "design-assets", "marketing", "system"] }, is_system: true },
+        { name: "Health & Fitness", icon: "💪", category: "health", description: "Track training, nutrition, goals, and wellness metrics.", config: { phases: ["ASSESS", "BUILD", "MAINTAIN", "OPTIMIZE"], folders: ["analytics", "project-artifacts", "content-assets", "system"] }, is_system: true },
         { name: "Blank", icon: "📄", category: "custom", description: "A minimal starting point with only core files.", config: { phases: [], folders: ["system"] }, is_system: true }
       ];
       Promise.all(defaults.map(d => templatesApi.create(d))).then(() => {
@@ -1935,6 +2272,15 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     }
   },[hubId,hub?.activeFile,requestAiSuggestions,userSettings?.aiMetadataAutoSuggest]);
 
+  // ── ONBOARDING CHECK (Phase 4.2) ─────────────────────────────
+  useEffect(()=>{
+    // Check if onboarding should be shown
+    if(user&&!onboardingCompleted&&projects.length===0&&templates.length>0){
+      const timer=setTimeout(()=>setShowOnboarding(true),500);
+      return()=>clearTimeout(timer);
+    }
+  },[user,onboardingCompleted,projects.length,templates.length]);
+
   const addCustomFolder=async(projId,folder)=>{
     setProjects(prev=>prev.map(p=>{
       if(p.id!==projId)return p;
@@ -1971,6 +2317,72 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       showToast("✓ Project created");
       setBootstrapWiz(id);
     }catch(e){showToast("⚠ Failed to save project to database");}
+  };
+
+  // ── ONBOARDING HANDLERS (Phase 4.2) ─────────────────────────
+  const handleOnboardingCreateGoal=async(goalData)=>{
+    try{
+      const res=await goalsApi.create(goalData);
+      const updated=await goalsApi.list();
+      setGoals(updated.goals||[]);
+      if(res.id) setActiveGoalId(res.id);
+      return res;
+    }catch(e){
+      console.error("Failed to create goal during onboarding:",e);
+      return null;
+    }
+  };
+
+  const handleOnboardingCreateProject=async({name,templateId,goalId})=>{
+    const id=name.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"")+"-"+Date.now().toString(36);
+    const template=templates.find(t=>t.id===templateId);
+    const phase=template?.config?.phases?.[0]||"BOOTSTRAP";
+    
+    const proj=makeProject(id,name,template?.icon||"📁",phase,"active",1,false,"","Run Bootstrap Protocol → define scope with agents",[],["new"],3,new Date().toISOString().slice(0,7),0,[],[],template?.config);
+    proj.areaId=null;
+    
+    setProjects(prev=>[...prev,proj]);
+    setFocusId(id);
+    
+    try{
+      await projectsApi.create(proj);
+      for(const [path,content] of Object.entries(proj.files)){
+        await projectsApi.saveFile(id,path,content);
+      }
+      showToast("✓ Project created");
+      return proj;
+    }catch(e){
+      showToast("⚠ Failed to create project");
+      return null;
+    }
+  };
+
+  const completeOnboarding=async(createdProject)=>{
+    setShowOnboarding(false);
+    setOnboardingCompleted(true);
+    
+    // Mark onboarding as completed in DB
+    try{
+      await settingsApi.update({onboarding_completed:true});
+    }catch(e){
+      console.error("Failed to save onboarding completion:",e);
+    }
+    
+    // Start tour if project was created
+    if(createdProject){
+      setTourStep(1);
+      openHub(createdProject.id);
+    }
+  };
+
+  const skipOnboarding=async()=>{
+    setShowOnboarding(false);
+    setOnboardingCompleted(true);
+    try{
+      await settingsApi.update({onboarding_completed:true});
+    }catch(e){
+      console.error("Failed to save onboarding skip:",e);
+    }
   };
 
   const updateProject=async(projId,updates)=>{
@@ -2447,8 +2859,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   <div style={{fontSize:18,fontWeight:700,color:"#f1f5f9",lineHeight:1.1}}>{view==="hub"&&hub?`${hub.emoji} ${hub.name}`:"THE BRAIN 🧠"}</div>
                 </div>
                 <div style={{display:"flex",gap:3}}>
-                  <button style={S.btn(view==="brain"?"primary":"ghost")} onClick={()=>setView("brain")}>🧠 Brain</button>
-                  {hub&&<button style={S.btn(view==="hub"?"primary":"ghost")} onClick={()=>setView("hub")}>🗂 Hub</button>}
+                  <button ref={brainTabRef} style={S.btn(view==="brain"?"primary":"ghost")} onClick={()=>setView("brain")}>🧠 Brain</button>
+                  {hub&&<button ref={hubTabRef} style={S.btn(view==="hub"?"primary":"ghost")} onClick={()=>setView("hub")}>🗂 Hub</button>}
                   <button style={{...S.btn("ghost"),fontSize:9}} onClick={()=>setModal("new-project")}>+ Project</button>
                 </div>
                 {/* Search - Phase 3.3: New Search Modal with Cmd+K */}
@@ -2463,7 +2875,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
               {/* Settings gear */}
               <button style={{...S.btn("ghost"),padding:"5px 8px",fontSize:14}} title="Settings" onClick={()=>{setSettingsForm({...userSettings});setModal("settings");}}>🔧</button>
               {/* Session timer */}
-              <div onClick={()=>{if(!sessionActive)setSessionOn(true);else endSession();}} style={{background:sessionActive?"rgba(16,185,129,0.08)":C.surface,border:`1px solid ${sessionActive?"#10b98140":C.border}`,borderRadius:6,padding:"5px 11px",textAlign:"center",cursor:"pointer"}}>
+              <div ref={sessionTimerRef} onClick={()=>{if(!sessionActive)setSessionOn(true);else endSession();}} style={{background:sessionActive?"rgba(16,185,129,0.08)":C.surface,border:`1px solid ${sessionActive?"#10b98140":C.border}`,borderRadius:6,padding:"5px 11px",textAlign:"center",cursor:"pointer"}}>
                 <div style={{fontSize:12,fontWeight:700,color:sessionActive?C.green:"#475569",fontVariantNumeric:"tabular-nums"}}>{sessionActive?fmtTime(sessionSecs):"▶ START"}</div>
                 <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>{sessionActive?"End & Log":"Session"}</div>
               </div>
@@ -2521,7 +2933,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
           {/* Tabs - scrollable on mobile */}
           <div style={{display:"flex",gap:0,overflowX:isMobile?"auto":"visible",flexWrap:isMobile?"nowrap":"wrap",WebkitOverflowScrolling:"touch"}}>
-            {view==="brain"?BRAIN_TABS.map(t=><button key={t.id} style={{...S.tab(mainTab===t.id),flexShrink:isMobile?0:"auto",padding:isMobile?"10px 16px":"7px 13px"}} onClick={()=>{setMainTab(t.id); if(t.id!=="command") setActiveAreaFilter(null);}}>{t.label}</button>)
+            {view==="brain"?BRAIN_TABS.map(t=><button key={t.id} ref={t.id==="ai"?aiCoachRef:null} style={{...S.tab(mainTab===t.id),flexShrink:isMobile?0:"auto",padding:isMobile?"10px 16px":"7px 13px"}} onClick={()=>{setMainTab(t.id); if(t.id!=="command") setActiveAreaFilter(null);}}>{t.label}</button>)
               :HUB_TABS.map(t=><button key={t.id} style={{...S.tab(hubTab===t.id,"#10b981"),flexShrink:isMobile?0:"auto",padding:isMobile?"10px 16px":"7px 13px"}} onClick={()=>setHubTab(t.id)}>{t.label}</button>)}
             {view==="hub"&&hub&&!isMobile&&<div style={{marginLeft:"auto",display:"flex",gap:4,paddingBottom:4}}>
               <button style={{...S.btn("ghost"),fontSize:9}} onClick={()=>setModal("new-custom-folder")}>+ Folder</button>
@@ -2607,6 +3019,15 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             <button style={S.btn("primary")} onClick={()=>newProjForm.name.trim()&&createProject(newProjForm)}>Create + Save to DB</button>
             <button style={S.btn("ghost")} onClick={()=>setModal(null)}>Cancel</button>
           </div>
+          
+          {/* Onboarding suggestion for new users (Phase 4.2) */}
+          {projects.length===0&&(
+            <div style={{marginTop:12,padding:"10px 12px",background:`${C.blue}08`,border:`1px solid ${C.blue}30`,borderRadius:6}}>
+              <div style={{fontSize:9,color:C.muted}}>
+                💡 <strong>New here?</strong> Try the <button style={{...S.btn("ghost"),fontSize:9,padding:"2px 6px",marginLeft:4}} onClick={()=>{setModal(null);setShowOnboarding(true);}}>onboarding wizard</button> for a guided setup.
+              </div>
+            </div>
+          )}
         </Modal>
       )}
 
@@ -2661,6 +3082,55 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       )}
 
       {bootstrapWizardId&&<BootstrapWizard project={projects.find(p=>p.id===bootstrapWizardId)} onComplete={brief=>completeBootstrap(bootstrapWizardId,brief)} onClose={()=>{setBootstrapWiz(null);openHub(bootstrapWizardId);}}/>}
+
+      {/* ── ONBOARDING WIZARD (Phase 4.2) ─────────────────────── */}
+      {showOnboarding&&(
+        <OnboardingWizard
+          user={user}
+          templates={templates}
+          areas={areas}
+          isMobile={isMobile}
+          onCreateGoal={handleOnboardingCreateGoal}
+          onCreateProject={handleOnboardingCreateProject}
+          onComplete={completeOnboarding}
+          onSkip={skipOnboarding}
+        />
+      )}
+
+      {/* ── TOUR TOOLTIP (Phase 4.2) ──────────────────────────── */}
+      {tourStep>0&&tourStep<=4&&(
+        <TourTooltip
+          step={tourStep}
+          totalSteps={4}
+          title={
+            tourStep===1?"🧠 Brain — Your Command Centre":
+            tourStep===2?"🗂 Hub — Project Workspace":
+            tourStep===3?"⚡ Session Timer — Track Focus":
+            "🤖 AI Coach — Get Help"
+          }
+          content={
+            tourStep===1?"The Brain tab shows your command centre — today's focus, area health, training stats, and goal progress. Switch between different views here.":
+            tourStep===2?"Each project has a Hub with files, editor, overview, and review pipeline. Create folders, write markdown, and organize your work.":
+            tourStep===3?"Click the timer to start a focused work session. When you're done, log what you accomplished — it gets saved to your DEVLOG.md automatically.":
+            "The AI Coach can help brainstorm, review code, or suggest next steps. It has full context of your project and can generate briefings for your agents."
+          }
+          targetRef={
+            tourStep===1?brainTabRef:
+            tourStep===2?hubTabRef:
+            tourStep===3?sessionTimerRef:
+            aiCoachRef
+          }
+          onNext={()=>{
+            if(tourStep===1)setView("hub");
+            if(tourStep===2&&sessionActive)setTourStep(4);
+            else if(tourStep<4)setTourStep(tourStep+1);
+            else setTourStep(0);
+          }}
+          onPrev={()=>setTourStep(Math.max(1,tourStep-1))}
+          onSkip={()=>setTourStep(0)}
+          isMobile={isMobile}
+        />
+      )}
 
       {modal==="manage-goals" && (
         <Modal title="Manage Goals" onClose={()=>setModal(null)} width={500}>
@@ -2735,6 +3205,17 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             <div style={{padding:"10px 12px",background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,fontFamily:`'${settingsForm.font}',monospace`,fontSize:settingsForm.fontSize,color:C.muted}}>
               Preview: THE BRAIN v6 · Wired Edition · Bootstrap → Thailand
             </div>
+            
+            {/* Onboarding re-trigger (Phase 4.2) */}
+            <div style={{padding:"12px",background:`${C.blue}08`,border:`1px solid ${C.blue}30`,borderRadius:6}}>
+              <div style={{fontSize:11,fontWeight:600,color:C.text,marginBottom:4}}>🎓 Getting Started</div>
+              <div style={{fontSize:9,color:C.muted,marginBottom:8}}>New to The Brain? Run the onboarding wizard again.</div>
+              <button style={{...S.btn("ghost"),fontSize:9,borderColor:C.blue,color:C.blue}} onClick={()=>{
+                setModal(null);
+                setShowOnboarding(true);
+              }}>Restart Onboarding</button>
+            </div>
+            
             <button style={S.btn("primary")} onClick={async ()=>{
               try{
                 await settingsApi.put(settingsForm);

@@ -6,6 +6,55 @@
 
 ## Session 041 — 2026-03-11
 **Branch:** `session-041-phase-4`
+**Task:** Phase 4.2 — Onboarding Flow
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented comprehensive onboarding flow with 4-step wizard and interactive tour.
+
+**Database Changes (`scripts/migrate.js`):**
+- Migration v18: Added `onboarding_completed BOOLEAN DEFAULT FALSE` to users table
+
+**New Template:**
+- "Health & Fitness" template (💪 icon)
+- Phases: ASSESS → BUILD → MAINTAIN → OPTIMIZE
+- Folders: analytics, project-artifacts, content-assets, system
+
+**OnboardingWizard Component:**
+- Step 1: Welcome — Multi-select use cases (Business, Creative, Health, Personal)
+- Step 2: Set Goal — Pre-filled suggestions based on use case
+- Step 3: Create Project — Template selection with smart recommendations
+- Step 4: Ready — Summary and confirmation
+- Full-screen on mobile, modal on desktop
+- Progress bar at top
+- Skip option: "I know what I'm doing →"
+
+**TourTooltip Component:**
+- Spotlight overlay (dimmed background)
+- 4-step interactive tour:
+  1. Brain tab — Command centre overview
+  2. Hub tab — Project workspace
+  3. Session Timer — Track focused work
+  4. AI Coach — Get help anytime
+- Prev/Next navigation
+- Skip tour option
+
+**Integration:**
+- Auto-triggers on login if: no projects AND onboarding not completed
+- Re-trigger from Settings: "Restart Onboarding" button
+- Re-trigger from New Project modal (when no projects exist)
+- Tour starts automatically after project creation
+
+**API Updates (`api/data.js`):**
+- Handle `onboarding_completed` in user settings
+
+**Done When**
+✅ New user can go from signup to working project in under 2 minutes
+
+---
+
+## Session 041 — 2026-03-11
+**Branch:** `session-041-phase-4`
 **Task:** Phase 4.1 — Mobile Responsive Layout
 **Status:** ✅ Complete
 
