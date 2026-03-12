@@ -471,15 +471,17 @@ _Make it work everywhere, reliably._
 - **Done when:** ✅ All tabs and features are usable on a phone screen
 - **How:** `useBreakpoint()` hook, conditional rendering with `isMobile` flag, slide-out drawers for nav and file tree, responsive grid layouts, floating session timer
 
-### 4.2 Onboarding flow `[UI]`
+### 4.2 Onboarding flow `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **First login detection:** Check if user has 0 projects
-- [ ] **Step 1:** Welcome screen — "What do you want to use The Brain for?" (multi-select: business, personal, creative, health, all of the above)
-- [ ] **Step 2:** Set your goal (or skip)
-- [ ] **Step 3:** Create first project — template picker
-- [ ] **Step 4:** Quick tour — highlight key UI areas
-- [ ] **Skip option:** "I know what I'm doing" bypasses everything
-- **Done when:** A brand new user can go from signup to working project in under 2 minutes
+- [x] **First login detection:** Check if user has 0 projects
+- [x] **Step 1:** Welcome screen — multi-select use cases (business, creative, health, personal)
+- [x] **Step 2:** Set goal — pre-filled suggestions based on use case, always saved to DB
+- [x] **Step 3:** Create first project — template picker with smart recommendations
+- [x] **Step 4:** Quick tour — spotlight tooltips highlighting Brain, Hub, Session Timer, AI Coach
+- [x] **Skip option:** "I know what I'm doing" bypasses everything
+- [x] **Re-trigger:** Available in Settings and New Project modal
+- **Done when:** ✅ A brand new user can go from signup to working project in under 2 minutes
+- **How:** `OnboardingWizard` component with 4 steps, `TourTooltip` with spotlight overlay, `useEffect` check on login, `settingsApi.update({onboarding_completed:true})` persistence
 
 ### 4.3 Integration connectors `[API]` `[CONFIG]`
 

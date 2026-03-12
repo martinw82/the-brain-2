@@ -246,6 +246,11 @@ const migrations = [
           FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
           UNIQUE KEY unique_sync_file (project_id, file_path)
         );`
+    },
+    {
+        version: 18,
+        name: 'add_onboarding_completed_to_users',
+        sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE AFTER settings;`
     }
 ];
 
