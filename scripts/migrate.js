@@ -251,6 +251,25 @@ const migrations = [
         version: 18,
         name: 'add_onboarding_completed_to_users',
         sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE AFTER settings;`
+    },
+    {
+        version: 19,
+        name: 'create_project_integrations_table',
+        sql: `CREATE TABLE IF NOT EXISTS project_integrations (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          project_id VARCHAR(36) NOT NULL,
+          provider VARCHAR(32) NOT NULL,
+          repo_owner VARCHAR(255) NOT NULL,
+          repo_name VARCHAR(255) NOT NULL,
+          branch VARCHAR(64) DEFAULT 'main',
+          access_token TEXT,
+          sync_enabled BOOLEAN DEFAULT TRUE,
+          last_sync_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY unique_project_provider (project_id, provider),
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );`
     }
 ];
 

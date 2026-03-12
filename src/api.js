@@ -477,6 +477,18 @@ export const ai = {
     post(`${BASE}/api/ai`, { prompt, system }),
 };
 
+// ── INTEGRATIONS (Phase 4.3) ─────────────────────────────────
+export const integrations = {
+  get: (projectId, provider) =>
+    get(`${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`),
+  connect: (projectId, provider, data) =>
+    post(`${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`, data),
+  update: (projectId, provider, data) =>
+    put(`${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`, data),
+  disconnect: (projectId, provider) =>
+    del(`${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`),
+};
+
 // ── IMPORT PARSERS ────────────────────────────────────────────
 export function parseBuildlFormat(text) {
   // Parse BUIDL export format: MANIFEST_START...MANIFEST_END, FILES_START...FILES_END

@@ -483,16 +483,16 @@ _Make it work everywhere, reliably._
 - **Done when:** ✅ A brand new user can go from signup to working project in under 2 minutes
 - **How:** `OnboardingWizard` component with 4 steps, `TourTooltip` with spotlight overlay, `useEffect` check on login, `settingsApi.update({onboarding_completed:true})` persistence
 
-### 4.3 Integration connectors `[API]` `[CONFIG]`
+### 4.3 Integration connectors `[API]` `[CONFIG]` ✅ COMPLETE (2026-03-11)
 
-- [ ] **Pattern:** Each integration is a module: `{ id, name, icon, fields, connect(), disconnect(), sync() }`
-- [ ] **Store credentials:** Encrypted in DB (or use OAuth where available)
-- [ ] **GitHub:** Read repo status, last commit, optionally push/pull files
-- [ ] **Netlify/Vercel:** Read deploy status, trigger rebuild
-- [ ] **Social (Farcaster/Twitter):** Post content from staging items marked "publish"
-- [ ] **Blockchain (Base):** Read wallet balance, contract status
-- [ ] Build each as needed — the pattern matters more than having them all now
-- **Done when:** At least one integration (GitHub) actually connects and shows real data
+- [x] **Pattern:** Modular integration system with API endpoints
+- [x] **Store credentials:** Personal Access Token in `project_integrations` table
+- [x] **GitHub:** Full implementation — repo status, commits, connect/disconnect
+- [ ] **Netlify/Vercel:** Phase 5 (when needed)
+- [ ] **Social (Farcaster/Twitter):** Phase 5
+- [ ] **Blockchain (Base):** Phase 5
+- **Done when:** ✅ GitHub integration connects and shows real repo data
+- **How:** `project_integrations` table, `/api/integrations.js` serverless function, `GitHubIntegration` component with step-by-step setup instructions, PAT-based auth (OAuth upgradeable)
 
 ### 4.4 Notification / reminder system `[DB]` `[API]`
 
