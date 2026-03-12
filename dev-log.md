@@ -6,6 +6,61 @@
 
 ## Session 041 — 2026-03-11
 **Branch:** `session-041-phase-4`
+**Task:** Phase 4.3 — GitHub Integration
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented GitHub integration for syncing Brain project files to GitHub repositories.
+
+**Database Changes (`scripts/migrate.js`):**
+- Migration v19: Created `project_integrations` table
+  - `id`, `project_id`, `provider`, `repo_owner`, `repo_name`, `branch`
+  - `access_token`, `sync_enabled`, `last_sync_at`, timestamps
+  - Unique constraint: `unique_project_provider`
+
+**API (`api/integrations.js`):**
+- New serverless function for GitHub integration
+- `GET` — fetch integration status + live repo data (commits, stars, forks)
+- `POST` — connect integration (validates token against GitHub API)
+- `PUT` — update settings (sync_enabled, branch)
+- `DELETE` — disconnect integration
+- GitHub API v3 integration with proper error handling
+
+**Client API (`src/api.js`):**
+- Added `integrations` wrapper with get/connect/update/disconnect methods
+
+**UI Component (`GitHubIntegration`):**
+- Project selector dropdown
+- Help box with expandable explanation of integration
+- Clear instructions: "What is GitHub Integration?"
+- **Not Connected state**: CTA to connect with visual
+- **Connected state**: 
+  - Repo card with stats (stars, forks, issues)
+  - Open Repo button, Disconnect button
+  - Recent commits list (last 5)
+  - Last sync timestamp
+- **Connection Error state**: Reconnect/Disconnect options
+- **Connect Modal**:
+  - Step-by-step instructions with numbered list
+  - Link to GitHub token settings
+  - Fields: Owner, Repo, Branch, Personal Access Token
+  - Tooltips explaining each field
+  - Error handling with clear messages
+
+**Design Decisions:**
+- Personal Access Token (PAT) instead of OAuth (can upgrade later)
+- 1:1 mapping (1 Brain Project ↔ 1 GitHub Repo)
+- Planning files only (PROJECT_OVERVIEW.md, specs, docs)
+- Code repos linked separately in markdown
+- Live data fetch from GitHub API (not cached in DB)
+
+**Done When**
+✅ User can connect a Brain project to a GitHub repo and see repo data + recent commits
+
+---
+
+## Session 041 — 2026-03-11
+**Branch:** `session-041-phase-4`
 **Task:** Phase 4.2 — Onboarding Flow
 **Status:** ✅ Complete
 

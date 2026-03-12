@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 8.0 (Phase 4.2 Complete — Onboarding Flow)
+**Version:** 8.1 (Phase 4.3 Complete — GitHub Integration)
 **Live URL:** the-brain-2.vercel.app
 **Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, Phase 3.1–3.6, and Phase 4.1–4.2 complete; Phase 4.3–4.4 next
+**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, Phase 3.1–3.6, and Phase 4.1–4.3 complete; Phase 4.4 next
 
 ---
 
@@ -79,6 +79,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **script_execution** — ScriptRunner component, sandboxed JS execution, predefined scripts, /tools/ folder (Phase 3.6)
 - **onboarding** — `onboarding_completed` flag in users table, 4-step wizard, interactive tour (Phase 4.2)
 - **health_fitness_template** — New system template with phases: ASSESS → BUILD → MAINTAIN → OPTIMIZE (Phase 4.2)
+- **github_integration** — `project_integrations` table, PAT auth, repo status + commits, connect/disconnect UI (Phase 4.3)
 
 ---
 
