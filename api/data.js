@@ -1429,6 +1429,496 @@ Provide metadata suggestions as JSON.`;
       }
     }
 
+    // ── NOTIFICATIONS (Phase 4.4) ─────────────────────────────
+    if (resource === 'notifications') {
+      // GET: list notifications with unread count
+      if (req.method === 'GET') {
+        const { unread_only, limit } = req.query;
+        let query = 'SELECT * FROM notifications WHERE user_id = ?';
+        const params = [auth.userId];
+        
+        if (unread_only === 'true') {
+          query += ' AND read = FALSE';
+        }
+        
+        query += ' ORDER BY created_at DESC';
+        
+        if (limit) {
+          query += ' LIMIT ?';
+          params.push(parseInt(limit));
+        }
+        
+        const [rows] = await db.execute(query, params);
+        const [countRows] = await db.execute(
+          'SELECT COUNT(*) as unread FROM notifications WHERE user_id = ? AND read = FALSE',
+          [auth.userId]
+        );
+        
+        return ok(res, { notifications: rows, unread_count: countRows[0]?.unread || 0 });
+      }
+      
+      // POST: create notification (manual or from triggers)
+      if (req.method === 'POST') {
+        const { type, message, action_url, expires_at } = req.body || {};
+        if (!type || !message) return err(res, 'type and message required');
+        
+        const id = crypto.randomUUID();
+        await db.execute(
+          'INSERT INTO notifications (id, user_id, type, message, action_url, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
+          [id, auth.userId, type, message, action_url || null, expires_at || null]
+        );
+        return ok(res, { success: true, id }, 201);
+      }
+      
+      // PUT: mark as read or mark all read
+      if (req.method === 'PUT') {
+        const { action } = req.query;
+        
+        if (action === 'mark-all-read') {
+          await db.execute(
+            'UPDATE notifications SET read = TRUE WHERE user_id = ? AND read = FALSE',
+            [auth.userId]
+          );
+          return ok(res, { success: true });
+        }
+        
+        if (resourceId) {
+          await db.execute(
+            'UPDATE notifications SET read = TRUE WHERE id = ? AND user_id = ?',
+            [resourceId, auth.userId]
+          );
+          return ok(res, { success: true });
+        }
+        
+        return err(res, 'id or action required');
+      }
+      
+      // DELETE: remove notification
+      if (req.method === 'DELETE' && resourceId) {
+        await db.execute('DELETE FROM notifications WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+        return ok(res, { success: true });
+      }
+    }
+    
+    // ── NOTIFICATION TRIGGERS (Phase 4.4) ─────────────────────
+    if (resource === 'notification-check') {
+      if (req.method === 'GET') {
+        const today = new Date().toISOString().split('T')[0];
+        const now = new Date().toISOString();
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const sevenDaysAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        
+        const notificationsCreated = [];
+        
+        // Check 1: Daily check-in not done
+        const [checkinRows] = await db.execute(
+          'SELECT id FROM daily_checkins WHERE user_id = ? AND date = ?',
+          [auth.userId, today]
+        );
+        if (checkinRows.length === 0) {
+          // Check if we already created this notification today
+          const [existing] = await db.execute(
+            `SELECT id FROM notifications WHERE user_id = ? AND type = 'daily_checkin' 
+             AND created_at >= DATE_SUB(NOW(), INTERVAL 12 HOUR)`,
+            [auth.userId]
+          );
+          if (existing.length === 0) {
+            const id = crypto.randomUUID();
+            await db.execute(
+              'INSERT INTO notifications (id, user_id, type, message, action_url) VALUES (?, ?, ?, ?, ?)',
+              [id, auth.userId, 'daily_checkin', "🌅 Daily check-in not completed — track your energy and health", '/?action=checkin']
+            );
+            notificationsCreated.push({ type: 'daily_checkin', id });
+          }
+        }
+        
+        // Check 2: Training minimum not met by end of week (Friday check)
+        const dayOfWeek = new Date().getDay(); // 0 = Sunday, 5 = Friday
+        if (dayOfWeek === 5) {
+          const [trainingRows] = await db.execute(
+            `SELECT COUNT(*) as count FROM training_logs 
+             WHERE user_id = ? AND date >= ?`,
+            [auth.userId, sevenDaysAgo]
+          );
+          if (trainingRows[0].count < 3) {
+            const [existing] = await db.execute(
+              `SELECT id FROM notifications WHERE user_id = ? AND type = 'training_weekly' 
+               AND created_at >= ?`,
+              [auth.userId, sevenDaysAgoISO]
+            );
+            if (existing.length === 0) {
+              const id = crypto.randomUUID();
+              await db.execute(
+                'INSERT INTO notifications (id, user_id, type, message, action_url) VALUES (?, ?, ?, ?, ?)',
+                [id, auth.userId, 'training_weekly', `🥋 Training goal not met — ${trainingRows[0].count}/3 sessions this week`, '/?action=training']
+              );
+              notificationsCreated.push({ type: 'training_weekly', id });
+            }
+          }
+        }
+        
+        // Check 3: Project health dropped below 50
+        const [lowHealthProjects] = await db.execute(
+          'SELECT id, name, health FROM projects WHERE user_id = ? AND health < 50',
+          [auth.userId]
+        );
+        for (const proj of lowHealthProjects) {
+          const [existing] = await db.execute(
+            `SELECT id FROM notifications WHERE user_id = ? AND type = 'project_health' 
+             AND action_url LIKE ? AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`,
+            [auth.userId, `%${proj.id}%`]
+          );
+          if (existing.length === 0) {
+            const id = crypto.randomUUID();
+            await db.execute(
+              'INSERT INTO notifications (id, user_id, type, message, action_url) VALUES (?, ?, ?, ?, ?)',
+              [id, auth.userId, 'project_health', `⚠️ ${proj.name} health dropped to ${proj.health} — needs attention`, `/?hub=${proj.id}`]
+            );
+            notificationsCreated.push({ type: 'project_health', id, project: proj.name });
+          }
+        }
+        
+        // Check 4: Staging items pending review > 7 days
+        const [oldStaging] = await db.execute(
+          `SELECT s.id, s.name, s.project_id, p.name as project_name 
+           FROM staging s JOIN projects p ON s.project_id = p.id
+           WHERE s.user_id = ? AND s.status = 'in-review' 
+           AND s.created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)`,
+          [auth.userId]
+        );
+        for (const item of oldStaging) {
+          const [existing] = await db.execute(
+            `SELECT id FROM notifications WHERE user_id = ? AND type = 'staging_pending' 
+             AND action_url LIKE ? AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`,
+            [auth.userId, `%${item.id}%`]
+          );
+          if (existing.length === 0) {
+            const id = crypto.randomUUID();
+            await db.execute(
+              'INSERT INTO notifications (id, user_id, type, message, action_url) VALUES (?, ?, ?, ?, ?)',
+              [id, auth.userId, 'staging_pending', `📋 "${item.name}" in ${item.project_name} pending review for 7+ days`, `/?hub=${item.project_id}&tab=review`]
+            );
+            notificationsCreated.push({ type: 'staging_pending', id, item: item.name });
+          }
+        }
+        
+        // Check 5: Drift detection alerts (use existing drift-check logic)
+        // This will be populated by the client calling drift-check separately
+        
+        // ── NOTIFICATION BATCHING & FATIGUE PREVENTION ───────────
+        // Count recent notifications to prevent overwhelm
+        const [recentCount] = await db.execute(
+          `SELECT COUNT(*) as count FROM notifications 
+           WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`,
+          [auth.userId]
+        );
+        
+        // Quiet hours: 10 PM - 7 AM (user's local time would be better, but UTC for now)
+        const currentHour = new Date().getUTCHours();
+        const isQuietHours = currentHour >= 22 || currentHour < 7;
+        
+        // Priority filtering: if many notifications already, only high-priority ones
+        const recentNotifications = recentCount[0]?.count || 0;
+        const shouldBatch = recentNotifications >= 5;
+        
+        // If in quiet hours, only critical notifications
+        const filteredNotifications = notificationsCreated.filter(n => {
+          if (isQuietHours) {
+            // Only project health and staging pending are critical
+            return ['project_health', 'staging_pending'].includes(n.type);
+          }
+          if (shouldBatch) {
+            // In batch mode, skip daily check-in reminders (keep others)
+            return n.type !== 'daily_checkin';
+          }
+          return true;
+        });
+        
+        // Delete non-critical notifications created during batch mode
+        if (isQuietHours || shouldBatch) {
+          const toRemove = notificationsCreated.filter(n => !filteredNotifications.find(f => f.id === n.id));
+          for (const n of toRemove) {
+            await db.execute('DELETE FROM notifications WHERE id = ?', [n.id]);
+          }
+        }
+        
+        return ok(res, { 
+          checked_at: now, 
+          notifications_created: filteredNotifications,
+          checks: {
+            daily_checkin: checkinRows.length === 0,
+            training_weekly: dayOfWeek === 5,
+            low_health_projects: lowHealthProjects.length,
+            old_staging: oldStaging.length
+          },
+          meta: {
+            recent_notifications_24h: recentNotifications,
+            is_quiet_hours: isQuietHours,
+            batched: shouldBatch,
+            suppressed_count: notificationsCreated.length - filteredNotifications.length
+          }
+        });
+      }
+    }
+
+    // ── EXPORT ALL — Full user data backup ────────────────────
+    if (resource === 'export-all') {
+      if (req.method !== 'GET') return err(res, 'Method not allowed', 405);
+      
+      try {
+        const exportData = {
+          version: '1.0.0',
+          exported_at: new Date().toISOString(),
+          user_id: auth.userId,
+          data: {}
+        };
+
+        // Tables to export (same order as backup script)
+        const tables = [
+          { name: 'users', filter: 'id = ?', params: [auth.userId], exclude: ['password_hash'] },
+          { name: 'life_areas', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'projects', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'project_custom_folders', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'project_files', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'file_metadata', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'staging', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'ideas', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'sessions', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'comments', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'goals', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'goal_contributions', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'tags', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'entity_tags', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'entity_links', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'templates', filter: 'user_id = ? OR user_id IS NULL', params: [auth.userId], hasNull: true },
+          { name: 'daily_checkins', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'training_logs', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'outreach_log', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'weekly_reviews', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'sync_state', filter: 'user_id = ?', params: [auth.userId] },
+          { name: 'sync_file_state', filter: 'project_id IN (SELECT id FROM projects WHERE user_id = ?)', params: [auth.userId], subquery: true },
+          { name: 'project_integrations', filter: 'project_id IN (SELECT id FROM projects WHERE user_id = ?)', params: [auth.userId], subquery: true, redact: ['access_token'] },
+          { name: 'notifications', filter: 'user_id = ?', params: [auth.userId] },
+        ];
+
+        for (const table of tables) {
+          try {
+            let query;
+            if (table.hasNull) {
+              query = `SELECT * FROM \`${table.name}\` WHERE user_id = ? OR user_id IS NULL`;
+            } else if (table.subquery) {
+              query = `SELECT * FROM \`${table.name}\` WHERE ${table.filter}`;
+            } else {
+              query = `SELECT * FROM \`${table.name}\` WHERE ${table.filter}`;
+            }
+            
+            const [rows] = await db.execute(query, table.params);
+            
+            // Apply exclusions and redactions
+            if (table.exclude || table.redact) {
+              exportData.data[table.name] = rows.map(row => {
+                const cleanRow = { ...row };
+                if (table.exclude) {
+                  table.exclude.forEach(col => delete cleanRow[col]);
+                }
+                if (table.redact) {
+                  table.redact.forEach(col => {
+                    if (cleanRow[col]) cleanRow[col] = '[REDACTED]';
+                  });
+                }
+                return cleanRow;
+              });
+            } else {
+              exportData.data[table.name] = rows;
+            }
+          } catch (tableError) {
+            // Table might not exist, skip silently
+            exportData.data[table.name] = [];
+          }
+        }
+
+        // Set download headers
+        const filename = `brain-export-${auth.userId}-${new Date().toISOString().slice(0, 10)}.json`;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        return res.status(200).json(exportData);
+        
+      } catch (e) {
+        console.error('Export error:', e);
+        return err(res, 'Export failed', 500);
+      }
+    }
+
+    // ── IMPORT ALL — Restore from backup JSON ─────────────────
+    if (resource === 'import-all') {
+      if (req.method !== 'POST') return err(res, 'Method not allowed', 405);
+      
+      try {
+        const backup = req.body;
+        
+        // Validate backup structure
+        if (!backup || typeof backup !== 'object') {
+          return err(res, 'Invalid backup data: expected JSON object');
+        }
+        
+        if (!backup.data || typeof backup.data !== 'object') {
+          return err(res, 'Invalid backup: missing data object');
+        }
+
+        // Import order (respects FK constraints)
+        const importOrder = [
+          'life_areas', 'projects', 'project_custom_folders', 'project_files',
+          'file_metadata', 'staging', 'ideas', 'sessions', 'comments',
+          'goals', 'goal_contributions', 'tags', 'entity_tags', 'entity_links',
+          'templates', 'daily_checkins', 'training_logs', 'outreach_log',
+          'weekly_reviews', 'sync_state', 'sync_file_state',
+          'project_integrations', 'notifications'
+        ];
+
+        const results = {
+          imported: {},
+          errors: [],
+          total_inserted: 0,
+          total_updated: 0
+        };
+
+        for (const tableName of importOrder) {
+          const rows = backup.data[tableName];
+          if (!Array.isArray(rows) || rows.length === 0) continue;
+
+          let inserted = 0;
+          let updated = 0;
+          let errors = 0;
+
+          for (const row of rows) {
+            try {
+              // Skip if no id (can't upsert)
+              if (!row.id) continue;
+
+              // Get column names from the row
+              const columns = Object.keys(row).filter(k => k !== 'created_at' && k !== 'updated_at');
+              const values = columns.map(col => row[col]);
+
+              // Build upsert query
+              const colNames = columns.map(c => `\`${c}\``);
+              const placeholders = columns.map(() => '?');
+              const updates = columns
+                .filter(c => c !== 'id')
+                .map(c => `\`${c}\` = VALUES(\`${c}\`)`);
+
+              let query;
+              if (updates.length > 0) {
+                query = `INSERT INTO \`${tableName}\` (${colNames.join(', ')}) 
+                         VALUES (${placeholders.join(', ')}) 
+                         ON DUPLICATE KEY UPDATE ${updates.join(', ')}`;
+              } else {
+                query = `INSERT IGNORE INTO \`${tableName}\` (${colNames.join(', ')}) 
+                         VALUES (${placeholders.join(', ')})`;
+              }
+
+              const [result] = await db.execute(query, values);
+
+              if (result.affectedRows === 1 && result.insertId) {
+                inserted++;
+              } else {
+                updated++;
+              }
+            } catch (rowError) {
+              errors++;
+              if (results.errors.length < 5) {
+                results.errors.push(`${tableName}.${row.id}: ${rowError.message}`);
+              }
+            }
+          }
+
+          if (inserted > 0 || updated > 0 || errors > 0) {
+            results.imported[tableName] = { inserted, updated, errors };
+            results.total_inserted += inserted;
+            results.total_updated += updated;
+          }
+        }
+
+        return ok(res, {
+          success: true,
+          imported: results.imported,
+          summary: {
+            total_inserted: results.total_inserted,
+            total_updated: results.total_updated
+          },
+          errors: results.errors.length > 0 ? results.errors : undefined
+        });
+
+      } catch (e) {
+        console.error('Import error:', e);
+        return err(res, 'Import failed: ' + e.message, 500);
+      }
+    }
+
+    // ── USER AI SETTINGS ──────────────────────────────────────
+    if (resource === 'user-ai-settings') {
+      // GET: Retrieve settings
+      if (req.method === 'GET') {
+        const [rows] = await db.execute(
+          'SELECT provider, model, max_tokens, temperature, enabled FROM user_ai_settings WHERE user_id = ?',
+          [auth.userId]
+        );
+
+        // Provider info with pricing
+        const providers = [
+          { key: 'anthropic', name: 'Anthropic (Claude)', pricing: { input: 3.00, output: 15.00 }, freeTier: false, models: ['claude-sonnet-4-6', 'claude-opus-4', 'claude-haiku-3-5'] },
+          { key: 'moonshot', name: 'Moonshot AI (Kimi)', pricing: { input: 1.00, output: 2.00 }, freeTier: true, models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'] },
+          { key: 'deepseek', name: 'DeepSeek', pricing: { input: 0.14, output: 0.28 }, freeTier: true, models: ['deepseek-chat', 'deepseek-coder'] },
+          { key: 'mistral', name: 'Mistral AI', pricing: { input: 0.50, output: 1.50 }, freeTier: true, models: ['mistral-tiny', 'mistral-small', 'mistral-medium'] },
+          { key: 'openai', name: 'OpenAI (GPT)', pricing: { input: 2.50, output: 10.00 }, freeTier: false, models: ['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'] },
+        ];
+
+        if (rows.length > 0) {
+          return ok(res, { settings: rows[0], providers });
+        }
+        return ok(res, { 
+          settings: { provider: 'anthropic', model: 'claude-sonnet-4-6', max_tokens: 1000, temperature: 0.7 },
+          providers 
+        });
+      }
+
+      // PUT: Update settings
+      if (req.method === 'PUT') {
+        const { provider, api_key, model, max_tokens, temperature } = req.body || {};
+
+        const validProviders = ['anthropic', 'moonshot', 'deepseek', 'mistral', 'openai'];
+        if (!provider || !validProviders.includes(provider)) {
+          return err(res, 'Invalid provider', 400);
+        }
+
+        // Encrypt API key (base64 for basic obfuscation)
+        const encryptedKey = api_key ? `enc:${Buffer.from(api_key).toString('base64')}` : undefined;
+
+        await db.execute(
+          `INSERT INTO user_ai_settings (id, user_id, provider, api_key_encrypted, model, max_tokens, temperature, enabled)
+           VALUES (UUID(), ?, ?, ?, ?, ?, ?, 1)
+           ON DUPLICATE KEY UPDATE
+           provider = VALUES(provider),
+           api_key_encrypted = COALESCE(VALUES(api_key_encrypted), api_key_encrypted),
+           model = VALUES(model),
+           max_tokens = VALUES(max_tokens),
+           temperature = VALUES(temperature),
+           updated_at = NOW()`,
+          [auth.userId, provider, encryptedKey, model, max_tokens, temperature]
+        );
+
+        return ok(res, { success: true, message: 'AI settings updated' });
+      }
+
+      // DELETE: Clear user API key
+      if (req.method === 'DELETE') {
+        await db.execute(
+          'UPDATE user_ai_settings SET api_key_encrypted = NULL WHERE user_id = ?',
+          [auth.userId]
+        );
+        return ok(res, { success: true, message: 'API key removed' });
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e);

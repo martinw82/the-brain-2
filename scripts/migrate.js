@@ -270,6 +270,63 @@ const migrations = [
           UNIQUE KEY unique_project_provider (project_id, provider),
           FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
         );`
+    },
+    {
+        version: 20,
+        name: 'create_notifications_table',
+        sql: `CREATE TABLE IF NOT EXISTS notifications (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          type VARCHAR(32) NOT NULL,
+          message TEXT NOT NULL,
+          read BOOLEAN DEFAULT FALSE,
+          action_url VARCHAR(512) DEFAULT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          expires_at DATETIME DEFAULT NULL,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          INDEX idx_notifications_user_read (user_id, read),
+          INDEX idx_notifications_created (created_at)
+        );`
+    },
+    {
+        version: 21,
+        name: 'create_ai_usage_table',
+        sql: `CREATE TABLE IF NOT EXISTS ai_usage (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          date DATE NOT NULL,
+          input_tokens INT DEFAULT 0,
+          output_tokens INT DEFAULT 0,
+          cache_creation_input_tokens INT DEFAULT 0,
+          cache_read_input_tokens INT DEFAULT 0,
+          estimated_cost_usd DECIMAL(8,4) DEFAULT 0.0000,
+          model VARCHAR(50) DEFAULT 'unknown',
+          request_count INT DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          UNIQUE KEY unique_user_date (user_id, date),
+          INDEX idx_ai_usage_date (date)
+        );`
+    },
+    {
+        version: 22,
+        name: 'create_user_ai_settings_table',
+        sql: `CREATE TABLE IF NOT EXISTS user_ai_settings (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          provider VARCHAR(32) DEFAULT 'anthropic',
+          api_key_encrypted TEXT,
+          model VARCHAR(64) DEFAULT 'claude-sonnet-4-6',
+          max_tokens INT DEFAULT 1000,
+          temperature DECIMAL(3,2) DEFAULT 0.7,
+          enabled TINYINT(1) DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          UNIQUE KEY unique_user_ai_settings (user_id),
+          INDEX idx_provider (provider)
+        );`
     }
 ];
 

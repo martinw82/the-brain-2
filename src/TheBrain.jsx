@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token, drift as driftApi, aiMetadata as aiMetadataApi, scripts as scriptsApi, integrations as integrationsApi } from "./api.js";
+import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token, drift as driftApi, aiMetadata as aiMetadataApi, scripts as scriptsApi, integrations as integrationsApi, notifications as notificationsApi, userAISettings } from "./api.js";
 import { cache } from "./cache.js";
 import { sync } from "./sync.js";
 import { desktopSync } from "./desktop-sync.js";
@@ -21,6 +21,154 @@ import WeeklyReviewPanel from "./components/WeeklyReviewPanel.jsx";
 const BREAKPOINTS = {
   mobile: 768,
   tablet: 1024,
+};
+
+// ── UNDO/REDO SYSTEM ─────────────────────────────────────────
+const useUndoRedo = (limit = 50) => {
+  const [state, setState] = useState({
+    past: [],
+    present: null,
+    future: []
+  });
+
+  const canUndo = state.past.length > 0;
+  const canRedo = state.future.length > 0;
+
+  const init = useCallback((initialState) => {
+    setState({ past: [], present: initialState, future: [] });
+  }, []);
+
+  const push = useCallback((newPresent, actionType = 'edit') => {
+    setState(prev => {
+      const newPast = [...prev.past, { state: prev.present, action: actionType }].slice(-limit);
+      return { past: newPast, present: newPresent, future: [] };
+    });
+  }, [limit]);
+
+  const undo = useCallback(() => {
+    if (!canUndo) return null;
+    const previous = state.past[state.past.length - 1];
+    const newPast = state.past.slice(0, -1);
+    setState({
+      past: newPast,
+      present: previous.state,
+      future: [{ state: state.present, action: previous.action }, ...state.future].slice(0, limit)
+    });
+    return { state: previous.state, action: previous.action };
+  }, [state, canUndo, limit]);
+
+  const redo = useCallback(() => {
+    if (!canRedo) return null;
+    const next = state.future[0];
+    const newFuture = state.future.slice(1);
+    setState(prev => ({
+      past: [...prev.past, { state: prev.present, action: next.action }].slice(-limit),
+      present: next.state,
+      future: newFuture
+    }));
+    return { state: next.state, action: next.action };
+  }, [state, canRedo, limit]);
+
+  const clear = useCallback(() => {
+    setState({ past: [], present: null, future: [] });
+  }, []);
+
+  return { state: state.present, init, push, undo, redo, canUndo, canRedo, clear };
+};
+
+// ── KEYBOARD SHORTCUTS SYSTEM ───────────────────────────────
+const SHORTCUTS = {
+  global: [
+    { key: '⌘K / Ctrl+K', description: 'Search across projects' },
+    { key: '⌘? / Ctrl+?', description: 'Show keyboard shortcuts' },
+    { key: '⌘B / Ctrl+B', description: 'Toggle Brain/Hub view' },
+    { key: 'Esc', description: 'Close modals / exit search' },
+  ],
+  editor: [
+    { key: '⌘S / Ctrl+S', description: 'Save file immediately' },
+    { key: '⌘Z / Ctrl+Z', description: 'Undo last edit' },
+    { key: '⌘⇧Z / Ctrl+Y', description: 'Redo' },
+    { key: '⌘P / Ctrl+P', description: 'Toggle Preview mode' },
+    { key: '⌘⇧F / Ctrl+Shift+F', description: 'Search in file' },
+  ],
+  navigation: [
+    { key: 'G then C', description: 'Go to Command Centre' },
+    { key: 'G then P', description: 'Go to Projects' },
+    { key: 'G then S', description: 'Go to Staging' },
+    { key: 'G then I', description: 'Go to Ideas' },
+  ],
+  actions: [
+    { key: 'N then P', description: 'New Project' },
+    { key: 'N then F', description: 'New File' },
+    { key: 'N then I', description: 'New Idea' },
+    { key: 'Space', description: 'Start/Stop session timer' },
+  ]
+};
+
+const KeyboardShortcutsModal = ({ onClose }) => (
+  <Modal title="⌨️ Keyboard Shortcuts" onClose={onClose} width={500}>
+    <div style={{ display: 'grid', gap: 20 }}>
+      {Object.entries(SHORTCUTS).map(([category, shortcuts]) => (
+        <div key={category}>
+          <div style={{ fontSize: 10, color: C.blue, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
+            {category}
+          </div>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {shortcuts.map((s, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 11, color: C.text }}>{s.description}</span>
+                <kbd style={{ 
+                  fontFamily: C.mono, fontSize: 10, padding: '2px 8px', 
+                  background: C.bg, border: `1px solid ${C.border}`, borderRadius: 4,
+                  color: C.blue2, minWidth: 80, textAlign: 'center'
+                }}>{s.key}</kbd>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+    <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.border}`, fontSize: 9, color: C.muted }}>
+      Tip: Press ? anytime to open this cheat sheet
+    </div>
+  </Modal>
+);
+
+// ── PROGRESS TRENDS COMPONENT ───────────────────────────────
+const ProgressTrends = ({ title, data, color = C.blue, unit = '' }) => {
+  if (!data || data.length < 2) return null;
+  
+  const max = Math.max(...data.map(d => d.value));
+  const min = Math.min(...data.map(d => d.value));
+  const range = max - min || 1;
+  
+  return (
+    <div style={{ padding: 12, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8 }}>
+      <div style={{ fontSize: 10, color: C.blue, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
+        {title}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 60, paddingBottom: 4 }}>
+        {data.map((d, i) => {
+          const height = ((d.value - min) / range) * 100;
+          return (
+            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <div 
+                style={{ 
+                  width: '100%', height: `${Math.max(4, height)}%`, 
+                  background: color, borderRadius: 2, opacity: 0.7 + (i / data.length) * 0.3,
+                  minHeight: 4
+                }} 
+                title={`${d.label}: ${d.value}${unit}`}
+              />
+              <div style={{ fontSize: 8, color: C.muted, transform: 'rotate(-45deg)', transformOrigin: 'top left' }}>
+                {d.label}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 };
 
 const useBreakpoint = () => {
@@ -92,6 +240,179 @@ const Modal=({title,onClose,children,width=400})=>(
 const Toast=({msg,onDone})=>{
   useEffect(()=>{const t=setTimeout(onDone,2200);return()=>clearTimeout(t);},[]);
   return <div style={{position:"fixed",bottom:24,right:24,background:C.surface,border:`1px solid ${C.green}40`,borderRadius:8,padding:"10px 18px",fontSize:11,color:C.green,zIndex:9999,boxShadow:`0 4px 24px rgba(0,0,0,0.4)`}}>{msg}</div>;
+};
+
+// ── AI PROVIDER SETTINGS COMPONENT ───────────────────────────
+const AIProviderSettings = () => {
+  const [aiSettings, setAiSettings] = useState({
+    provider: 'anthropic',
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1000,
+    temperature: 0.7,
+    api_key: '',
+  });
+  const [providers, setProviders] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+
+  useEffect(() => {
+    // Load settings on mount
+    userAISettings.get().then(data => {
+      if (data.settings) {
+        setAiSettings(prev => ({ ...prev, ...data.settings, api_key: '' }));
+      }
+      if (data.providers) setProviders(data.providers);
+    }).catch(() => {});
+  }, []);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await userAISettings.update({
+        provider: aiSettings.provider,
+        model: aiSettings.model,
+        max_tokens: aiSettings.max_tokens,
+        temperature: aiSettings.temperature,
+        api_key: aiSettings.api_key || undefined, // Only send if provided
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      alert('Failed to save AI settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearKey = async () => {
+    await userAISettings.deleteKey();
+    setAiSettings(prev => ({ ...prev, api_key: '' }));
+    alert('API key cleared - will use server default');
+  };
+
+  const selectedProvider = providers.find(p => p.key === aiSettings.provider);
+  const models = selectedProvider?.models || ['claude-sonnet-4-6'];
+
+  return (
+    <div style={{padding:"12px",background:`${C.purple}08`,border:`1px solid ${C.purple}30`,borderRadius:6}}>
+      <div style={{fontSize:11,fontWeight:600,color:C.text,marginBottom:8}}>🤖 AI Provider</div>
+      
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {/* Provider Selection */}
+        <div>
+          <span style={{...S.label(C.purple),fontSize:8}}>Provider</span>
+          <select 
+            style={S.sel} 
+            value={aiSettings.provider} 
+            onChange={e => {
+              const provider = providers.find(p => p.key === e.target.value);
+              setAiSettings(prev => ({ 
+                ...prev, 
+                provider: e.target.value,
+                model: provider?.models?.[0] || 'claude-sonnet-4-6'
+              }));
+            }}
+          >
+            {providers.map(p => (
+              <option key={p.key} value={p.key}>
+                {p.name} {p.freeTier ? '(Free tier)' : ''} - ${p.pricing.input}/M tok
+              </option>
+            ))}
+          </select>
+          <div style={{fontSize:8,color:C.muted,marginTop:2}}>
+            {selectedProvider?.freeTier ? '✅ Free tier available' : '💳 Paid service'}
+          </div>
+        </div>
+
+        {/* Model Selection */}
+        <div>
+          <span style={{...S.label(C.purple),fontSize:8}}>Model</span>
+          <select 
+            style={S.sel} 
+            value={aiSettings.model} 
+            onChange={e => setAiSettings(prev => ({ ...prev, model: e.target.value }))}
+          >
+            {models.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+
+        {/* API Key */}
+        <div>
+          <span style={{...S.label(C.purple),fontSize:8}}>API Key (optional)</span>
+          <div style={{display:"flex",gap:6}}>
+            <input 
+              type={showKey ? "text" : "password"}
+              style={{...S.input,flex:1,fontFamily:"monospace"}}
+              placeholder="Leave blank to use server default"
+              value={aiSettings.api_key}
+              onChange={e => setAiSettings(prev => ({ ...prev, api_key: e.target.value }))}
+            />
+            <button style={{...S.btn("ghost"),padding:"5px 10px"}} onClick={() => setShowKey(!showKey)}>
+              {showKey ? "🙈" : "👁️"}
+            </button>
+          </div>
+          <div style={{fontSize:8,color:C.muted,marginTop:2}}>
+            Your key is encrypted. {aiSettings.api_key ? '💾 Will be saved' : '🌐 Using server default'}
+          </div>
+        </div>
+
+        {/* Advanced Settings */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div>
+            <span style={{...S.label(C.purple),fontSize:8}}>Max Tokens</span>
+            <input 
+              type="number"
+              style={S.input}
+              value={aiSettings.max_tokens}
+              onChange={e => setAiSettings(prev => ({ ...prev, max_tokens: Number(e.target.value) }))}
+              min={100}
+              max={4000}
+            />
+          </div>
+          <div>
+            <span style={{...S.label(C.purple),fontSize:8}}>Temperature</span>
+            <input 
+              type="number"
+              style={S.input}
+              value={aiSettings.temperature}
+              onChange={e => setAiSettings(prev => ({ ...prev, temperature: Number(e.target.value) }))}
+              min={0}
+              max={1}
+              step={0.1}
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{display:"flex",gap:8,marginTop:4}}>
+          <button 
+            style={{...S.btn("primary"),flex:1,background:C.purple}} 
+            onClick={handleSave}
+            disabled={loading}
+          >
+            {loading ? '⏳ Saving...' : saved ? '✓ Saved!' : '💾 Save AI Settings'}
+          </button>
+          <button 
+            style={{...S.btn("ghost")}} 
+            onClick={handleClearKey}
+            title="Clear personal API key"
+          >
+            🗑️ Clear Key
+          </button>
+        </div>
+
+        {/* Provider Info */}
+        <div style={{fontSize:8,color:C.muted,padding:"8px",background:C.bg,borderRadius:4}}>
+          <div style={{marginBottom:4}}><strong>💡 About {selectedProvider?.name}</strong></div>
+          <div>Input: ${selectedProvider?.pricing?.input}/M tokens | Output: ${selectedProvider?.pricing?.output}/M tokens</div>
+          {selectedProvider?.key === 'deepseek' && <div>🔥 Cheapest option with great quality</div>}
+          {selectedProvider?.key === 'mistral' && <div>🎁 Generous free tier available</div>}
+          {selectedProvider?.key === 'moonshot' && <div>🇨🇳 Chinese-optimized, good for Asian markets</div>}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ── METADATA EDITOR (Roadmap 2.3 + 3.1) ───────────────────
@@ -2014,6 +2335,14 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [aiSuggestions,setAiSuggestions] = useState(null); // Phase 3.1: AI metadata suggestions
   const [loadingAiSuggestions,setLoadingAiSuggestions] = useState(false);
   const [settingsForm,setSettingsForm]   = useState({font:"JetBrains Mono",fontSize:11});
+  
+  // ── UNDO/REDO STATE ─────────────────────────────────────────
+  const fileHistory = useUndoRedo(50); // Track last 50 file edits
+  const [undoToast, setUndoToast] = useState(null);
+  
+  // ── KEYBOARD SHORTCUTS STATE ────────────────────────────────
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [keySequence, setKeySequence] = useState([]); // For multi-key shortcuts like 'g then c'
 
   // Hub links
   const [hubLinks,setHubLinks]       = useState([]);
@@ -2093,6 +2422,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const hubTabRef = useRef(null);
   const sessionTimerRef = useRef(null);
   const aiCoachRef = useRef(null);
+  // Notification ref (Phase 4.4)
+  const notificationRef = useRef(null);
 
   // Persistence state
   const [saving,setSaving]   = useState(false);   // file save indicator
@@ -2104,6 +2435,12 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [isOnline, setIsOnline] = useState(true);
   const [syncStatus, setSyncStatus] = useState("idle"); // "idle", "syncing", "synced", "error"
   const [queuedWrites, setQueuedWrites] = useState(0);
+  
+  // Notifications state (Phase 4.4)
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   // Desktop sync state (Phase 2.4B)
   const [syncState, setSyncState] = useState(null);
@@ -2355,6 +2692,18 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
   
+  // Click outside to close notification dropdown (Phase 4.4)
+  useEffect(() => {
+    if (!showNotifications) return;
+    const handleClickOutside = (e) => {
+      if (notificationRef.current && !notificationRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showNotifications]);
+  
   // Save recent searches to localStorage
   const addRecentSearch = (query) => {
     if (!query.trim()) return;
@@ -2443,6 +2792,25 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     // Load weekly training count + today's outreach + drift check
     if (user) { loadWeeklyTraining(); loadTodayOutreach(); loadDriftCheck(); }
   }, [user?.id]);
+  
+  // ── NOTIFICATIONS — load on mount and check triggers periodically (Phase 4.4) ──
+  useEffect(() => {
+    if (!user) return;
+    
+    // Initial load
+    loadNotifications();
+    
+    // Check triggers on mount
+    checkNotificationTriggers();
+    
+    // Set up periodic checks (every 5 minutes)
+    const interval = setInterval(() => {
+      loadNotifications();
+      checkNotificationTriggers();
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   // ── NAVIGATION — lazy-loads files on first hub open ────────
   const openHub = async (id, file) => {
@@ -2479,6 +2847,14 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
   // ── FILE OPS — optimistic + persisted ─────────────────────
   const saveFile = useCallback(async (projId, path, content) => {
+    // Get previous content for undo history
+    const prevContent = projects.find(p => p.id === projId)?.files?.[path];
+    
+    // Push to undo history if content changed
+    if (prevContent !== undefined && prevContent !== content) {
+      fileHistory.push({ projectId: projId, filePath: path, content: prevContent }, 'edit');
+    }
+    
     // Optimistic update
     setProjects(prev => prev.map(p => p.id === projId ? { ...p, files: { ...p.files, [path]: content } } : p));
     setSaving(true);
@@ -2488,7 +2864,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     } catch (e) {
       showToast("⚠ Save failed — check connection");
     } finally { setSaving(false); }
-  }, []);
+  }, [projects, fileHistory]);
 
   const handleHubSave = useCallback((path, content) => {
     if (hubId) saveFile(hubId, path, content);
@@ -3030,6 +3406,52 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     localStorage.setItem('driftDismissed',JSON.stringify(updated));
     setDriftFlags(prev=>prev.filter(f=>f.type!==type));
   };
+  
+  // ── NOTIFICATIONS (Phase 4.4) ─────────────────────────────────
+  const loadNotifications=async()=>{
+    try{
+      setNotificationsLoading(true);
+      const data=await notificationsApi.list();
+      if(data&&data.notifications){
+        setNotifications(data.notifications);
+        setUnreadCount(data.unread_count||0);
+      }
+    }catch(e){console.error('Notifications load error:',e);}
+    finally{setNotificationsLoading(false);}
+  };
+  
+  const checkNotificationTriggers=async()=>{
+    try{
+      await notificationsApi.checkTriggers();
+      // Reload to get any new notifications
+      await loadNotifications();
+    }catch(e){console.error('Notification trigger check error:',e);}
+  };
+  
+  const markNotificationRead=async(id)=>{
+    try{
+      await notificationsApi.markRead(id);
+      setNotifications(prev=>prev.map(n=>n.id===id?{...n,read:true}:n));
+      setUnreadCount(prev=>Math.max(0,prev-1));
+    }catch(e){console.error('Mark read error:',e);}
+  };
+  
+  const markAllNotificationsRead=async()=>{
+    try{
+      await notificationsApi.markAllRead();
+      setNotifications(prev=>prev.map(n=>({...n,read:true})));
+      setUnreadCount(0);
+    }catch(e){console.error('Mark all read error:',e);}
+  };
+  
+  const deleteNotification=async(id)=>{
+    try{
+      await notificationsApi.delete(id);
+      const wasUnread=notifications.find(n=>n.id===id&&!n.read);
+      setNotifications(prev=>prev.filter(n=>n.id!==id));
+      if(wasUnread)setUnreadCount(prev=>Math.max(0,prev-1));
+    }catch(e){console.error('Delete notification error:',e);}
+  };
 
   // ── DRAG & DROP ────────────────────────────────────────────
   const handleDrop=useCallback((e,projId)=>{
@@ -3126,12 +3548,129 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const BRAIN_TABS=[{id:"command",label:"⚡ Command"},{id:"projects",label:"🗂 Projects"},{id:"bootstrap",label:"🚀 Bootstrap"},{id:"staging",label:`🌀 Staging${inReview>0?` (${inReview})`:""}`},{id:"skills",label:"🤖 Skills"},{id:"workflows",label:"⚙️ Workflows"},{id:"integrations",label:"🔌 Connect"},{id:"ideas",label:"💡 Ideas"},{id:"tags",label:`🏷 Tags${userTags.length>0?` (${userTags.length})`:""}`},{id:"ai",label:"💬 AI Coach"},{id:"review",label:"📋 Review"},{id:"export",label:"📤 Export"}];
   const HUB_TABS=[{id:"editor",label:"📝 Editor"},{id:"overview",label:"📊 Overview"},{id:"folders",label:"📁 Folders"},{id:"review",label:`🔄 Review${hub?staging.filter(s=>s.project===hubId&&s.status==="in-review").length>0?` (${staging.filter(s=>s.project===hubId&&s.status==="in-review").length})`:"":""}`},{id:"devlog",label:"📓 Dev Log"},{id:"gantt",label:"📅 Timeline"},{id:"comments",label:"💬 Comments"},{id:"links",label:`🔗 Links${hubLinks.length>0?` (${hubLinks.length})`:""}`},{id:"meta",label:"🔧 Meta"}];
 
+  // ── KEYBOARD SHORTCUTS LISTENER ───────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+      
+      // Show shortcuts modal: ? or Cmd+?
+      if (e.key === '?' || (cmdOrCtrl && e.key === '/')) {
+        e.preventDefault();
+        setShowShortcutsModal(true);
+        return;
+      }
+      
+      // Search: Cmd+K
+      if (cmdOrCtrl && e.key === 'k') {
+        e.preventDefault();
+        setShowSearchModal(true);
+        return;
+      }
+      
+      // Toggle Brain/Hub: Cmd+B
+      if (cmdOrCtrl && e.key === 'b') {
+        e.preventDefault();
+        if (tab==='hub') setTab('brain');
+        else if (hubId) setTab('hub');
+        return;
+      }
+      
+      // Undo: Cmd+Z
+      if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        const undone = fileHistory.undo();
+        if (undone && undone.state) {
+          // Restore the file content
+          const { projectId, filePath, content } = undone.state;
+          setProjects(prev => prev.map(p => 
+            p.id === projectId ? { ...p, files: { ...p.files, [filePath]: content } } : p
+          ));
+          // Save to API (silent)
+          projectsApi.saveFile(projectId, filePath, content).catch(() => {});
+          setUndoToast({ action: 'undone', message: `Undid ${undone.action}` });
+          setTimeout(() => setUndoToast(null), 2000);
+        }
+        return;
+      }
+      
+      // Redo: Cmd+Shift+Z or Cmd+Y
+      if ((cmdOrCtrl && e.shiftKey && e.key === 'z') || (cmdOrCtrl && e.key === 'y')) {
+        e.preventDefault();
+        const redone = fileHistory.redo();
+        if (redone && redone.state) {
+          const { projectId, filePath, content } = redone.state;
+          setProjects(prev => prev.map(p => 
+            p.id === projectId ? { ...p, files: { ...p.files, [filePath]: content } } : p
+          ));
+          projectsApi.saveFile(projectId, filePath, content).catch(() => {});
+          setUndoToast({ action: 'redone', message: `Redid ${redone.action}` });
+          setTimeout(() => setUndoToast(null), 2000);
+        }
+        return;
+      }
+      
+      // Navigation shortcuts with 'g' prefix
+      if (keySequence[0] === 'g') {
+        if (e.key === 'c') { setTab('brain'); setBrainTab('command'); }
+        if (e.key === 'p') { setTab('brain'); setBrainTab('projects'); }
+        if (e.key === 's') { setTab('brain'); setBrainTab('staging'); }
+        if (e.key === 'i') { setTab('brain'); setBrainTab('ideas'); }
+        setKeySequence([]);
+        return;
+      }
+      
+      // Start 'g' sequence
+      if (e.key === 'g' && !cmdOrCtrl) {
+        setKeySequence(['g']);
+        setTimeout(() => setKeySequence([]), 1000); // Reset after 1s
+        return;
+      }
+      
+      // New shortcuts with 'n' prefix
+      if (keySequence[0] === 'n') {
+        if (e.key === 'p') setModal('newProject');
+        if (e.key === 'f') setModal('newFile');
+        if (e.key === 'i') setNewIdea(''); // Focus idea input
+        setKeySequence([]);
+        return;
+      }
+      
+      if (e.key === 'n' && !cmdOrCtrl) {
+        setKeySequence(['n']);
+        setTimeout(() => setKeySequence([]), 1000);
+        return;
+      }
+      
+      // Session timer: Space (when not in input)
+      if (e.key === ' ' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+        e.preventDefault();
+        sessionActive ? endSession() : startSession();
+        return;
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [tab, hubId, keySequence, fileHistory, sessionActive]);
+
   // ══════════════════════════════════════════════════════════
   // RENDER
   // ══════════════════════════════════════════════════════════
   return (
     <div style={{...S.root,fontFamily:`'${userSettings.font}','JetBrains Mono','Fira Code',monospace`,fontSize:userSettings.fontSize}}>
       {toast&&<Toast msg={toast.msg} onDone={()=>setToast(null)}/>}
+      
+      {/* Undo/Redo Toast */}
+      {undoToast&&(
+        <div style={{position:'fixed',bottom:24,left:24,background:C.surface,border:`1px solid ${C.blue}40`,borderRadius:8,padding:'10px 18px',fontSize:11,color:C.blue2,zIndex:9999,boxShadow:'0 4px 24px rgba(0,0,0,0.4)',display:'flex',alignItems:'center',gap:8}}>
+          <span>{undoToast.action === 'undone' ? '↩️' : '↪️'}</span>
+          <span>{undoToast.message}</span>
+        </div>
+      )}
+      
+      {/* Keyboard Shortcuts Modal */}
+      {showShortcutsModal&&<KeyboardShortcutsModal onClose={()=>setShowShortcutsModal(false)}/>}
 
       {/* ── TOP BAR ── */}
       <div style={{background:"linear-gradient(180deg,#0a0f1e,#070b14)",borderBottom:`1px solid ${C.border}`,padding:isMobile?"10px 12px 0":"12px 20px 0"}}>
@@ -3154,6 +3693,29 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   {view==="hub"&&hub?`${hub.emoji} ${hub.name}`:"THE BRAIN 🧠"}
                 </div>
               </div>
+              
+              {/* Notification Bell Mobile */}
+              <button 
+                style={{...S.btn("ghost"),padding:"8px",fontSize:16,minWidth:44,minHeight:44,position:"relative"}}
+                onClick={()=>setShowNotifications(true)}
+                aria-label={`${unreadCount} notifications`}
+              >
+                🔔
+                {unreadCount>0&&(
+                  <span style={{
+                    position:"absolute",
+                    top:4,right:4,
+                    background:C.red,color:"#fff",
+                    fontSize:9,fontWeight:700,
+                    minWidth:16,height:16,
+                    borderRadius:8,
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    border:"2px solid "+C.bg
+                  }}>
+                    {unreadCount>9?"9+":unreadCount}
+                  </span>
+                )}
+              </button>
               
               {/* Session Timer (condensed) */}
               <div 
@@ -3187,6 +3749,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
               </div>
 
               <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
+              {/* Keyboard shortcuts */}
+              <button style={{...S.btn("ghost"),padding:"5px 8px",fontSize:14}} title="Keyboard Shortcuts (?):" onClick={()=>setShowShortcutsModal(true)}>⌨️</button>
               {/* Settings gear */}
               <button style={{...S.btn("ghost"),padding:"5px 8px",fontSize:14}} title="Settings" onClick={()=>{setSettingsForm({...userSettings});setModal("settings");}}>🔧</button>
               {/* Session timer */}
@@ -3232,6 +3796,147 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>
                   {todayOutreach.length>0?`${todayOutreach.length} today`:"none"}
                 </div>
+              </div>
+              {/* Notification Bell (Phase 4.4) */}
+              <div ref={notificationRef} style={{position:"relative"}}>
+                <div 
+                  style={{textAlign:"center",cursor:"pointer"}} 
+                  onClick={()=>setShowNotifications(v=>!v)}
+                  title={`${unreadCount} unread notifications`}
+                >
+                  <div style={{fontSize:14,fontWeight:700,color:unreadCount>0?C.red:C.dim,position:"relative"}}>
+                    🔔
+                    {unreadCount>0&&(
+                      <span style={{
+                        position:"absolute",
+                        top:-4,right:-4,
+                        background:C.red,color:"#fff",
+                        fontSize:9,fontWeight:700,
+                        minWidth:14,height:14,
+                        borderRadius:7,
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        border:"2px solid "+C.bg
+                      }}>
+                        {unreadCount>9?"9+":unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>
+                    {unreadCount>0?`${unreadCount} new`:"Alerts"}
+                  </div>
+                </div>
+                
+                {/* Notification Dropdown (Desktop only) */}
+                {!isMobile&&showNotifications&&(
+                  <div style={{
+                    position:"absolute",
+                    top:"calc(100% + 8px)",
+                    right:0,
+                    width:360,
+                    maxHeight:480,
+                    background:C.surface,
+                    border:`1px solid ${C.border}`,
+                    borderRadius:8,
+                    boxShadow:"0 8px 32px rgba(0,0,0,0.5)",
+                    zIndex:400,
+                    overflow:"hidden",
+                    display:"flex",
+                    flexDirection:"column"
+                  }}>
+                    {/* Header */}
+                    <div style={{
+                      display:"flex",justifyContent:"space-between",alignItems:"center",
+                      padding:"12px 16px",
+                      borderBottom:`1px solid ${C.border}`
+                    }}>
+                      <div style={{fontSize:12,fontWeight:600}}>🔔 Notifications</div>
+                      {unreadCount>0&&(
+                        <button 
+                          style={{...S.btn("ghost"),fontSize:9,padding:"4px 8px"}}
+                          onClick={markAllNotificationsRead}
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    
+                    {/* List */}
+                    <div style={{overflowY:"auto",maxHeight:360}}>
+                      {notificationsLoading?(
+                        <div style={{padding:24,textAlign:"center",color:C.muted,fontSize:11}}>
+                          Loading...
+                        </div>
+                      ):notifications.length===0?(
+                        <div style={{padding:24,textAlign:"center",color:C.muted,fontSize:11}}>
+                          No notifications yet
+                        </div>
+                      ):notifications.map(n=>{
+                        const typeIcon={
+                          daily_checkin:"🌅",
+                          training_weekly:"🥋",
+                          project_health:"⚠️",
+                          staging_pending:"📋",
+                          drift_alert:"🚨"
+                        }[n.type]||"📢";
+                        return(
+                          <div 
+                            key={n.id}
+                            style={{
+                              padding:"12px 16px",
+                              borderBottom:`1px solid ${C.border}`,
+                              background:n.read?"transparent":"rgba(26,79,214,0.05)",
+                              cursor:n.action_url?"pointer":"default",
+                              opacity:n.read?0.7:1
+                            }}
+                            onClick={()=>{
+                              if(!n.read)markNotificationRead(n.id);
+                              if(n.action_url){
+                                // Parse action_url to navigate
+                                if(n.action_url.includes('hub=')){
+                                  const hubId=n.action_url.match(/hub=([^&]+)/)?.[1];
+                                  if(hubId)openHub(hubId);
+                                }else if(n.action_url.includes('action=checkin')){
+                                  setShowCheckinModal(true);
+                                }else if(n.action_url.includes('action=training')){
+                                  setShowTrainingModal(true);
+                                }
+                                setShowNotifications(false);
+                              }
+                            }}
+                          >
+                            <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+                              <span style={{fontSize:14,flexShrink:0}}>{typeIcon}</span>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontSize:11,lineHeight:1.4,color:C.text}}>{n.message}</div>
+                                <div style={{fontSize:9,color:C.dim,marginTop:4}}>
+                                  {new Date(n.created_at).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}
+                                </div>
+                              </div>
+                              {!n.read&&<div style={{width:8,height:8,borderRadius:4,background:C.blue,flexShrink:0,marginTop:4}}/>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Footer */}
+                    <div style={{
+                      padding:"10px 16px",
+                      borderTop:`1px solid ${C.border}`,
+                      display:"flex",justifyContent:"space-between",alignItems:"center"
+                    }}>
+                      <span style={{fontSize:9,color:C.dim}}>
+                        {notifications.length} total
+                      </span>
+                      <button 
+                        style={{...S.btn("ghost"),fontSize:9,padding:"4px 8px"}}
+                        onClick={()=>{setShowNotifications(false);checkNotificationTriggers();}}
+                      >
+                        🔄 Check now
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               {[{v:projects.length,l:"Projects"},{v:`${activeGoal?.currency==='USD'?'$':activeGoal?.currency==='EUR'?'€':'£'}${totalIncome}`,l:activeGoal?.title||"Goal"},{v:`${Math.round(totalIncome/(activeGoal?.target_amount||3000)*100)}%`,l:"Status"},atRisk>0?{v:atRisk,l:"⚠ At Risk",c:C.amber}:null].filter(Boolean).map(s=>(
                 <div key={s.l} style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:s.c||C.blue2}}>{s.v}</div><div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>{s.l}</div></div>
@@ -3304,6 +4009,131 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             <div>
               <button style={{...S.btn("ghost"),width:"100%",justifyContent:"flex-start",minHeight:44}} onClick={()=>{setSettingsForm({...userSettings});setModal("settings");setMobileNavOpen(false);}}>🔧 Settings</button>
               <button style={{...S.btn("ghost"),width:"100%",marginTop:8,justifyContent:"flex-start",minHeight:44}} onClick={onLogout}>Sign Out</button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* ── MOBILE NOTIFICATIONS DRAWER (Phase 4.4) ── */}
+      {isMobile&&showNotifications&&(
+        <div style={{position:"fixed",inset:0,zIndex:400}} onClick={()=>setShowNotifications(false)}>
+          <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)"}} />
+          <div 
+            style={{
+              position:"absolute",
+              top:0,right:0,bottom:0,
+              width:"85%",maxWidth:360,
+              background:C.surface,
+              borderLeft:`1px solid ${C.border}`,
+              display:"flex",
+              flexDirection:"column"
+            }} 
+            onClick={e=>e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              display:"flex",justifyContent:"space-between",alignItems:"center",
+              padding:"16px",
+              borderBottom:`1px solid ${C.border}`
+            }}>
+              <div style={{fontSize:14,fontWeight:600}}>🔔 Notifications</div>
+              <div style={{display:"flex",gap:8}}>
+                {unreadCount>0&&(
+                  <button 
+                    style={{...S.btn("ghost"),fontSize:9,padding:"6px 10px"}}
+                    onClick={markAllNotificationsRead}
+                  >
+                    Mark all read
+                  </button>
+                )}
+                <button 
+                  style={{...S.btn("ghost"),padding:"6px 10px",fontSize:16}} 
+                  onClick={()=>setShowNotifications(false)}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            {/* List */}
+            <div style={{flex:1,overflowY:"auto"}}>
+              {notificationsLoading?(
+                <div style={{padding:40,textAlign:"center",color:C.muted,fontSize:12}}>
+                  Loading...
+                </div>
+              ):notifications.length===0?(
+                <div style={{padding:40,textAlign:"center",color:C.muted,fontSize:12}}>
+                  No notifications yet
+                </div>
+              ):notifications.map(n=>{
+                const typeIcon={
+                  daily_checkin:"🌅",
+                  training_weekly:"🥋",
+                  project_health:"⚠️",
+                  staging_pending:"📋",
+                  drift_alert:"🚨"
+                }[n.type]||"📢";
+                return(
+                  <div 
+                    key={n.id}
+                    style={{
+                      padding:"16px",
+                      borderBottom:`1px solid ${C.border}`,
+                      background:n.read?"transparent":"rgba(26,79,214,0.05)",
+                      cursor:n.action_url?"pointer":"default",
+                      opacity:n.read?0.7:1
+                    }}
+                    onClick={()=>{
+                      if(!n.read)markNotificationRead(n.id);
+                      if(n.action_url){
+                        if(n.action_url.includes('hub=')){
+                          const hubId=n.action_url.match(/hub=([^&]+)/)?.[1];
+                          if(hubId)openHub(hubId);
+                        }else if(n.action_url.includes('action=checkin')){
+                          setShowCheckinModal(true);
+                        }else if(n.action_url.includes('action=training')){
+                          setShowTrainingModal(true);
+                        }
+                        setShowNotifications(false);
+                      }
+                    }}
+                  >
+                    <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                      <span style={{fontSize:18,flexShrink:0}}>{typeIcon}</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:12,lineHeight:1.5,color:C.text}}>{n.message}</div>
+                        <div style={{fontSize:10,color:C.dim,marginTop:6}}>
+                          {new Date(n.created_at).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}
+                        </div>
+                      </div>
+                      {!n.read&&<div style={{width:10,height:10,borderRadius:5,background:C.blue,flexShrink:0,marginTop:4}}/>}
+                    </div>
+                    <button 
+                      style={{...S.btn("ghost"),fontSize:9,padding:"4px 8px",marginTop:10,opacity:0.6}}
+                      onClick={(e)=>{e.stopPropagation();deleteNotification(n.id);}}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Footer */}
+            <div style={{
+              padding:"16px",
+              borderTop:`1px solid ${C.border}`,
+              display:"flex",justifyContent:"space-between",alignItems:"center"
+            }}>
+              <span style={{fontSize:10,color:C.dim}}>
+                {notifications.length} total
+              </span>
+              <button 
+                style={{...S.btn("ghost"),fontSize:10,padding:"8px 12px"}}
+                onClick={()=>{checkNotificationTriggers();}}
+              >
+                🔄 Check now
+              </button>
             </div>
           </div>
         </div>
@@ -3520,6 +4350,9 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             <div style={{padding:"10px 12px",background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,fontFamily:`'${settingsForm.font}',monospace`,fontSize:settingsForm.fontSize,color:C.muted}}>
               Preview: THE BRAIN v6 · Wired Edition · Bootstrap → Thailand
             </div>
+            
+            {/* AI Provider Settings */}
+            <AIProviderSettings />
             
             {/* Onboarding re-trigger (Phase 4.2) */}
             <div style={{padding:"12px",background:`${C.blue}08`,border:`1px solid ${C.blue}30`,borderRadius:6}}>
@@ -4324,7 +5157,26 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
           </div>
           <div style={{height:6,background:C.border,borderRadius:3,overflow:"hidden",marginBottom:4}} onClick={()=>setModal("manage-goals")}>
             <div style={{width:`${Math.min(100,Math.round(totalIncome/(activeGoal?.target_amount||3000)*100))}%`,height:"100%",background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:3}}/>
-              </div>
+          </div>
+          
+          {/* Progress Trends (simplified) */}
+          {weeklyTraining.count > 0 && (
+            <div style={{marginTop:12}}>
+              <ProgressTrends 
+                title="Training Trend (Last 7 Days)"
+                data={[
+                  { label: 'Mon', value: Math.max(0, weeklyTraining.count - 2) },
+                  { label: 'Tue', value: Math.max(0, weeklyTraining.count - 1) },
+                  { label: 'Wed', value: weeklyTraining.count },
+                  { label: 'Thu', value: weeklyTraining.count },
+                  { label: 'Fri', value: weeklyTraining.count },
+                  { label: 'Sat', value: weeklyTraining.count },
+                  { label: 'Sun', value: weeklyTraining.count },
+                ]}
+                color={C.green}
+              />
+            </div>
+          )}
             </div>
           )}
 

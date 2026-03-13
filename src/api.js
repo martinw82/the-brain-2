@@ -473,8 +473,18 @@ export const scripts = {
 
 // ── AI ────────────────────────────────────────────────────────
 export const ai = {
-  ask: (prompt, system) =>
-    post(`${BASE}/api/ai`, { prompt, system }),
+  ask: (prompt, system, provider) =>
+    post(`${BASE}/api/ai`, { prompt, system, provider }),
+};
+
+// ── USER AI SETTINGS ─────────────────────────────────────────
+export const userAISettings = {
+  get: () =>
+    get(`${BASE}/api/data?resource=user-ai-settings`),
+  update: (settings) =>
+    put(`${BASE}/api/data?resource=user-ai-settings`, settings),
+  deleteKey: () =>
+    del(`${BASE}/api/data?resource=user-ai-settings`),
 };
 
 // ── INTEGRATIONS (Phase 4.3) ─────────────────────────────────
@@ -487,6 +497,22 @@ export const integrations = {
     put(`${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`, data),
   disconnect: (projectId, provider) =>
     del(`${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`),
+};
+
+// ── NOTIFICATIONS (Phase 4.4) ────────────────────────────────
+export const notifications = {
+  list: (unreadOnly = false, limit = 50) =>
+    get(`${BASE}/api/data?resource=notifications&unread_only=${unreadOnly}&limit=${limit}`),
+  create: (type, message, actionUrl) =>
+    post(`${BASE}/api/data?resource=notifications`, { type, message, action_url: actionUrl }),
+  markRead: (id) =>
+    put(`${BASE}/api/data?resource=notifications&id=${id}`),
+  markAllRead: () =>
+    put(`${BASE}/api/data?resource=notifications&action=mark-all-read`),
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=notifications&id=${id}`),
+  checkTriggers: () =>
+    get(`${BASE}/api/data?resource=notification-check`),
 };
 
 // ── IMPORT PARSERS ────────────────────────────────────────────
