@@ -4,6 +4,62 @@
 
 ---
 
+## Session 042 — 2026-03-12
+**Branch:** `session-042-phase-4`
+**Task:** Phase 4.4 — Notification / Reminder System
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented comprehensive notification system with automatic triggers and in-app alerts.
+
+**Database Changes (`scripts/migrate.js`):**
+- Migration v20: Created `notifications` table
+  - `id`, `user_id`, `type`, `message`, `read`, `action_url`, `created_at`, `expires_at`
+  - Indexes: `idx_notifications_user_read`, `idx_notifications_created`
+  - Foreign key to `users(id)`
+
+**API Changes (`api/data.js`):**
+- `resource=notifications` endpoints:
+  - GET: List notifications with unread count, supports `unread_only` and `limit` filters
+  - POST: Create notification (manual or from triggers)
+  - PUT: Mark single notification as read or `action=mark-all-read`
+  - DELETE: Remove notification
+- `resource=notification-check` endpoint:
+  - Evaluates 5 trigger conditions and creates notifications
+  - Daily check-in not done (creates notification once per 12h)
+  - Training minimum not met by Friday (end of week check)
+  - Project health dropped below 50 (throttled to once per 24h per project)
+  - Staging items pending review > 7 days (throttled to once per 24h)
+  - Returns summary of checks performed and notifications created
+
+**Client API (`src/api.js`):**
+- Added `notifications` wrapper with list(), create(), markRead(), markAllRead(), delete(), checkTriggers()
+
+**UI Changes (`src/TheBrain.jsx`):**
+- State: `notifications`, `unreadCount`, `showNotifications`, `notificationsLoading`
+- Notification bell in header with unread badge (red circle with count, "9+" for 10+)
+- Desktop: Dropdown panel with notification list, mark all read, check now button
+- Mobile: Slide-out drawer (85% width) with same functionality + delete buttons
+- Click notification to navigate: hub links, check-in modal, training modal
+- Auto-check triggers every 5 minutes via useEffect interval
+- Click-outside handler to close desktop dropdown
+- Type icons: 🌅 daily_checkin, 🥋 training_weekly, ⚠️ project_health, 📋 staging_pending, 🚨 drift_alert
+
+**Triggers Implemented:**
+1. Daily check-in: Created if no check-in for today (throttled 12h)
+2. Training weekly: Created on Friday if <3 sessions in current week
+3. Project health: Created when any project health <50 (throttled 24h per project)
+4. Staging pending: Created when staging item in review >7 days (throttled 24h)
+5. Drift alerts: Reuses existing drift-check flags (Phase 2.10)
+
+**Done When**
+✅ Actionable notifications appear in-app when triggers fire
+✅ Bell icon shows unread count with badge
+✅ Click notification navigates to relevant action
+✅ Works on both desktop (dropdown) and mobile (drawer)
+
+---
+
 ## Session 041 — 2026-03-11
 **Branch:** `session-041-phase-4`
 **Task:** Phase 4.3 — GitHub Integration

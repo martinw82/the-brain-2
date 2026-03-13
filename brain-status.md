@@ -2,10 +2,10 @@
 
 # THE BRAIN — Master Status Document
 
-**Version:** 8.1 (Phase 4.3 Complete — GitHub Integration)
+**Version:** 8.2 (Phase 4.4 Complete — Notification System)
 **Live URL:** the-brain-2.vercel.app
-**Last Updated:** 2026-03-11
-**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, Phase 3.1–3.6, and Phase 4.1–4.3 complete; Phase 4.4 next
+**Last Updated:** 2026-03-12
+**Status:** Beta — All Phase 0, Phase 1, Phase 2.1–2.10, Phase 3.1–3.6, and Phase 4.1–4.4 complete; Phase 5 ready when needed
 
 ---
 
@@ -40,7 +40,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 
 ---
 
-## 3. Database Schema (20 tables)
+## 3. Database Schema (21 tables)
 
 **Core (original):**
 - **users** — email, password_hash, name, goal, monthly_target, currency, timezone, `settings` JSON (theme, font_family, font_size, sidebar_width, default_template_id, etc.)
@@ -80,6 +80,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **onboarding** — `onboarding_completed` flag in users table, 4-step wizard, interactive tour (Phase 4.2)
 - **health_fitness_template** — New system template with phases: ASSESS → BUILD → MAINTAIN → OPTIMIZE (Phase 4.2)
 - **github_integration** — `project_integrations` table, PAT auth, repo status + commits, connect/disconnect UI (Phase 4.3)
+- **notifications** — `notifications` table with triggers for daily check-in, training goals, project health, staging items, drift alerts (Phase 4.4; migration v20)
 
 ---
 
@@ -96,6 +97,7 @@ The Brain existed as a concept before the ChatGPT conversation analysis (283 con
 - **Ideas** — bank ideas with score and tags
 - **AI Coach** — proxied server-side via `/api/ai`, rate-limited (10/min), full project context, preset prompts
 - **Export** — full JSON context builder, per-agent briefing generator, local file download
+- **Notifications** — bell icon with unread badge in header, dropdown (desktop) / drawer (mobile), auto-triggered by daily check-in, training goals, project health, staging items, drift detection; click to navigate to relevant action
 
 ### Hub-Level Features (8 tabs per project)
 - **Editor** — file tree + markdown editor with debounced auto-save + manual save, edit/preview modes

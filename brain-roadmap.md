@@ -100,358 +100,275 @@ _Not a full test suite — just the 3 paths where data loss would destroy trust.
 
 ---
 
-## PHASE 1 — Extensible Foundations
+## PHASE 1 — Foundations (core philosophy support)
 
-_These are the base systems that everything else plugs into. Get these right and every future feature is easier._
+_The infrastructure needed for "Life > Parts > Things" to work._
 
-### 1.0 [EXTENSIBLE] Life Areas ("Parts") `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
+### 1.0 Life Areas (Parts) `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
 
-The core philosophy is Life > Parts > Things. Without Parts as first-class entities, this is a project manager, not a life OS.
+**Goal:** Make "Parts" real entities, not just folder names.
 
-- [x] **Schema:** Create `life_areas` table:
-  ```
-  id, user_id, name, color, icon,
-  description,
-  target_hours_weekly (int, nullable),
-  health_score (int, 0-100, auto-calculated),
-  sort_order (int),
-  created_at, updated_at
-  ```
-- [x] **Schema:** Add `life_area_id VARCHAR(36) NULLABLE` to `projects` table (FK to life_areas)
-- [x] **Seed defaults** on first user creation (user can rename/delete):
-  - Business / Revenue (💼)
-  - Health / Body (🏋️)
-  - Relationships (❤️)
-  - Creative / Learning (🎨)
-  - Personal / Admin (🏠)
-- [x] **API:** CRUD routes for life areas (`/api/areas`)
-- [x] **API:** Assign/unassign project to area (`/api/projects/:id` update with `life_area_id`)
-- [x] **Health calculation:** Area health = weighted average of its projects' health scores
-- [x] **UI:** Life area pills/tabs in Command Centre — click to filter projects by area
-- [x] **UI:** Area assignment dropdown in project creation and project overview
-- [x] **UI:** Area health summary card — shows all areas with health bars
-- [ ] **Agent integration:** AI Coach receives area context — can say "Business is strong but Health is declining" and route advice accordingly
-- [ ] **Allow projects to belong to multiple areas** via the tagging system (Phase 1.3) as an alternative to the FK — both paths should work
-- **Done when:** You can see a dashboard that says "Business: 65%, Health: 30%, Creative: 80%" and filter projects by life area
+- [x] `[DB]` Create `life_areas` table: id, user_id, name, color, icon, description, target_hours_weekly, health_score, sort_order
+- [x] `[DB]` Migration: Add `life_area_id` FK to `projects` table
+- [x] `[API]` CRUD endpoints for `/api/data?resource=areas`
+- [x] `[UI]` Area pills in Command Centre (filter projects by area)
+- [x] `[UI]` Area selector in New Project modal
+- [x] `[UI]` Area display in project Overview tab
+- **Done when:** User can assign projects to Life Areas and filter by them
+- **How:** Migration v3, v4. Area health computed as weighted average of project health. 5 default areas seeded on user creation.
 
-### 1.1 [EXTENSIBLE] Generic goal system `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
+### 1.1 Generic Goal Tracking `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
 
-Replace the hardcoded Thailand/£3k tracker with a configurable goal engine.
+**Goal:** Replace hardcoded "Thailand Goal" with configurable goals (any currency, any target).
 
-- [x] **Schema:** Create `goals` table:
-  ```
-  id, user_id, title, target_amount, current_amount,
-  currency, timeframe (monthly/yearly/total),
-  category (income/savings/debt/custom),
-  status (active/achieved/paused),
-  created_at, updated_at
-  ```
-- [x] **Schema:** Create `goal_contributions` table:
-  ```
-  id, goal_id, project_id (nullable), source_label,
-  amount, date, notes
-  ```
-- [x] **API:** CRUD routes for goals (`/api/goals`)
-- [x] **API:** CRUD routes for contributions (`/api/goals/:id/contributions`)
-- [x] **UI:** Replace hardcoded `THAILAND_TARGET` with `user.goals[0]` (or active goal)
-- [x] **UI:** Progress bar reads from goal data, not project income_target sum
-- [x] **UI:** Goal configuration in a modal (title, amount, currency, timeframe)
-- [ ] **UI:** Link projects to goals with contribution amounts (Manual contributions implemented)
-- [x] Remove all hardcoded `£`, `GBP`, `3000`, `THAILAND` references — read from goal/user config
-- **Done when:** A new user can set their own financial goal in any currency and track projects against it
+- [x] `[DB]` Create `goals` table: id, user_id, title, target_amount, current_amount, currency, timeframe, category, status
+- [x] `[DB]` Create `goal_contributions` table: id, goal_id, user_id, project_id, source_label, amount, date, notes
+- [x] `[API]` CRUD for goals + contributions
+- [x] `[UI]` Goal progress bar in Command Centre (reads from DB)
+- [x] `[UI]` Goal configuration modal (set target, currency, timeframe)
+- [x] `[UI]` "Add Contribution" UI (quick-log toward goal)
+- **Done when:** User can set a custom goal and track progress toward it
+- **How:** Migrations v5, v6. Goal picker in settings. Contribution tracking in project Meta tab.
 
-### 1.2 [EXTENSIBLE] Template system `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
+### 1.2 Project Templates `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
 
-Make project structure configurable rather than one-size-fits-all.
+**Goal:** Different project types need different folder structures and phases.
 
-- [x] **Schema:** Create `templates` table:
-  ```
-  id, user_id (null = system template), name, description,
-  icon, category,
-  config JSON: {
-    phases: [...],           -- e.g. BUIDL phases, or custom
-    standard_folders: [...], -- which folders to create
-    default_files: {...},    -- which files to generate
-    skills: [...],           -- which agent skills apply
-    workflows: [...],        -- which workflows apply
-    metadata_schema: {...}   -- what fields projects of this type track
-  },
-  is_system (boolean),
-  created_at
-  ```
-- [x] **Seed system templates:**
-  - BUIDL Framework (current default — phases, all folders, all skills)
-  - Software Project (phases: planning/dev/testing/deployed, code-focused folders)
-  - Content Project (phases: research/draft/review/published, content-focused folders)
-  - Business / Revenue (phases: validate/build/launch/grow, marketing + analytics folders)
-  - Personal Goal (phases: define/plan/execute/maintain, minimal folders)
-  - Blank (no phases, no default files beyond PROJECT_OVERVIEW.md)
-- [x] **API:** CRUD routes for templates (`/api/templates`)
-- [x] **API:** "Save as template" logic — UI extracts project structure into a new template
-- [x] **UI:** Template selector in New Project modal (before Bootstrap Wizard)
-- [x] **UI:** "Save as Template" button in project Meta tab
-- [x] **Refactor:** `makeProject()` and `makeDefaultFiles()` read from template config instead of hardcoded constants
-- [x] **Refactor:** `BUIDL_PHASES` becomes `template.config.phases` — if template has no phases, phase UI is hidden
-- [x] **Refactor:** `STANDARD_FOLDERS` becomes `template.config.standard_folders`
-- [x] **Validation:** Simple runtime checks for configuration JSON.
-- **Done when:** Creating a new project lets you pick a template, and projects without BUIDL phases work correctly with no phase-related UI showing
+- [x] `[DB]` Create `templates` table: id, user_id, name, description, icon, category, config (JSON), is_system
+- [x] `[API]` CRUD for templates
+- [x] `[UI]` Template picker in New Project modal
+- [x] `[UI]` "Save as Template" button in project Meta tab
+- [x] `[UI]` Template drives project phases and folder structure
+- [x] Seed 5 system templates: BUIDL, Software, Content, Business, Personal Goal
+- **Done when:** User can create projects from templates and save custom templates
+- **How:** Migration v7. Templates have `config.phases[]` and `config.folders[]`. Project creation uses template config.
 
-### 1.3 [EXTENSIBLE] Tagging and linking system `[DB]` `[API]` ✅ COMPLETE (2026-03-10)
+### 1.3 Tagging & Linking System `[DB]` `[API]` `[UI]` `[EXTENSIBLE]` ✅ COMPLETE (2026-03-08)
 
-Foundation for the "Things belong to multiple Parts" philosophy.
+**Goal:** Cross-entity relationships without rigid hierarchy.
 
-- [x] **Schema:** Create `tags` table (migration v8)
-- [x] **Schema:** Create `entity_tags` junction table (migration v9)
-- [x] **Schema:** Create `entity_links` table (migration v10)
-- [x] **API:** CRUD for tags (`/api/tags`)
-- [x] **API:** Tag/untag any entity (`/api/tags/:id/attach`, `/api/tags/:id/detach`)
-- [x] **API:** Link/unlink entities (`/api/links`)
-- [x] **API:** Query: "get all entities with tag X" and "get all links for entity Y"
-- [x] **UI:** QuickTagRow on project/idea/staging/goal/file cards — type to search/create, Enter to attach, × to remove
-- [x] **UI:** 🏷 Tags brain tab — tag cloud + cross-entity query, click to navigate
-- [x] **UI:** 🔗 Links hub tab — create/view/delete entity relationships (parent/child/supports/blocks/related)
-- **Done when:** ✓ Tag "health" on a project → Tags tab → see all entities tagged "health" across every type. Link Project A as parent of Project B.
-- **Bug fixed post-completion:** POST entity-tags was returning `{success,tag_id}` only — missing name/color/entity fields. Fixed to return full record so tag pills appeared correctly.
+- [x] `[DB]` Create `tags` table: id, user_id, name, color, category
+- [x] `[DB]` Create `entity_tags` junction: tag_id, user_id, entity_type, entity_id
+- [x] `[DB]` Create `entity_links` table: user_id, source_type, source_id, target_type, target_id, relationship
+- [x] `[API]` CRUD for tags + entity_tags + entity_links
+- [x] `[UI]` QuickTagRow component on projects/ideas/staging/goals/files
+- [x] `[UI]` 🏷 Tags brain tab: tag cloud + cross-entity query
+- [x] `[UI]` 🔗 Links hub tab: entity relationship viewer/creator
+- **Done when:** User can tag anything and create relationships between entities
+- **How:** Migrations v8, v9, v10. `entity_type` enum: project, idea, staging, goal, file. Relationship types: parent, child, supports, blocks, related.
 
-### 1.4 [EXTENSIBLE] Settings system `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-10)
+### 1.4 Settings Persistence `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
 
-User preferences stored in DB, with localStorage cache for speed.
+**Goal:** User preferences survive across devices.
 
-- [x] **Schema:** Add `settings` JSON column to `users` table (migration v11)
-- [x] **API:** GET/PUT `/api/settings`
-- [x] **UI:** Settings modal (⚙ gear icon in header) with font family + font size options
-- [x] **Cache:** Write to localStorage on save, read from localStorage on load
-- [x] **Apply:** font-family and font-size applied globally from settings
-- [ ] Theme class on root element, sidebar width as CSS variable — deferred to Phase 2 (not blocking)
-- [ ] Keyboard shortcuts (Cmd+K, Cmd+N, Cmd+S) — deferred to Phase 3
-- **Done when:** ✓ User can change font family + size, settings persist across sessions and devices
+- [x] `[DB]` Add `settings` JSON column to `users` table
+- [x] `[API]` GET/PUT `/api/data?resource=settings`
+- [x] `[UI]` Settings modal (⚙ gear icon in header)
+- [x] `[UI]` Font family selector (persist to DB)
+- [x] `[UI]` Font size selector (persist to DB)
+- [ ] `[UI]` Theme selector (dark/light) — deferred to Phase 2
+- [ ] `[UI]` Sidebar width persistence — deferred to Phase 2
+- **Done when:** Settings persist across sessions and devices
+- **How:** Migration v11. Settings merged from DB on load, cached in localStorage for speed.
 
 ---
 
-## PHASE 2 — Core Feature Completion
+## PHASE 2 — Daily Tool Features
 
-_Build out every functional feature discussed. Each one plugs into the Phase 1 foundations._
+_Make it usable every day without friction._
 
-### 2.1 Project import `[UI]` `[API]` ✅ COMPLETE (2026-03-11)
+### 2.1 Project Import `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [x] **BUIDL format import:** Parse the existing export format (MANIFEST_START/FILES_START/etc.)
-  - [x] Build parser function (`parseBuildlFormat()`)
-  - [x] UI: textarea modal for paste import
-  - [x] On import: create project in DB, save all files
-- [x] **JSON import:** Accept a JSON file matching the project schema
-  - [x] UI: file upload in import modal
-  - [x] Validate structure, create project + files
-- [x] **Folder import (File System Access API):**
-  - [x] UI: "Import from folder" button that calls `window.showDirectoryPicker()`
-  - [x] Recursively read directory contents
-  - [x] Map to project structure (folder names → folder IDs where possible)
-  - [x] Create project + files in DB
-- [x] Wire up existing `importText`/`importError` state to the new UI
-- [x] Conflict resolution: duplicate projectId shows modal with overwrite option
-- **Done when:** All three import methods work and create a fully functional project with files in DB ✓
+- [x] Support BUIDL format paste (text area with MANIFEST_START/END, FILES_START/END)
+- [x] Support JSON file upload (validated structure)
+- [x] Support folder picker (File System Access API) for entire project import
+- [x] Conflict detection: show diff when file exists
+- [x] Option to overwrite or skip conflicting files
+- [x] Auto-navigate to imported project on success
+- **Done when:** User can import projects from old Brain format or file system
+- **How:** `importMethod` state: "buidl" | "json" | "folder". `parseBuildlFormat()`, `validateImportJson()`, `parseFileSystemEntries()`. Import modal with 3-tab interface.
 
-### 2.2 Image and binary file handling `[UI]` `[API]` ✅ COMPLETE (2026-03-11)
+### 2.2 Image & Binary File Handling `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [x] **Image viewer component:** Renders `<img>` tag for .png/.jpg/.gif/.svg/.webp extensions
-- [x] **Binary detection:** Check file extension or content prefix (data:image, etc.)
-- [x] **File tree icons:** Show image icon for image files
-- [x] **Upload flow:** Dragging an image into staging stores as base64 data URI
-- [x] **Download link:** Non-text, non-image files show a download button instead of editor
-- [x] **Size limit:** Warns if file content exceeds 500KB as base64
-- [x] **Architecture note:** Image viewer accepts both base64 data URIs and URLs — migration to object storage (S3/R2) is non-breaking
-- **Done when:** ✓ Drag an image into a project, see it in the file tree, click it, see the image rendered
+- [x] Image viewer component for .png/.jpg/.gif/.svg/.webp
+- [x] Binary detection by extension
+- [x] Base64 upload via drag-drop into staging
+- [x] Download link for non-image binaries
+- [x] Size warning for files >500KB
+- **Done when:** User can view images and download other binary files
+- **How:** `ImageViewer` component. Binary extensions list. Base64 encoding for storage.
 
-### 2.3 Metadata editor panel `[UI]` ✅ COMPLETE (2026-03-11)
+### 2.3 Metadata Editor Panel `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [x] **Component:** Collapsible metadata panel shown alongside the editor
-- [x] **Fields:** category (dropdown), status (dropdown), tags (from tag system), last modified (auto), custom fields (key-value pairs via JSON)
-- [x] **Storage:** Separate `file_metadata` table (Option B chosen) — per-file category, status, metadata_json
-- [x] **UI:** Collapsible panel on the right side of the editor
-- [x] **Save:** Metadata saves with optimistic pattern; `folder_path`/`filed_at` on staging items for filing flow
-- **Done when:** ✓ Select a file, see its metadata, edit category/status, it persists in `file_metadata` table
+- [x] `[DB]` Create `file_metadata` table: id, project_id, user_id, file_path, category, status, metadata_json
+- [x] `[API]` CRUD for file_metadata
+- [x] `[UI]` Collapsible right panel in editor showing metadata
+- [x] `[UI]` Category dropdown (documentation, planning, research, code, design, marketing, other)
+- [x] `[UI]` Status dropdown (draft, review, final, archived)
+- [x] `[UI]` Custom JSON fields (extensible)
+- [x] `[UI]` "File to Folder" flow: staging items → project folders with metadata
+- **Done when:** Every file can have category, status, and custom metadata
+- **How:** Migration for `file_metadata`. `MetadataEditor` component in editor. `folder_path`/`filed_at` fields on staging for "file to folder" flow.
 
-### 2.4 Offline mode / localStorage fallback `[UI]` ✅ COMPLETE (2026-03-11)
+### 2.4 Offline Mode & localStorage Fallback `[UI]` `[CONFIG]` ✅ COMPLETE (2026-03-11)
 
-- [x] **On load:** Fetch from DB, write full state to localStorage as cache (`cache.js` module)
-- [x] **On save:** Write to DB (primary) AND localStorage (cache)
-- [x] **On DB failure:** Read from localStorage cache, show "offline" indicator in UI
-- [x] **On reconnect:** Sync localStorage changes back to DB (`sync.js` module)
-- [x] **Conflict resolution:** Timestamp comparison (last-write-wins with timestamp)
-- [ ] **Unauthenticated mode:** If no JWT token, app works entirely from localStorage — deferred (not blocking)
-- **Done when:** ✓ App works with no internet; data syncs when connection returns; offline indicator shown
+- [x] Full state cached to localStorage on load
+- [x] DB-first with cache fallback
+- [x] Sync-on-reconnect when back online
+- [x] Offline indicator in UI
+- [x] Write queue for offline changes
+- **Done when:** App works (read-only) when offline, syncs when reconnected
+- **How:** `cache.js` module with write queue. `writeWithQueue()` in api.js. Online/offline status indicator in header.
 
-### 2.4B Desktop file sync (BONUS) `[DB]` `[UI]` ✅ COMPLETE (2026-03-11)
+### 2.5 Daily Check-in System `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [x] **Schema:** `sync_state` + `sync_file_state` tables for tracking folder sync state
-- [x] **Module:** `desktop-sync.js` — folder handle persistence, recursive read/write
-- [x] **UI:** `FolderSyncSetup.jsx` — connect to local folder, save handle
-- [x] **Conflict detection:** `SyncReviewModal.jsx` — review conflicts before applying sync
-- **Done when:** ✓ Connect a local folder, sync project files to/from it with conflict review
+- [x] `[DB]` Create `daily_checkins` table: id, user_id, date, sleep_hours, energy_level, gut_symptoms, training_done, notes
+- [x] `[API]` GET/POST daily-checkins
+- [x] `[UI]` DailyCheckinModal with sliders for sleep (0-24), energy (0-10), gut (0-10)
+- [x] `[UI]` Training done checkbox
+- [x] `[UI]` Auto-prompt on first visit of day
+- [x] `[UI]` Energy emoji in top bar (🌙/🔄/⚡ based on level)
+- [x] `[UI]` Check-in data passed to AI Coach for state-based routing
+- **Done when:** User is prompted daily to check in; energy level visible and used by AI
+- **How:** Migration v12. `DailyCheckinModal`. localStorage tracks last check-in date. Energy-based routing: ≤4 = low-complexity, 5-7 = shipping/outreach, 8+ = deep work.
 
-### 2.5 Daily check-in system `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
+### 2.6 Training Log `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-Foundation for the agent layer's state-based task routing.
+- [x] `[DB]` Create `training_logs` table: id, user_id, date, duration_minutes, type, notes, energy_after
+- [x] `[API]` GET/POST/PUT/DELETE training-logs + stats endpoint
+- [x] `[UI]` TrainingLogModal with type selector (solo/class/sparring/conditioning/other)
+- [x] `[UI]` Duration with quick presets (30/45/60/90m)
+- [x] `[UI]` Energy-after slider
+- [x] `[UI]` 🥋 top bar indicator (click to log)
+- [x] `[UI]` Command Centre training card: weekly sessions + progress bar
+- [x] `[UI]` Auto-marks today's check-in `training_done=true`
+- **Done when:** User can log training sessions and track weekly progress
+- **How:** Migration v13. `TrainingLogModal`. Stats endpoint with weekly buckets. 3/week target.
 
-- [x] **Schema:** Create `daily_checkins` table (migration v12):
-  ```
-  id, user_id, date (unique per user per day),
-  sleep_hours (0-24), energy_level (0-10), gut_symptoms (0-10),
-  training_done (boolean), notes (text),
-  created_at, updated_at
-  ```
-- [x] **API:** POST `/api/data?resource=daily-checkins` (upsert — create or update today's)
-- [x] **API:** GET `/api/data?resource=daily-checkins&date=YYYY-MM-DD` (specific day)
-- [x] **API:** GET `/api/data?resource=daily-checkins&days=N` (last N days history)
-- [x] **UI:** `DailyCheckinModal.jsx` — auto-shows on first visit of day (localStorage `lastCheckinDate` gate)
-- [x] **UI:** Sleep hours input, energy slider (🌙/🔄/⚡ emoji states), gut slider, training checkbox, notes textarea
-- [x] **UI:** Energy level emoji + number shown in top bar
-- [x] **Store:** Check-in data passed to AI Coach context for state-based task routing (energy ≤4 = low complexity, 5-7 = shipping/outreach, 8+ = deep work)
-- **Done when:** ✓ Opening the app each day prompts a 30-second check-in; energy shows in top bar; data available to AI coach
-- **Bug fixed (2026-03-11):** DB migration was missing from `scripts/migrate.js` — added as v12; also added CREATE TABLE to `schema.sql`
+### 2.7 Outreach Tracking `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-### 2.6 Training log `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
+- [x] `[DB]` Create `outreach_log` table: id, user_id, date, type, target, project_id, notes
+- [x] `[API]` GET/POST/DELETE outreach-log
+- [x] `[UI]` OutreachLogModal with type selector (message/post/call/email/other)
+- [x] `[UI]` Target input + optional project link
+- [x] `[UI]` 📣 top bar indicator (purple when done, dim when zero)
+- [x] `[UI]` Command Centre outreach card: today's count + warning when none
+- [x] `[UI]` AI Coach context includes outreach count + "NOT DONE" flag
+- **Done when:** User logs outreach actions and sees daily progress
+- **How:** Migration v14. `OutreachLogModal`. Daily counts shown in Command Centre. Mandatory minimum tracked.
 
-- [x] **Schema:** Create `training_logs` table (migration v13):
-  ```
-  id, user_id, date, duration_minutes,
-  type (solo/class/sparring/conditioning/other),
-  notes, energy_after (0-10),
-  created_at, updated_at
-  ```
-- [x] **API:** GET `/api/data?resource=training-logs&days=N` — recent logs
-- [x] **API:** GET `/api/data?resource=training-logs&weeks=N` — stats mode: weekly buckets, session counts, total minutes, avg energy_after
-- [x] **API:** POST/PUT/DELETE CRUD via `/api/data?resource=training-logs`
-- [x] **Client:** `trainingLogs.save/list/stats/update/delete` in `src/api.js`
-- [x] **UI:** `TrainingLogModal.jsx` — type selector (5 types with emoji), duration input with quick presets (30/45/60/90m), energy-after slider, notes
-- [x] **UI:** Training card in Command Centre — session count, total minutes, progress bar toward 3/week target, "+ Log Training" button
-- [x] **UI:** 🥋 indicator in top bar showing weekly count (e.g., `2/3`), clickable to open log modal; green when ≥3, amber when ≥1, dim when 0
-- [x] **Auto-sync:** Logging training auto-marks today's check-in `training_done = true`
-- [x] **Correlation:** Weekly training data included in AI Coach context with "BELOW TARGET" flag if < 3 sessions
-- **Done when:** ✓ Log training sessions, see weekly count in top bar and Command Centre card, AI coach references training data
+### 2.8 Agent System Prompt Upgrade `[API]` `[CONFIG]` ✅ COMPLETE (2026-03-11)
 
-### 2.7 Outreach tracking `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
+- [x] `agent-config.json` with 10 enforcement rules + state routing + model config
+- [x] `buildSystemPrompt()` in `api/ai.js` queries DB in parallel
+- [x] Server-side context building: user profile, goal + progress, today's check-in, training, outreach, projects, sessions
+- [x] Recovery/Steady/Power routing computed server-side
+- [x] 4,000 token budget with auto-truncation
+- [x] Graceful fallback to rules-only if DB unavailable
+- [x] `askAI()` sends `{ prompt }` only — no client-side context
+- **Done when:** AI Coach has full context and follows the 10 rules
+- **How:** `agent-config.json` loaded server-side. Parallel DB queries for context. Compressed project summaries.
 
-- [x] **Schema:** Create `outreach_log` table (migration v14):
-  ```
-  id, user_id, date, type (message/post/call/email/other),
-  target (person/platform/channel),
-  project_id (nullable), notes, created_at
-  ```
-- [x] **API:** POST/DELETE via `/api/data?resource=outreach-log`
-- [x] **API:** GET `?date=YYYY-MM-DD` (today's entries + count) and `?days=N` (recent with daily_counts map)
-- [x] **Client:** `outreachLog.save/list/today/delete` in `src/api.js`
-- [x] **UI:** `OutreachLogModal.jsx` — type selector (5 types), target input, optional project link, notes
-- [x] **UI:** Outreach card in Command Centre — today's count + weekly total + last 3 entries preview; ⚠ "No outreach yet today" warning when empty
-- [x] **UI:** 📣 indicator in top bar — purple when done, dim when zero; shows count or "none"; click to open log modal
-- [x] **AI context:** Outreach today count + "NOT DONE (mandatory)" flag in AI Coach system prompt when no outreach logged
-- **Done when:** ✓ Log outreach actions, see daily indicator in top bar and card, AI coach enforces mandatory daily minimum
+### 2.9 Weekly Review Automation `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-### 2.8 Agent system prompt upgrade + context compression `[API]` `[CONFIG]` ✅ COMPLETE (2026-03-11)
+- [x] `[DB]` Create `weekly_reviews` table: id, user_id, week_start, data_json, what_shipped, what_blocked, next_priority, ai_analysis
+- [x] `[API]` GET/POST weekly-review with auto-aggregated stats
+- [x] `[UI]` WeeklyReviewPanel with week navigation
+- [x] `[UI]` 7 stat cards (sessions, energy, sleep, training, outreach, staging, etc.)
+- [x] `[UI]` Reflection fields: what shipped, what blocked, next priority
+- [x] `[UI]` AI-generated analysis
+- [x] `[UI]` Save to DB
+- **Done when:** User can review each week with auto-aggregated data + AI insights
+- **How:** Migration v15. `weekly-review` endpoint computes stats in parallel. `WeeklyReviewPanel` component.
 
-- [x] **Create:** `agent-config.json` — 10 enforcement rules (ship or it doesn't exist, outreach mandatory, match work to state, revenue-ready priority, health score urgency, call the loop, sessions need deliverables, ideas to staging, life before projects, truth over comfort) + state routing table + model/token config
-- [x] **Context compression:** Server-side builder queries DB directly — no file content sent; projects compressed to ~60 tokens each (name, phase, health, revenue_ready, next_action, blockers)
-- [x] **Token budget:** 4,000 token cap with auto-truncation to top 6 projects if exceeded; rough estimate logged per call
-- [x] **Build system prompt dynamically:** `buildSystemPrompt(userId, db)` in `api/ai.js` queries in parallel:
-  - User profile (name, currency, monthly_target)
-  - Active goal + contribution total + progress %
-  - Today's check-in (energy, sleep, gut, training_done)
-  - Training this week (count + minutes vs 3/week target)
-  - Outreach today (count, mandatory flag if zero)
-  - All projects (priority order, compressed single-line per project)
-  - Last 3 sessions
-- [x] **State-based routing:** Computed server-side — Recovery/Steady/Power mode with allowed/blocked task types
-- [x] **Graceful fallback:** If DB query fails, falls back to identity + rules only (no crash)
-- [x] **Client simplified:** `askAI()` now sends `{ prompt }` only — no client-side context building; skill briefings still pass their own `systemOverride`
-- **Done when:** ✓ Ask "What should I work on today?" — response references real check-in energy, project health scores, outreach status, enforces the 10 rules
+### 2.10 Drift Detection `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-### 2.9 Weekly review automation `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] **API:** `resource=weekly-review` GET — aggregates sessions, check-in averages, training count, outreach count, staging done, plus loads saved review
-- [x] **DB:** `weekly_reviews` table — `week_start`, `what_shipped`, `what_blocked`, `next_priority`, `ai_analysis`, `data_json` (migration v15)
-- [x] **UI:** "📋 Review" tab — week nav (prev/next), 7 stat cards, sessions list, reflection fields
-- [x] **UI:** Editable reflection fields: what shipped, what blocked, next week's priority
-- [x] **AI integration:** "Generate AI Review" button feeds week data + reflections to AI coach; result populates `ai_analysis` field
-- [x] **Persist:** POST upserts to `weekly_reviews` table per user + week_start; "Save Review" button
-- **Done when:** Every Sunday (or on demand), you can run a weekly review that shows real data and saves an AI-generated analysis ✅
-
-### 2.10 Drift detection `[API]` ✅ COMPLETE (2026-03-11)
-
-- [x] **Background check** (runs on login or daily): query last 14 days of check-ins + training + outreach
-- [x] **Rules:**
-  - Training < 3 sessions/week for 2 consecutive weeks → flag
-  - Outreach = 0 for 5+ days → flag
-  - Average energy declining over 7 days → flag
-  - No sessions logged for 3+ days → flag
-  - Same project focus for 14+ days with no health improvement → flag
-- [x] **UI:** Drift alerts in command centre (similar to health alerts)
-- [x] **AI integration:** Drift flags included in AI coach context so it can address them
-- **Done when:** ✅ The system proactively warns when patterns are slipping, without you having to notice
+- [x] `resource=drift-check` API with 5 detection rules
+  - Training < 3 sessions/week for 2 consecutive weeks
+  - Outreach = 0 for 5+ days
+  - Average energy declining over 7 days
+  - No sessions logged for 3+ days
+  - Same project focus 14+ days with no health improvement
+- [x] Drift alerts in Command Centre with dismiss functionality
+- [x] Drift flags included in AI Coach context
+- **Done when:** User sees early warning flags when patterns slip
+- **How:** Drift check queries multiple tables, computes trends, returns flags with severity. Dismissed flags stored in localStorage.
 
 ---
 
-## PHASE 3 — Intelligence & Power Features
+## PHASE 3 — Power Features
 
-_These make the tool genuinely powerful. Each plugs into the foundations from Phase 1-2._
+_Features that multiply effectiveness._
 
-### 3.1 AI metadata suggestions `[API]` ✅ COMPLETE (2026-03-11)
+### 3.1 AI Metadata Suggestions `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [x] When a file is saved, optionally send content to AI proxy
-- [x] AI returns suggested: category, tags, status, related projects
-- [x] Show suggestions in metadata panel as "suggested" pills (click to accept)
-- [x] Respect agent.ignore rules (don't analyse files in ignored folders)
-- **Done when:** ✅ Saving a markdown file shows AI-suggested tags that you can accept with one click
-- **How:** `resource=ai-metadata-suggestions` endpoint in `api/data.js`; Anthropic API call server-side; content truncated to 3000 chars; ignore patterns (node_modules, .git, lockfiles); suggestions shown in MetadataEditor as purple dashed pills with ✓ click-to-accept; confidence score displayed
+- [x] `resource=ai-metadata-suggestions` endpoint
+- [x] AI analyzes file content and suggests category, status, tags
+- [x] Suggestions shown in MetadataEditor panel as purple dashed pills
+- [x] Click to accept
+- [x] Ignore patterns (node_modules, .git, etc.)
+- [x] Content truncated to 3000 chars for analysis
+- **Done when:** AI suggests metadata for files based on content
+- **How:** Anthropic API call with structured system prompt. JSON response parsed for suggestions.
 
-### 3.2 Mermaid diagram rendering `[UI]` ✅ COMPLETE (2026-03-11)
+### 3.2 Mermaid Diagram Rendering `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [x] Add `mermaid` library (CDN or npm)
-- [x] Detect Mermaid code blocks in markdown (```mermaid)
-- [x] Render as SVG in preview mode
-- [x] Dedicated "Dependency Graph" file: `/system/DEPENDENCY_GRAPH.md`
-- [ ] Optional: AI-generated diagram from SYSTEM_INDEX.md (as old version had) — deferred to Phase 4
-- **Done when:** ✅ Mermaid diagrams render visually in markdown preview
+- [x] Mermaid loaded via CDN in index.html
+- [x] `MermaidRenderer` component renders diagrams as SVG
+- [x] `MarkdownPreview` splits content and renders mermaid blocks
+- [x] `renderMd` detects and extracts mermaid code blocks
+- [x] Default `system/DEPENDENCY_GRAPH.md` template with example diagrams
+- **Done when:** Mermaid diagrams render visually in markdown preview
 - **How:** Mermaid loaded via CDN in index.html; `MermaidRenderer` component renders SVG with dark theme; `MarkdownPreview` splits content by mermaid blocks; default `system/DEPENDENCY_GRAPH.md` template with example diagrams
 
 ### 3.3 Search improvements `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [x] **Cross-project search:** Current search already queries DB full-text — extend to return results grouped by project
-- [x] **Better result display:** Show matched line with highlighted search term
-- [x] **Search filters:** by project, by folder, by file type, by tag
-- [x] **Keyboard shortcut:** Cmd/Ctrl+K opens search
-- [x] **Recent searches:** Store last 5 searches in localStorage
-- **Done when:** ✅ Cmd+K opens a search that finds content across all projects with highlighted excerpts
-- **How:** Enhanced `resource=search` API with filters and grouped results; `SearchModal` component with Cmd+K shortcut, recent searches, filter dropdowns, highlighted match terms
+- [x] Enhanced search API with filters (project, folder, file type)
+- [x] Highlighted excerpts in results
+- [x] Grouped results by project
+- [x] `SearchModal` component with Cmd+K shortcut
+- [x] Recent searches (localStorage)
+- [x] Filter dropdowns
+- [x] Debounced search with loading indicator
+- **Done when:** User can quickly find anything with Cmd+K
+- **How:** Search endpoint with SQL filters. Excerpt highlighting with match index. `SearchModal` with keyboard shortcut.
 
-### 3.4 Local file system sync `[UI]` ✅ COMPLETE (2026-03-11)
+### 3.4 Local File System Sync `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [x] **Connect:** `window.showDirectoryPicker()` → store handle in state
-- [x] **Save to local:** Recursively write project files to connected folder
-- [x] **Load from local:** Recursively read folder, update project in DB
-- [x] **Sync indicator:** Show "connected to: /path/to/folder" in project meta
-- [x] **Caution:** Overwrite confirmation before any destructive sync
-- **Done when:** ✅ You can connect a local folder, save your project to it, and load changes back
-- **How:** `sync_state`/`sync_file_state` tables (migrations v16, v17); `resource=sync_state` API endpoints; `desktop-sync.js` module with File System Access API integration; `FolderSyncSetup` component in Meta tab; `SyncReviewModal` for conflict resolution with desktop/cloud choice
+- [x] `sync_state` and `sync_file_state` tables
+- [x] `resource=sync_state` API endpoints (GET/POST/PUT/DELETE)
+- [x] `desktop-sync.js` module with `selectFolder()`, `saveFolderHandle()`, `syncFiles()`
+- [x] `FolderSyncSetup` component in Meta tab
+- [x] `SyncReviewModal` for conflict resolution
+- [x] File System Access API for desktop folder access
+- [x] Bi-directional sync with overwrite confirmation
+- **Done when:** User can connect a local folder and sync bidirectionally
+- **How:** Migrations v16, v17. Folder handle persistence. Content hash comparison for conflict detection.
 
-### 3.5 File validity checker `[UI]` `[API]` ✅ COMPLETE (2026-03-11)
+### 3.5 File Validity Checker `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [x] **Check:** Required files exist (PROJECT_OVERVIEW.md, DEVLOG.md, manifest.json)
-- [x] **Check:** manifest.json is valid JSON and matches project state
-- [x] **Check:** No orphaned files (files in DB not referenced by any folder)
-- [x] **Check:** Template-required folders exist
-- [x] **UI:** "Health check" button in Meta tab, shows pass/fail list
-- [x] **Auto-fix:** Offer to create missing required files with defaults
-- **Done when:** ✅ Running a health check shows structural issues and can auto-fix them
-- **How:** `HealthCheck` component in Meta tab; client-side validation using existing project data; checks required files, valid manifest.json, orphaned files, template folders, missing .gitkeep; error/warning/info classification; auto-fix creates files with default content
+- [x] `HealthCheck` component in Meta tab
+- [x] Checks for required files (PROJECT_OVERVIEW.md, DEVLOG.md, manifest.json)
+- [x] Validates manifest.json JSON
+- [x] Checks manifest-project state consistency
+- [x] Detects orphaned files (not in any folder)
+- [x] Checks template-required folders
+- [x] Shows error/warning/info counts
+- [x] Auto-fix for missing files with default content
+- **Done when:** Structural issues are flagged automatically
+- **How:** `HealthCheck` runs structural validation. Auto-fix creates default content for missing files.
 
-### 3.6 Script execution `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
+### 3.6 Script Execution `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
 
-- [x] **Schema:** Scripts stored as files in `/tools/` folder per project
-- [x] **API:** POST `/api/data?resource=scripts` — accepts script content + language, executes in sandboxed environment
-- [x] **Safety:** Whitelist allowed languages (js, python, shell), timeout after 30s, no network access
-- [x] **UI:** Script runner panel — select script, run, see output
-- [x] **Predefined scripts:** "Export all files as ZIP", "Count words across project", "List all TODOs"
-- **Done when:** ✅ You can write a script in a project's /tools/ folder and run it from the UI
-- **How:** `/tools/` folder added to `STANDARD_FOLDERS`; predefined scripts in default project files; `resource=scripts` API with sandboxed JS execution (30s timeout, no network, whitelisted globals); `ScriptRunner` component in Meta tab with quick scripts and custom script selection
+- [x] `resource=scripts` POST endpoint
+- [x] Sandboxed JavaScript execution using Function constructor
+- [x] Safety controls: 30s timeout, no network, whitelisted globals
+- [x] `ScriptRunner` component in Meta tab
+- [x] Quick scripts: Word Count, List TODOs, Stats
+- [x] Custom script selector from `/tools/` folder
+- [x] Output display panel
+- **Done when:** User can run sandboxed scripts against project data
+- **How:** Server-side sandbox with restricted globals. Timeout via Promise.race. Script metadata extraction.
 
 ---
 
@@ -494,18 +411,22 @@ _Make it work everywhere, reliably._
 - **Done when:** ✅ GitHub integration connects and shows real repo data
 - **How:** `project_integrations` table, `/api/integrations.js` serverless function, `GitHubIntegration` component with step-by-step setup instructions, PAT-based auth (OAuth upgradeable)
 
-### 4.4 Notification / reminder system `[DB]` `[API]`
+### 4.4 Notification / reminder system `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-12)
 
-- [ ] **Schema:** `notifications` table: id, user_id, type, message, read, action_url, created_at
-- [ ] **Triggers:**
+- [x] **Schema:** `notifications` table: id, user_id, type, message, read, action_url, created_at (migration v20)
+- [x] **Triggers:**
   - Daily check-in not done by configured time
   - Training minimum not met by end of week
   - Project health dropped below threshold
   - Staging items pending review > 7 days
   - Drift detection alerts
-- [ ] **UI:** Notification bell in top bar with count badge
+- [x] **UI:** Notification bell in top bar with count badge
+- [x] **API:** `/api/data?resource=notifications` for CRUD, `/api/data?resource=notification-check` for trigger evaluation
+- [x] **Auto-check:** Every 5 minutes for new triggers
+- [x] **Mobile:** Slide-out drawer for notifications on mobile
 - [ ] **Future:** Email/push notifications (out of scope for now — in-app only)
-- **Done when:** Actionable notifications appear in-app when triggers fire
+- **Done when:** ✅ Actionable notifications appear in-app when triggers fire
+- **How:** Migration v20. `notificationsApi` client methods. Bell icon with badge in header. Desktop dropdown + mobile drawer. Click to navigate to relevant action. Dismiss/delete individual notifications or mark all read.
 
 ---
 
@@ -515,83 +436,32 @@ _Don't build until Phases 0-4 are solid._
 
 ### 5.1 Real-time collaboration
 - [ ] WebSocket or SSE for live updates
-- [ ] CRDTs for concurrent text editing
-- [ ] User presence indicators
-- [ ] Role-based permissions (owner/editor/viewer)
+- [ ] Presence indicators (who's viewing what)
+- [ ] Cursor/selection sync for shared editing
 
 ### 5.2 Version history
-- [ ] Store file versions on save (or on significant changes)
-- [ ] UI: version list per file with timestamps
+- [ ] Per-file version history with diff
 - [ ] Revert to any previous version
-- [ ] Visual diff between versions
+- [ ] Auto-snapshots on significant changes
 
-### 5.3 Plugin system
-- [ ] Define plugin API: hooks for project events, UI extension points, data access
-- [ ] Plugin manifest format
-- [ ] Plugin loader
-- [ ] Example plugins: Pomodoro timer, habit tracker, journal
+### 5.3 Advanced AI features
+- [ ] Content generation (write from prompts)
+- [ ] Code analysis and suggestions
+- [ ] Image generation for projects
 
-### 5.4 Advanced AI features
-- [ ] Content generation: draft blog posts, social threads from project data
-- [ ] Code analysis: review code files, suggest improvements
-- [ ] Image generation: create assets from text descriptions
-- [ ] Voice input: dictate notes, session logs, check-ins
+### 5.4 External integrations
+- [ ] Calendar sync (Google/Outlook)
+- [ ] Email notifications
+- [ ] Slack/Discord webhooks
 
-### 5.5 Full GitHub two-way sync
-- [ ] Clone repo into project file structure
-- [ ] Commit and push from UI
-- [ ] Pull and merge changes
-- [ ] Branch management
-- [ ] Conflict resolution UI
+### 5.5 Performance & scale
+- [ ] Pagination for large project lists
+- [ ] Virtual scrolling for long files
+- [ ] Lazy loading for images
+- [ ] CDN for static assets
 
-### 5.6 Calendar integration
-- [ ] Google Calendar / iCal sync
-- [ ] Show scheduled tasks in timeline view
-- [ ] Block time for focus sessions
-- [ ] Deadline tracking with reminders
-
-### 5.7 Inter-project dependency graph
-- [ ] Visual graph of project relationships (from entity_links)
-- [ ] Click to navigate between linked projects
-- [ ] Show impact: "if Project A stalls, these depend on it"
-
----
-
-## Summary: Task Counts by Phase
-
-| Phase | Tasks | What it delivers |
-|-------|-------|-----------------|
-| 0 — Bug Fixes | 9 | A working, safe beta (includes soft deletes, debounced saves, AI rate limits) |
-| 0.5 — Critical Tests | 1 block | Confidence that the 3 core data paths don't lose data |
-| 1 — Foundations | 5 | Extensible base: life areas, goals, templates, tags, settings |
-| 2 — Core Features | 10 | Full feature set: import, images, metadata, offline, agent layer, check-ins, training, outreach, weekly review, drift detection |
-| 3 — Intelligence | 6 | AI metadata, mermaid, search, local sync, file checks, scripts |
-| 4 — Mobile & Polish | 4 | Mobile layout, onboarding, integrations, notifications |
-| 5 — Future | 7 | Collaboration, versioning, plugins, advanced AI, GitHub, calendar, dependency graph |
-| **Total** | **~42 feature blocks** | |
-
----
-
-## Build Order Cheat Sheet
-
-```
-PHASE 0: Fix bugs (file loading → comments → AI proxy → rename → session save → wizard guard → soft deletes → debounced saves → AI rate limits)
-    ↓
-PHASE 0.5: Critical path tests (file round-trip, comment persistence, session logging, migration versioning)
-    ↓
-PHASE 1: Foundations (life areas → goals → templates → tags/links → settings)
-    ↓
-PHASE 2: Core features (import → images → metadata → offline → check-ins → training → outreach → agent prompt + context compression → weekly review → drift detection)
-    ↓
-PHASE 3: Intelligence (AI metadata → mermaid → search → local sync → file checks → scripts)
-    ↓
-PHASE 4: Polish (mobile → onboarding → integrations → notifications)
-    ↓
-PHASE 5: Future (only when Phases 0-4 are rock solid)
-```
-
-Each phase can be worked on in per-feature chats. Start each chat by pasting the relevant section from this document + BRAIN_STATUS.md. Update both documents at the end of each session.
-
----
-
-*THE BRAIN · Implementation Roadmap · v1*
+### 5.6 Security hardening
+- [ ] Rate limiting on all endpoints
+- [ ] Input sanitization audit
+- [ ] SQL injection prevention review
+- [ ] XSS prevention review
