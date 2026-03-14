@@ -515,6 +515,55 @@ export const notifications = {
     get(`${BASE}/api/data?resource=notification-check`),
 };
 
+// ── TASKS (Phase 5.4) ────────────────────────────────────────
+export const tasks = {
+  // List tasks with optional filters
+  list: (filters = {}) => {
+    const params = new URLSearchParams({ resource: 'tasks' });
+    if (filters.my_tasks) params.append('my_tasks', 'true');
+    if (filters.status) params.append('status', filters.status);
+    if (filters.assignee_type) params.append('assignee_type', filters.assignee_type);
+    if (filters.project_id) params.append('project_id', filters.project_id);
+    return get(`${BASE}/api/data?${params.toString()}`);
+  },
+  
+  // Get my tasks (assigned to human user)
+  myTasks: () =>
+    get(`${BASE}/api/data?resource=tasks&my_tasks=true`),
+  
+  // Get tasks by project
+  byProject: (projectId) =>
+    get(`${BASE}/api/data?resource=tasks&project_id=${projectId}`),
+  
+  // Create a new task
+  create: (task) =>
+    post(`${BASE}/api/data?resource=tasks`, task),
+  
+  // Update task status or fields
+  update: (id, updates) =>
+    put(`${BASE}/api/data?resource=tasks&id=${id}`, updates),
+  
+  // Start working on a task
+  start: (id) =>
+    put(`${BASE}/api/data?resource=tasks&id=${id}&action=start`, {}),
+  
+  // Complete a task
+  complete: (id, result_summary, output_uris) =>
+    put(`${BASE}/api/data?resource=tasks&id=${id}&action=complete`, { result_summary, output_uris }),
+  
+  // Block a task with reason
+  block: (id, reason) =>
+    put(`${BASE}/api/data?resource=tasks&id=${id}&action=block`, { reason }),
+  
+  // Assign task to someone (human, agent, integration)
+  assign: (id, assignee_type, assignee_id, reason) =>
+    put(`${BASE}/api/data?resource=tasks&id=${id}&action=assign`, { assignee_type, assignee_id, reason }),
+  
+  // Delete a task
+  delete: (id) =>
+    del(`${BASE}/api/data?resource=tasks&id=${id}`),
+};
+
 // ── IMPORT PARSERS ────────────────────────────────────────────
 export function parseBuildlFormat(text) {
   // Parse BUIDL export format: MANIFEST_START...MANIFEST_END, FILES_START...FILES_END

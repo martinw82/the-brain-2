@@ -511,3 +511,378 @@ Implement background drift detection system that proactively warns when patterns
 ---
 
 *Log started 2026-03-11 to bring dev tracking back in sync*
+# Development Log — The Brain
+
+*Session-based progress tracking for The Brain project*
+
+---
+
+## Session 043 — 2026-03-14
+**Task:** v2.0 Vision Planning — Open Viking Integration + Agent Orchestration
+**Status:** ✅ Planning Complete — Documentation Updated
+
+### Overview
+Analyzed Open Viking AI project, extracted useful patterns, and documented comprehensive v2.0 roadmap transforming The Brain from "AI Coach" to "Agent Orchestration Platform with Adaptive Coaching."
+
+### Open Viking Analysis
+**URL:** https://www.openviking.ai/docs
+
+**Key Patterns Identified:**
+1. **Hierarchical Context (L0/L1/L2)** — Auto-generated summaries at different abstraction levels for efficient AI retrieval
+2. **URI Scheme (viking://)** — Standardized resource addressing for precise context references
+3. **Recursive Directory Retrieval** — "Lock onto directory, then explore" vs flat vector search
+4. **Visualized Retrieval Traces** — Show what AI considered for transparency
+5. **Memory Self-Iteration** — 6 memory categories auto-extracted from execution
+
+**Assessment:** Open Viking is infrastructure/backend library; The Brain is end-user application. Complementary, not competing. Integration adds power without duplication.
+
+### v2.0 Vision Articulated
+
+**Core Shift:**
+- **v1.0:** AI gives advice → Human executes manually
+- **v2.0:** AI orchestrates → Assigns to humans/agents/tools → Tracks to completion
+
+**Three Assistance Modes:**
+
+| Mode | For | Coaching | Delegation | Tone |
+|------|-----|----------|------------|------|
+| **Coach** | Building habits | Mandatory, interruptive | Suggests, human decides | Challenging |
+| **Assistant** | In flow | On-demand | Auto-assigns with preview | Supportive |
+| **Silent** | Power users | Off | Manual only | Minimal |
+
+**Four Capabilities:**
+1. **Project Setup Assistant** — AI-guided creation, intelligent structure
+2. **Task Delegation** — Assign to human/agent/integration with reasoning
+3. **Workflow Management** — Execute multi-step processes, track progress
+4. **Workflow Evolution** — Learn from patterns, suggest improvements
+
+### Documentation Updated
+
+**1. ROADMAP-v2.md** (Created)
+- Complete Phases 5-8 breakdown
+- Integration of Open Viking patterns
+- Agent orchestration architecture
+- Mode system specification
+- Database schemas for new tables
+- Implementation priority order
+
+**2. brain-roadmap.md** (Updated)
+- Renamed to "Implementation Roadmap v2.0"
+- Preserved all v1.0 completion history
+- Added Phases 5-8 with detailed task lists
+- Architecture overview diagram
+- Immediate next steps identified
+
+**3. brain-status.md** (Updated to v2.0)
+- Added "Agent Orchestration Platform" vision section
+- Documented three assistance modes
+- Mapped Open Viking integration patterns
+- v2.0 feature pipeline (Phases 5-8)
+- Agent layer evolution (Coach → Orchestrator)
+- v2.0 success metrics
+
+**4. agent-brief.md** (Updated to v2.0)
+- Added mode-aware development rules
+- Orchestration layer context
+- Mode-aware implementation examples
+- Updated session templates
+
+**5. ARCHITECTURE-v2.md** (Created)
+- System overview with three layers
+- Mode behavior comparison
+- Orchestration flow diagrams
+- Hierarchical context explanation
+- Data flow examples (Coach/Assistant/Silent)
+- Technical architecture stack
+- Database schema evolution
+- Security and performance targets
+
+### Technical Architecture Decisions
+
+**Open Viking Patterns to Implement:**
+1. **URI Scheme** (`brain://`) — Precise resource addressing
+2. **L0/L1/L2 Summaries** — `file_summaries` table, AI-generated on save
+3. **Recursive Retrieval** — Directory exploration for context
+4. **Retrieval Traces** — Visualize AI decision process
+
+**New Database Tables (v2.0):**
+- `file_summaries` — Hierarchical context
+- `agents` — Capability-driven agent registry
+- `tasks` — Universal task queue
+- `workflow_instances` — Executable workflow tracking
+- `memories` — Auto-extracted patterns
+
+**Orchestration Components:**
+- **Planner** — Break goals into tasks
+- **Router** — Decide who does what
+- **Workflow Engine** — Execute step-by-step
+- **Agent Pool** — Execute assigned work
+
+### Immediate Next Steps (When Ready)
+
+**Can be done in parallel:**
+1. **Phase 5.1** — URI Scheme (foundation)
+2. **Phase 5.4** — Task Schema (unlocks orchestration)
+3. **Phase 6.1** — Mode System (gates existing features)
+
+**Recommended order:**
+1. URI utility functions + context builder updates
+2. Task table schema + "My Tasks" UI
+3. Settings mode selector + feature gating
+
+### Success Metrics (v2.0 Targets)
+
+- Tasks created per week > 10 per active user
+- Agent task completion rate > 60%
+- Workflow instances completed > 5 per project
+- Mode switching used by > 30% of users
+- Auto-created tasks accepted > 40% of time
+- Memory-influenced recommendations > 70% helpful
+
+---
+
+*[Previous sessions preserved below...]*
+
+
+---
+
+## Session 043 — 2026-03-14
+**Task:** Phase 5.1 — URI Scheme & Resource Addressing
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented standardized `brain://` URI system for resource addressing, enabling precise AI context references and clickable navigation.
+
+### New File: `src/uri.js`
+Complete URI utility module with:
+
+**Parsing & Generation:**
+- `parseURI(uri)` — Parse brain:// URIs into components (type, id, resource, resourceId)
+- `generateURI({type, id, resource, resourceId})` — Generate URIs from components
+- `isValidURI(uri)` — Validate URI format
+
+**Helper Functions:**
+- `projectURI(projectId)` — `brain://project/{id}`
+- `fileURI(projectId, filePath)` — `brain://project/{id}/file/{path}`
+- `taskURI(projectId, taskId)` — `brain://project/{id}/task/{taskId}`
+- `goalURI(goalId)` — `brain://goal/{id}`
+- `stagingURI(stagingId)` — `brain://staging/{id}`
+- `ideaURI(ideaId)` — `brain://idea/{id}`
+- `agentURI(agentId)` — `brain://agent/{id}`
+- `workflowURI(workflowId, stepNum)` — `brain://workflow/{id}` or with step
+
+**Rendering & Navigation:**
+- `extractURIs(text)` — Find all URIs in text
+- `resolveLabel(uri, context)` — Human-readable labels
+- `renderURIs(text, linkRenderer, context)` — Replace URIs with links
+- `uriToNavigation(uri)` — Convert URI to navigation action
+- `getParentURI(uri)` — Get parent resource URI
+- `compareURIs(uri1, uri2)` — Compare for equality
+
+### API Changes (`api/ai.js`)
+Updated `buildSystemPrompt()` to include URIs in AI context:
+
+**URI Helper Functions:**
+```javascript
+function projectURI(projectId) { return `brain://project/${projectId}`; }
+function fileURI(projectId, filePath) { ... }
+function goalURI(goalId) { return `brain://goal/${goalId}`; }
+```
+
+**Context Updates:**
+- Project listings now include URIs: `#1 📁 MyApp | phase:BUILD | ... | brain://project/my-app`
+- Goal block includes URI: `Thailand Fund: $1000 / $3000 (33%) | brain://goal/1`
+- Added `uriInstructions` block teaching AI how to use URIs:
+  - What URIs are available (project, file, goal, agent)
+  - When to use them (referencing resources, suggesting docs)
+  - User can click URIs to navigate
+
+### UI Changes (`src/TheBrain.jsx`)
+
+**New Components:**
+- `URILink` — Renders clickable URI links with:
+  - Blue color (#3b82f6), underline
+  - Monospace font (JetBrains Mono)
+  - Hover tooltip: "URI (Cmd/Ctrl+Click to navigate)"
+  - Blue background pill (#1a4fd620)
+  
+- `renderAIResponse` — Processes AI output:
+  - Extracts URIs from text
+  - Renders as clickable `URILink` components
+  - Preserves surrounding text
+
+**Navigation Handler:**
+```javascript
+(uri) => {
+  const nav = uriToNavigation(uri);
+  if (nav.type === 'OPEN_PROJECT' || nav.type === 'OPEN_FILE') {
+    openHub(project);
+    if (filePath) openFile(filePath);
+  } else if (nav.type === 'OPEN_GOAL') {
+    setShowGoalModal(true);
+  }
+}
+```
+
+**Derived State:**
+- Added `projectsById` lookup map for O(1) project access
+
+**AI Response Rendering:**
+```jsx
+<div style={{...}}>
+  {renderAIResponse(aiOut, projectsById, (uri) => {
+    // Navigation handler
+  })}
+</div>
+```
+
+### URI Patterns Supported
+
+| Pattern | Example | Use Case |
+|---------|---------|----------|
+| Project | `brain://project/my-app` | Reference project |
+| File | `brain://project/my-app/file/README.md` | Reference specific file |
+| Task | `brain://project/my-app/task/42` | Reference task (v2.0) |
+| Goal | `brain://goal/1` | Reference goal |
+| Staging | `brain://staging/item-123` | Reference staging item |
+| Idea | `brain://idea/5` | Reference idea |
+| Agent | `brain://agent/dev` | Reference agent |
+| Workflow | `brain://workflow/product-launch/step/3` | Reference workflow step |
+
+### Usage Examples
+
+**AI Response with URIs:**
+```
+Your top priority is #1 📁 BUIDL Tools | phase:BUILD | health:85 | →Finish auth | brain://project/buidl-tools
+
+Check the README at brain://project/buidl-tools/file/README.md for setup instructions.
+```
+
+**Navigation:**
+- Click URI → Opens project/file
+- Cmd/Ctrl+Click → Same action (standard modifier)
+- Hover → Shows full URI + hint
+
+### Done When
+✅ `src/uri.js` utility module created with full test coverage of functions  
+✅ AI context includes URIs for projects and goals  
+✅ AI instructions teach proper URI usage  
+✅ AI responses render URIs as clickable links  
+✅ Cmd/Ctrl+Click navigates to projects/files  
+✅ Hover tooltips explain navigation  
+
+### Next Steps
+Phase 5.2: Hierarchical Context Summarization (L0/L1/L2)
+- Build on URI foundation for context retrieval
+- Auto-generate file summaries
+
+---
+
+
+---
+
+## Session 044 — 2026-03-14
+**Task:** Phase 5.4 — Task Delegation System
+**Status:** ✅ Complete
+
+### Implementation Summary
+Built the universal task queue system that enables assignment to humans, agents, or integrations.
+
+### Database Changes (`scripts/migrate.js`)
+- Migration v23: Created `tasks` table
+  - `id`, `project_id`, `user_id`, `title`, `description`
+  - `context_uri` — brain:// reference for task context
+  - `assignee_type` ENUM('human', 'agent', 'integration')
+  - `assignee_id` — agent ID, 'user', or integration ID
+  - `assignee_context` JSON — extra context for assignee
+  - `status` ENUM('pending', 'in_progress', 'blocked', 'review', 'complete', 'cancelled')
+  - `priority` ENUM('critical', 'high', 'medium', 'low')
+  - `due_date`, `parent_task_id`, `workflow_instance_id`, `workflow_step_id`
+  - `assigned_by`, `assignment_reason` — explainable AI
+  - `created_at`, `started_at`, `completed_at`, `result_summary`, `output_uris`
+  - Indexes: `idx_tasks_user_status`, `idx_tasks_assignee`, `idx_tasks_project`, `idx_tasks_due_date`, `idx_tasks_priority`
+
+### Schema Changes (`schema.sql`)
+- Added `tasks` table definition at end of file
+
+### API Changes (`api/data.js`)
+- `resource=tasks` endpoints:
+  - GET: List tasks with filters (my_tasks, status, assignee_type, project_id)
+  - POST: Create new task with all metadata
+  - PUT with actions:
+    - `action=start` → status: 'in_progress', sets started_at
+    - `action=complete` → status: 'complete', sets completed_at, result_summary
+    - `action=block` → status: 'blocked', stores block_reason
+    - `action=assign` → change assignee_type/id with reason
+  - DELETE: Remove task
+
+### Client API (`src/api.js`)
+New `tasks` wrapper with 8 methods:
+- `list(filters)` — List tasks with optional filters
+- `myTasks()` — Get tasks assigned to current user
+- `byProject(projectId)` — Get tasks for specific project
+- `create(task)` — Create new task
+- `update(id, updates)` — Generic update
+- `start(id)` — Start task
+- `complete(id, summary, uris)` — Complete with result
+- `block(id, reason)` — Block with reason
+- `assign(id, type, id, reason)` — Reassign
+- `delete(id)` — Delete task
+
+### UI Changes (`src/TheBrain.jsx`)
+**State:**
+- `tasks`, `tasksLoading`, `showTaskModal`, `taskForm`
+
+**Tasks Card in Command Centre:**
+- Shows pending tasks count
+- List of up to 5 pending tasks
+- Checkbox to complete task
+- Shows project emoji/name, priority color, assignee indicator
+- Delete button for each task
+- "+ Add" button opens modal
+
+**Task Creation Modal:**
+- Title (required)
+- Description (textarea)
+- Project dropdown (optional)
+- Priority dropdown (low/medium/high/critical)
+- Cancel / Create Task buttons
+
+**Functions:**
+- `loadTasks()` — Fetch on mount
+- `createTask()` — Create with toast feedback
+- `completeTask()` — Mark complete, reload
+- `deleteTask()` — Remove, reload
+
+### Features Implemented
+1. **Full CRUD** — Create, read, update, delete tasks
+2. **Assignment** — Track assignee type (human/agent/integration)
+3. **Status Flow** — pending → in_progress → complete|blocked
+4. **Priority** — Critical/High/Medium/Low with color coding
+5. **Context URIs** — Tasks can reference brain:// resources
+6. **Explainable** — assignment_reason field tracks why assigned
+
+### Not Yet Implemented (Future)
+- AI-suggested task creation (will come with Phase 5.3 Agent Registry)
+- "Delegate to Agent" button with agent selection (Phase 5.3)
+- Workflow step linkage (Phase 5.5)
+- Parent/subtask relationships (schema ready, UI pending)
+- Due date display and sorting
+- Task filtering in UI (by status, priority, project)
+
+### Done When
+✅ Tasks table created with full schema  
+✅ API endpoints for CRUD + actions  
+✅ Client API wrapper exported  
+✅ "My Tasks" card in Command Centre  
+✅ Task creation modal  
+✅ Complete/delete functionality  
+✅ Project context in task list  
+
+### Next Steps
+- Phase 5.2: Hierarchical Context (L0/L1/L2 summaries)
+- Phase 5.3: Agent Registry (enables agent assignment)
+- Phase 6.1: Assistance Modes (Coach/Assistant/Silent)
+
+---
+

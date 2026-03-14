@@ -394,3 +394,37 @@ CREATE TABLE IF NOT EXISTS sync_file_state (
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   UNIQUE KEY unique_sync_file (project_id, file_path)
 );
+
+-- ── TASKS (Phase 5.4) ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS tasks (
+  id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+  project_id VARCHAR(64) DEFAULT NULL,
+  user_id VARCHAR(36) NOT NULL,
+  title VARCHAR(256) NOT NULL,
+  description TEXT,
+  context_uri VARCHAR(512) DEFAULT NULL,         -- brain:// reference
+  assignee_type ENUM('human', 'agent', 'integration') DEFAULT 'human',
+  assignee_id VARCHAR(64) DEFAULT 'user',        -- agent ID, 'user', or integration ID
+  assignee_context JSON DEFAULT NULL,            -- extra context for assignee
+  status ENUM('pending', 'in_progress', 'blocked', 'review', 'complete', 'cancelled') DEFAULT 'pending',
+  priority ENUM('critical', 'high', 'medium', 'low') DEFAULT 'medium',
+  due_date DATE DEFAULT NULL,
+  parent_task_id VARCHAR(36) DEFAULT NULL,       -- for subtasks
+  workflow_instance_id VARCHAR(36) DEFAULT NULL, -- link to workflow execution
+  workflow_step_id VARCHAR(64) DEFAULT NULL,     -- which step in template
+  assigned_by ENUM('ai', 'user', 'workflow') DEFAULT 'user',
+  assignment_reason TEXT,                        -- why this assignee was chosen
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  started_at DATETIME DEFAULT NULL,
+  completed_at DATETIME DEFAULT NULL,
+  result_summary TEXT,                           -- what was accomplished
+  output_uris JSON DEFAULT NULL,                 -- brain:// references to outputs
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+  FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+  INDEX idx_tasks_user_status (user_id, status),
+  INDEX idx_tasks_assignee (assignee_type, assignee_id, status),
+  INDEX idx_tasks_project (project_id),
+  INDEX idx_tasks_due_date (due_date),
+  INDEX idx_tasks_priority (priority)
+);

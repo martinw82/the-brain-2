@@ -327,6 +327,42 @@ const migrations = [
           UNIQUE KEY unique_user_ai_settings (user_id),
           INDEX idx_provider (provider)
         );`
+    },
+    {
+        version: 23,
+        name: 'create_tasks_table',
+        sql: `CREATE TABLE IF NOT EXISTS tasks (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          project_id VARCHAR(64) DEFAULT NULL,
+          user_id VARCHAR(36) NOT NULL,
+          title VARCHAR(256) NOT NULL,
+          description TEXT,
+          context_uri VARCHAR(512) DEFAULT NULL,
+          assignee_type ENUM('human', 'agent', 'integration') DEFAULT 'human',
+          assignee_id VARCHAR(64) DEFAULT 'user',
+          assignee_context JSON DEFAULT NULL,
+          status ENUM('pending', 'in_progress', 'blocked', 'review', 'complete', 'cancelled') DEFAULT 'pending',
+          priority ENUM('critical', 'high', 'medium', 'low') DEFAULT 'medium',
+          due_date DATE DEFAULT NULL,
+          parent_task_id VARCHAR(36) DEFAULT NULL,
+          workflow_instance_id VARCHAR(36) DEFAULT NULL,
+          workflow_step_id VARCHAR(64) DEFAULT NULL,
+          assigned_by ENUM('ai', 'user', 'workflow') DEFAULT 'user',
+          assignment_reason TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          started_at DATETIME DEFAULT NULL,
+          completed_at DATETIME DEFAULT NULL,
+          result_summary TEXT,
+          output_uris JSON DEFAULT NULL,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+          FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+          INDEX idx_tasks_user_status (user_id, status),
+          INDEX idx_tasks_assignee (assignee_type, assignee_id, status),
+          INDEX idx_tasks_project (project_id),
+          INDEX idx_tasks_due_date (due_date),
+          INDEX idx_tasks_priority (priority)
+        );`
     }
 ];
 

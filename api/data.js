@@ -1919,6 +1919,147 @@ Provide metadata suggestions as JSON.`;
       }
     }
 
+    // ── TASKS (Phase 5.4) ──────────────────────────────────────
+    if (resource === 'tasks') {
+      // GET /api/data?resource=tasks — List tasks
+      if (req.method === 'GET') {
+        const { status, assignee_type, project_id: pid, my_tasks } = req.query;
+        
+        let sql = 'SELECT * FROM tasks WHERE user_id = ?';
+        const params = [auth.userId];
+        
+        if (my_tasks === 'true') {
+          sql += ' AND assignee_type = ? AND assignee_id = ?';
+          params.push('human', 'user');
+        } else if (assignee_type) {
+          sql += ' AND assignee_type = ?';
+          params.push(assignee_type);
+        }
+        
+        if (status) {
+          sql += ' AND status = ?';
+          params.push(status);
+        }
+        
+        if (pid) {
+          sql += ' AND project_id = ?';
+          params.push(pid);
+        }
+        
+        sql += ' ORDER BY FIELD(priority, "critical", "high", "medium", "low"), created_at DESC';
+        
+        const [rows] = await db.execute(sql, params);
+        return ok(res, { tasks: rows });
+      }
+      
+      // POST /api/data?resource=tasks — Create task
+      if (req.method === 'POST') {
+        const {
+          id, project_id: pid, title, description, context_uri,
+          assignee_type, assignee_id, assignee_context,
+          priority, due_date, parent_task_id, assigned_by, assignment_reason
+        } = req.body || {};
+        
+        if (!title) return err(res, 'title required');
+        
+        const newId = id || crypto.randomUUID();
+        const now = new Date().toISOString();
+        
+        await db.execute(
+          `INSERT INTO tasks (
+            id, project_id, user_id, title, description, context_uri,
+            assignee_type, assignee_id, assignee_context,
+            status, priority, due_date, parent_task_id, assigned_by, assignment_reason,
+            created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            newId, pid || null, auth.userId, title, description || '', context_uri || null,
+            assignee_type || 'human', assignee_id || 'user', assignee_context ? JSON.stringify(assignee_context) : null,
+            'pending', priority || 'medium', due_date || null, parent_task_id || null, assigned_by || 'user', assignment_reason || '',
+            now
+          ]
+        );
+        
+        return ok(res, { success: true, id: newId }, 201);
+      }
+      
+      // PUT /api/data?resource=tasks&id={id} — Update task
+      if (req.method === 'PUT' && resourceId) {
+        const { action } = req.query;
+        const { status, result_summary, output_uris } = req.body || {};
+        
+        // Verify task exists and belongs to user
+        const [existing] = await db.execute('SELECT * FROM tasks WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+        if (!existing.length) return err(res, 'Task not found', 404);
+        
+        const task = existing[0];
+        const now = new Date().toISOString();
+        
+        // Action: start task
+        if (action === 'start') {
+          await db.execute(
+            'UPDATE tasks SET status = ?, started_at = ? WHERE id = ?',
+            ['in_progress', now, resourceId]
+          );
+          return ok(res, { success: true, status: 'in_progress' });
+        }
+        
+        // Action: complete task
+        if (action === 'complete') {
+          await db.execute(
+            'UPDATE tasks SET status = ?, completed_at = ?, result_summary = ?, output_uris = ? WHERE id = ?',
+            ['complete', now, result_summary || '', output_uris ? JSON.stringify(output_uris) : null, resourceId]
+          );
+          return ok(res, { success: true, status: 'complete' });
+        }
+        
+        // Action: block task
+        if (action === 'block') {
+          const { reason } = req.body || {};
+          await db.execute(
+            'UPDATE tasks SET status = ?, assignee_context = JSON_SET(COALESCE(assignee_context, "{}"), "$.block_reason", ?) WHERE id = ?',
+            ['blocked', reason || 'No reason given', resourceId]
+          );
+          return ok(res, { success: true, status: 'blocked' });
+        }
+        
+        // Action: assign to agent (or reassign)
+        if (action === 'assign') {
+          const { assignee_type: newType, assignee_id: newId, reason } = req.body || {};
+          if (!newType || !newId) return err(res, 'assignee_type and assignee_id required');
+          
+          await db.execute(
+            'UPDATE tasks SET assignee_type = ?, assignee_id = ?, assigned_by = ?, assignment_reason = ? WHERE id = ?',
+            [newType, newId, 'user', reason || `Assigned to ${newId}`, resourceId]
+          );
+          return ok(res, { success: true, assignee_type: newType, assignee_id: newId });
+        }
+        
+        // Generic update
+        const updates = [];
+        const values = [];
+        
+        if (status) { updates.push('status = ?'); values.push(status); }
+        if (result_summary) { updates.push('result_summary = ?'); values.push(result_summary); }
+        if (output_uris) { updates.push('output_uris = ?'); values.push(JSON.stringify(output_uris)); }
+        
+        if (updates.length === 0) return err(res, 'No fields to update');
+        
+        values.push(resourceId);
+        await db.execute(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`, values);
+        return ok(res, { success: true });
+      }
+      
+      // DELETE /api/data?resource=tasks&id={id} — Delete task
+      if (req.method === 'DELETE' && resourceId) {
+        const [existing] = await db.execute('SELECT * FROM tasks WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
+        if (!existing.length) return err(res, 'Task not found', 404);
+        
+        await db.execute('DELETE FROM tasks WHERE id = ?', [resourceId]);
+        return ok(res, { success: true });
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e);

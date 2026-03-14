@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token, drift as driftApi, aiMetadata as aiMetadataApi, scripts as scriptsApi, integrations as integrationsApi, notifications as notificationsApi, userAISettings } from "./api.js";
+import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token, drift as driftApi, aiMetadata as aiMetadataApi, scripts as scriptsApi, integrations as integrationsApi, notifications as notificationsApi, userAISettings, tasks as tasksApi } from "./api.js";
 import { cache } from "./cache.js";
 import { sync } from "./sync.js";
 import { desktopSync } from "./desktop-sync.js";
+import { parseURI, extractURIs, uriToNavigation, resolveLabel, isValidURI } from "./uri.js";
 import FolderSyncSetup from "./components/FolderSyncSetup.jsx";
 import SyncReviewModal from "./components/SyncReviewModal.jsx";
 import DailyCheckinModal from "./components/DailyCheckinModal.jsx";
@@ -848,6 +849,65 @@ const MermaidRenderer=({chart,id})=>{
   
   return<div ref={containerRef} style={{margin:"12px 0",overflow:"auto",background:"#0a0f14",borderRadius:6,padding:12,border:"1px solid #1e293b"}} 
     dangerouslySetInnerHTML={{__html:svg}}/>;
+};
+
+// ── URI LINK RENDERER (Phase 5.1) ────────────────────────────
+const URILink=({uri,label,onNavigate})=>{
+  const parsed=parseURI(uri);
+  if(!parsed)return<span>{uri}</span>;
+  
+  const handleClick=(e)=>{
+    if(e.ctrlKey||e.metaKey){
+      e.preventDefault();
+      if(onNavigate)onNavigate(uri);
+    }
+  };
+  
+  const displayLabel=label||resolveLabel(uri);
+  
+  return<span 
+    style={{
+      color:'#3b82f6',
+      textDecoration:'underline',
+      cursor:'pointer',
+      fontSize:'10px',
+      fontFamily:"'JetBrains Mono',monospace",
+      padding:'1px 4px',
+      borderRadius:'3px',
+      background:'#1a4fd620'
+    }}
+    onClick={handleClick}
+    title={`${uri} (Cmd/Ctrl+Click to navigate)`}
+  >
+    {displayLabel}
+  </span>;
+};
+
+const renderAIResponse=(text,projects={},onNavigate)=>{
+  if(!text)return text;
+  
+  const uris=extractURIs(text);
+  if(uris.length===0)return text;
+  
+  const parts=[];
+  let lastIndex=0;
+  
+  uris.forEach(uri=>{
+    const index=text.indexOf(uri,lastIndex);
+    if(index>lastIndex){
+      parts.push(text.slice(lastIndex,index));
+    }
+    parts.push(
+      <URILink key={uri+index} uri={uri} onNavigate={onNavigate}/>
+    );
+    lastIndex=index+uri.length;
+  });
+  
+  if(lastIndex<text.length){
+    parts.push(text.slice(lastIndex));
+  }
+  
+  return parts;
 };
 
 // ── MARKDOWN + GANTT ──────────────────────────────────────────
@@ -2442,6 +2502,12 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [showNotifications, setShowNotifications] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
 
+  // Tasks state (Phase 5.4)
+  const [tasks, setTasks] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [taskForm, setTaskForm] = useState({ title: '', description: '', priority: 'medium', project_id: '' });
+
   // Desktop sync state (Phase 2.4B)
   const [syncState, setSyncState] = useState(null);
   const [syncChanges, setSyncChanges] = useState(null);
@@ -2623,6 +2689,9 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const atRisk       = projects.filter(p=>p.health<50).length;
   const inReview     = staging.filter(s=>s.status==="in-review").length;
   const hubAllFolders= hub?[...STANDARD_FOLDERS,...(hub.customFolders||[])]:STANDARD_FOLDERS;
+  
+  // Phase 5.1: URI lookup map
+  const projectsById = projects.reduce((acc,p)=>{acc[p.id]=p;return acc;},{});
 
   // Area health logic
   const areaStats = areas.map(a => {
@@ -2789,8 +2858,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       };
       dailyCheckinsApi();
     }
-    // Load weekly training count + today's outreach + drift check
-    if (user) { loadWeeklyTraining(); loadTodayOutreach(); loadDriftCheck(); }
+    // Load weekly training count + today's outreach + drift check + tasks
+    if (user) { loadWeeklyTraining(); loadTodayOutreach(); loadDriftCheck(); loadTasks(); }
   }, [user?.id]);
   
   // ── NOTIFICATIONS — load on mount and check triggers periodically (Phase 4.4) ──
@@ -3434,6 +3503,55 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       setNotifications(prev=>prev.map(n=>n.id===id?{...n,read:true}:n));
       setUnreadCount(prev=>Math.max(0,prev-1));
     }catch(e){console.error('Mark read error:',e);}
+  };
+  
+  // ── TASKS (Phase 5.4) ───────────────────────────────────────
+  const loadTasks=async()=>{
+    try{
+      setTasksLoading(true);
+      const data=await tasksApi.myTasks();
+      if(data&&data.tasks){
+        setTasks(data.tasks);
+      }
+    }catch(e){console.error('Tasks load error:',e);}
+    finally{setTasksLoading(false);}
+  };
+  
+  const createTask=async(taskData)=>{
+    try{
+      const result=await tasksApi.create(taskData);
+      if(result.success){
+        showToast('Task created');
+        loadTasks();
+        setShowTaskModal(false);
+        setTaskForm({ title: '', description: '', priority: 'medium', project_id: '' });
+      }
+    }catch(e){
+      console.error('Create task error:',e);
+      showToast('Failed to create task');
+    }
+  };
+  
+  const completeTask=async(id)=>{
+    try{
+      await tasksApi.complete(id, 'Completed manually');
+      showToast('Task completed');
+      loadTasks();
+    }catch(e){
+      console.error('Complete task error:',e);
+      showToast('Failed to complete task');
+    }
+  };
+  
+  const deleteTask=async(id)=>{
+    try{
+      await tasksApi.delete(id);
+      showToast('Task deleted');
+      loadTasks();
+    }catch(e){
+      console.error('Delete task error:',e);
+      showToast('Failed to delete task');
+    }
   };
   
   const markAllNotificationsRead=async()=>{
@@ -4412,6 +4530,69 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
         />
       )}
 
+      {/* Task Creation Modal (Phase 5.4) */}
+      {showTaskModal&&(
+        <Modal title="✓ New Task" onClose={()=>setShowTaskModal(false)} width={420}>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div>
+              <label style={{fontSize:9,color:C.dim,marginBottom:4,display:"block"}}>Title *</label>
+              <input 
+                style={S.input} 
+                value={taskForm.title} 
+                onChange={e=>setTaskForm(f=>({...f,title:e.target.value}))}
+                placeholder="What needs to be done?"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label style={{fontSize:9,color:C.dim,marginBottom:4,display:"block"}}>Description</label>
+              <textarea 
+                style={{...S.input,height:80,resize:"vertical"}} 
+                value={taskForm.description} 
+                onChange={e=>setTaskForm(f=>({...f,description:e.target.value}))}
+                placeholder="Add details, context, or notes..."
+              />
+            </div>
+            <div style={{display:"flex",gap:12}}>
+              <div style={{flex:1}}>
+                <label style={{fontSize:9,color:C.dim,marginBottom:4,display:"block"}}>Project</label>
+                <select 
+                  style={S.input}
+                  value={taskForm.project_id} 
+                  onChange={e=>setTaskForm(f=>({...f,project_id:e.target.value}))}
+                >
+                  <option value="">No project</option>
+                  {projects.map(p=><option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}
+                </select>
+              </div>
+              <div style={{flex:1}}>
+                <label style={{fontSize:9,color:C.dim,marginBottom:4,display:"block"}}>Priority</label>
+                <select 
+                  style={S.input}
+                  value={taskForm.priority} 
+                  onChange={e=>setTaskForm(f=>({...f,priority:e.target.value}))}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}>
+              <button style={S.btn("ghost")} onClick={()=>setShowTaskModal(false)}>Cancel</button>
+              <button 
+                style={S.btn("primary")} 
+                disabled={!taskForm.title.trim()}
+                onClick={()=>createTask(taskForm)}
+              >
+                Create Task
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {showImportModal&&(
         <Modal title="📥 Import Project" onClose={()=>{setShowImportModal(false);setImportError("");setImportConflict(null);}} width={500}>
           <div style={{display:"flex",flexDirection:"column",gap:16}}>
@@ -5111,6 +5292,49 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 </div>
               </div>
 
+              {/* Tasks card (Phase 5.4) */}
+              <div style={S.card(tasks.filter(t=>t.status!=='complete').length>0, C.amber)}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <span style={{fontSize:10,color:C.amber,letterSpacing:"0.11em",textTransform:"uppercase"}}>✓ My Tasks</span>
+                  <button style={{...S.btn("ghost"),fontSize:9,borderColor:C.amber+"50",color:C.amber}} onClick={()=>setShowTaskModal(true)}>+ Add</button>
+                </div>
+                {tasksLoading?(
+                  <div style={{fontSize:10,color:C.dim}}>Loading tasks...</div>
+                ):tasks.filter(t=>t.status!=='complete').length===0?(
+                  <div style={{fontSize:9,color:C.dim}}>No pending tasks. Create one to get started.</div>
+                ):(
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {tasks.filter(t=>t.status!=='complete').slice(0,5).map(task=>{
+                      const project=projects.find(p=>p.id===task.project_id);
+                      const priorityColor=task.priority==='critical'?C.red:task.priority==='high'?C.amber:task.priority==='medium'?C.blue:C.dim;
+                      return(
+                        <div key={task.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",background:"#0a0f14",borderRadius:4}}>
+                          <button 
+                            style={{width:16,height:16,border:`1px solid ${C.border}`,borderRadius:3,background:"transparent",cursor:"pointer",flexShrink:0}}
+                            onClick={()=>completeTask(task.id)}
+                            title="Complete task"
+                          />
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:10,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.title}</div>
+                            <div style={{fontSize:8,color:C.dim,display:"flex",gap:6}}>
+                              {project&&<span>{project.emoji} {project.name}</span>}
+                              <span style={{color:priorityColor}}>{task.priority}</span>
+                              {task.assignee_type==='agent'&&<span>🤖 {task.assignee_id}</span>}
+                            </div>
+                          </div>
+                          <button style={{...S.btn("ghost"),padding:"2px 6px",fontSize:8,color:C.red}} onClick={()=>deleteTask(task.id)}>✕</button>
+                        </div>
+                      );
+                    })}
+                    {tasks.filter(t=>t.status!=='complete').length>5&&(
+                      <div style={{fontSize:9,color:C.dim,textAlign:"center"}}>
+                        +{tasks.filter(t=>t.status!=='complete').length-5} more tasks
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div style={S.card(true)}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
                   <span style={{fontSize:10,color:C.blue,letterSpacing:"0.11em",textTransform:"uppercase"}}>⚡ Today's Focus</span>
@@ -5382,7 +5606,21 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
               </div>
               {(aiLoad||aiOut)&&<div ref={aiRef} style={{...S.card(true,C.green)}}>
                 <span style={S.label(C.green)}>Response</span>
-                {aiLoad?<div style={{fontSize:10,color:C.dim}}>Thinking...</div>:<div style={{fontSize:11,color:C.text,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{aiOut}</div>}
+                {aiLoad?<div style={{fontSize:10,color:C.dim}}>Thinking...</div>:<div style={{fontSize:11,color:C.text,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{renderAIResponse(aiOut,projectsById,(uri)=>{
+                  const nav=uriToNavigation(uri);
+                  if(!nav)return;
+                  if(nav.type==='OPEN_PROJECT'||nav.type==='OPEN_FILE'){
+                    const proj=projects.find(p=>p.id===nav.params.projectId);
+                    if(proj){
+                      openHub(proj);
+                      if(nav.params.filePath){
+                        setTimeout(()=>openFile(nav.params.filePath),100);
+                      }
+                    }
+                  }else if(nav.type==='OPEN_GOAL'){
+                    setShowGoalModal(true);
+                  }
+                })}</div>}
               </div>}
             </div>
           )}

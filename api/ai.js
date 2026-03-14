@@ -223,6 +223,20 @@ const PROVIDERS = {
   },
 };
 
+// ── URI GENERATION HELPERS ────────────────────────────────────
+function projectURI(projectId) {
+  return `brain://project/${projectId}`;
+}
+
+function fileURI(projectId, filePath) {
+  const normalizedPath = filePath.replace(/^\//, '').replace(/\\/g, '/');
+  return `brain://project/${projectId}/file/${normalizedPath}`;
+}
+
+function goalURI(goalId) {
+  return `brain://goal/${goalId}`;
+}
+
 // ── SYSTEM PROMPT BUILDER ─────────────────────────────────────
 async function buildSystemPrompt(userId, db) {
   const today = new Date().toISOString().split('T')[0];
@@ -288,12 +302,13 @@ Mode: ${routingMode}`;
   if (goal) {
     const pct = goal.target_amount > 0 ? Math.round(goalTotal / goal.target_amount * 100) : 0;
     const curr = goal.currency === 'USD' ? '$' : goal.currency === 'EUR' ? '€' : '£';
-    goalBlock = `${goal.title}: ${curr}${goalTotal} / ${curr}${goal.target_amount} (${pct}%)`;
+    goalBlock = `${goal.title}: ${curr}${goalTotal} / ${curr}${goal.target_amount} (${pct}%) | ${goalURI(goal.id)}`;
   }
 
   const projectLines = projectRows.map(p => {
     const blockers = (() => { try { return JSON.parse(p.blockers || '[]'); } catch { return []; } })();
-    return `#${p.priority} ${p.emoji || ''} ${p.name} | phase:${p.phase} | health:${p.health} ${p.revenue_ready ? '💰revenue' : ''} | →${p.next_action || 'none'} ${blockers.length > 0 ? `BLOCKED:${blockers.slice(0, 2).join(';')}` : ''}`;
+    const uri = projectURI(p.id);
+    return `#${p.priority} ${p.emoji || ''} ${p.name} | phase:${p.phase} | health:${p.health} ${p.revenue_ready ? '💰revenue' : ''} | →${p.next_action || 'none'} ${blockers.length > 0 ? `BLOCKED:${blockers.slice(0, 2).join(';')}` : ''} | ${uri}`;
   });
 
   let sessionsBlock = 'No recent sessions.';
@@ -326,6 +341,20 @@ Mode: ${routingMode}`;
 
   const driftBlock = driftFlags.length > 0 ? driftFlags.join('\n') : 'No drift detected.';
 
+  const uriInstructions = `## Resource References (brain:// URIs)
+You can reference any project, file, goal, or resource using brain:// URIs:
+- Project: brain://project/{id} (e.g., ${projectRows[0] ? projectURI(projectRows[0].id) : 'brain://project/my-app'})
+- File: brain://project/{id}/file/{path} (e.g., brain://project/my-app/file/README.md)
+- Goal: brain://goal/{id}
+- Agent: brain://agent/{dev|content|strategy|design|research}
+
+Use URIs when:
+- Referencing specific projects or files in your response
+- Suggesting the user check a particular document
+- Creating tasks that need context
+
+The user can click these URIs to navigate directly to the resource.`;
+
   return `${identityBlock}
 
 ## Operator
@@ -347,7 +376,9 @@ ${goalBlock}
 ${projectLines.join('\n')}
 
 ## Sessions
-${sessionsBlock}`;
+${sessionsBlock}
+
+${uriInstructions}`;
 }
 
 // ── USAGE LOGGING ──────────────────────────────────────────────

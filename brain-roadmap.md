@@ -1,467 +1,565 @@
-# THE BRAIN — Implementation Roadmap
+# THE BRAIN — Implementation Roadmap v2.0
+**Agent Orchestration Platform with Adaptive Coaching**
 
-**Companion to:** BRAIN_STATUS.md
-**Purpose:** Step-by-step task list to reach feature-complete. Design/GUI is out of scope — this is purely functional.
+**Companion to:** BRAIN_STATUS.md  
+**Purpose:** Step-by-step task list from current state to v2.0 vision  
 **Principle:** Build foundations that things can be built on top of. Every feature should be a module, not a monolith.
 
 ---
 
-## How to read this document
+## Document Legend
 
-- Tasks are in dependency order — earlier tasks unblock later ones
-- Each task has a concrete definition of done
 - `[DB]` = needs schema change
 - `[API]` = needs new or modified API route
 - `[UI]` = needs frontend component work
 - `[CONFIG]` = needs configuration/environment change
-- Tasks marked `[EXTENSIBLE]` are specifically designed as foundations other features plug into
+- `[EXTENSIBLE]` = foundation that other features plug into
+- `✅` = Complete
+- `🔄` = In Progress
+- `📋` = Planned
 
 ---
 
-## PHASE 0 — Bug Fixes (unblocks everything)
+## CURRENT STATE: Phase 1 Complete, v1.0 Shipped
 
-_Nothing new can be built reliably until these are resolved._
+**21 Database tables** — Full persistence via TiDB  
+**Multi-provider AI** — Anthropic, Moonshot, DeepSeek, Mistral, OpenAI  
+**Responsive UI** — Desktop, tablet, mobile  
 
-### 0.1 Fix file loading from DB on initial render ✅ COMPLETE (2026-03-08)
-- [x] Audit `App.jsx` → confirm it calls the projects API on mount
-- [x] Audit `api.js` → confirm `projects.list()` fetches files for each project (or has a separate `projects.getFiles(projectId)` call)
-- [x] Audit the serverless function → confirm it joins `project_files` when returning projects
-- [x] If files are fetched separately: add a loading state so TheBrain.jsx waits for files before rendering FileTree
-- [x] Verify: reload the app → file tree shows all files for all projects
-- **Done when:** Browser refresh shows full file tree with all saved content
-- **How:** `api/projects.js` list returns `files: null` (lightweight). `openHub()` lazy-loads via `projectsApi.get(id)`. `mapProject()` helper centralises snake→camelCase.
-
-### 0.2 Fix comments loading from DB ✅ COMPLETE (2026-03-08)
-- [x] Add `useEffect` in TheBrain.jsx that fetches comments when `hubId` or `hub.activeFile` changes
-- [x] Call `commentsApi.list(hubId, hub.activeFile)` (or equivalent)
-- [x] Populate `comments` state with the response
-- [x] Handle loading state (don't flash "No comments" before fetch completes)
-- **Done when:** Comments survive a page reload
-- **How:** `useEffect` watches `[hubId, hub?.activeFile]`, maps DB rows (`created_at` → `date`, `resolved` 0/1 → boolean), `commentsLoading` state gates the "No comments" empty state.
-
-### 0.3 Build AI Coach proxy function ✅ COMPLETE (2026-03-08)
-- [x] Create serverless function: `/api/ai` (Vercel) or `netlify/functions/ai.js`
-- [x] Accepts POST with `{ prompt, context }` body
-- [x] Reads `ANTHROPIC_API_KEY` from server-side env (not VITE_ prefixed)
-- [x] Calls Anthropic API server-side, returns response
-- [x] Update `askAI()` in TheBrain.jsx to call `/api/ai` instead of Anthropic directly
-- [x] Remove `VITE_ANTHROPIC_KEY` from `.env.example`
-- **Done when:** AI Coach works without exposing API key in browser network tab
-
-### 0.4 Fix rename project stale reference ✅ COMPLETE (2026-03-08)
-- [x] In `renameProject()`, use functional updater or read from the updated state after `setProjects`
-- [x] Or: build the new file content from parameters rather than reading from `projects` array
-- **Done when:** Renaming a project correctly updates PROJECT_OVERVIEW.md and manifest.json in DB
-
-### 0.5 Add beforeunload handler for session timer ✅ COMPLETE (2026-03-08)
-- [x] Add `useEffect` with `window.addEventListener('beforeunload', ...)` when `sessionActive` is true
-- [x] On unload: save session to DB via `navigator.sendBeacon` or sync XHR
-- [x] Clean up listener when session ends
-- **Done when:** Closing tab mid-session still logs the session to DB
-
-### 0.6 Add Bootstrap Wizard null check ✅ COMPLETE (2026-03-08)
-- [x] In `completeBootstrap()`, guard against `projects.find()` returning undefined
-- [x] Show toast error if project not found
-- **Done when:** Completing bootstrap on a deleted/missing project shows error instead of silent failure
-
-### 0.7 Add soft deletes to project_files `[DB]` ✅ COMPLETE (2026-03-08)
-- [x] Add `deleted_at DATETIME DEFAULT NULL` column to `project_files` table
-- [x] Update `deleteFile()` API to SET `deleted_at = NOW()` instead of DELETE
-- [x] Update all file queries to include `WHERE deleted_at IS NULL`
-- [ ] Add "Recently Deleted" option in project Meta tab (optional, can build UI later)
-- [ ] Cleanup rule: hard-delete files where `deleted_at` older than 30 days
-- **Done when:** Deleting a file is recoverable within 30 days
-
-### 0.8 Add debounced saves to markdown editor `[UI]` ✅ COMPLETE (2026-03-08)
-- [x] In `MarkdownEditor`, debounce the `onChange` handler (1.5-2 seconds)
-- [x] Show "unsaved changes" indicator while debounce is pending
-- [x] Manual Save button still triggers immediate persist
-- [x] Prevents hammering TiDB on every keystroke
-- **Done when:** Typing in the editor doesn't fire a DB write per character
-
-### 0.9 Add rate limiting and caching to AI proxy `[API]` ✅ PARTIAL (2026-03-08)
-- [x] Rate limit: max 10 AI calls per minute per user (return 429 if exceeded)
-- [ ] Cache: hash the prompt — if same hash within 5 minutes, return cached response
-- [ ] Token logging: log model, input_tokens, output_tokens per call (server logs minimum, `ai_usage` table ideally)
-- [x] Frontend: show "Rate limited, try again shortly" instead of generic error (via error message display)
-- **Done when:** AI Coach can't accidentally run up a large bill from repeated/looped calls
+**See:** BRAIN_STATUS.md Section 4 for full "What's Built" inventory
 
 ---
 
-## PHASE 0.5 — Critical Path Tests (before building new features)
+## PHASE 0 — Bug Fixes ✅ COMPLETE (2026-03-08)
 
-_Not a full test suite — just the 3 paths where data loss would destroy trust._
-
-- [ ] **Test: File save/load round-trip** — create file via API, reload app, verify content matches
-- [ ] **Test: Comment persistence** — add comment, reload, verify it appears
-- [ ] **Test: Session logging** — start session, end it, verify it persists in DB and appends to DEVLOG.md
-- [x] **DB migration versioning:** Create `schema_migrations` table to track which ALTER/CREATE statements have run (Applied 2026-03-08)
-- [ ] Write as simple Node scripts runnable via `npm run test:critical` — no framework needed
-
----
-
-## PHASE 1 — Foundations (core philosophy support)
-
-_The infrastructure needed for "Life > Parts > Things" to work._
-
-### 1.0 Life Areas (Parts) `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
-
-**Goal:** Make "Parts" real entities, not just folder names.
-
-- [x] `[DB]` Create `life_areas` table: id, user_id, name, color, icon, description, target_hours_weekly, health_score, sort_order
-- [x] `[DB]` Migration: Add `life_area_id` FK to `projects` table
-- [x] `[API]` CRUD endpoints for `/api/data?resource=areas`
-- [x] `[UI]` Area pills in Command Centre (filter projects by area)
-- [x] `[UI]` Area selector in New Project modal
-- [x] `[UI]` Area display in project Overview tab
-- **Done when:** User can assign projects to Life Areas and filter by them
-- **How:** Migration v3, v4. Area health computed as weighted average of project health. 5 default areas seeded on user creation.
-
-### 1.1 Generic Goal Tracking `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
-
-**Goal:** Replace hardcoded "Thailand Goal" with configurable goals (any currency, any target).
-
-- [x] `[DB]` Create `goals` table: id, user_id, title, target_amount, current_amount, currency, timeframe, category, status
-- [x] `[DB]` Create `goal_contributions` table: id, goal_id, user_id, project_id, source_label, amount, date, notes
-- [x] `[API]` CRUD for goals + contributions
-- [x] `[UI]` Goal progress bar in Command Centre (reads from DB)
-- [x] `[UI]` Goal configuration modal (set target, currency, timeframe)
-- [x] `[UI]` "Add Contribution" UI (quick-log toward goal)
-- **Done when:** User can set a custom goal and track progress toward it
-- **How:** Migrations v5, v6. Goal picker in settings. Contribution tracking in project Meta tab.
-
-### 1.2 Project Templates `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
-
-**Goal:** Different project types need different folder structures and phases.
-
-- [x] `[DB]` Create `templates` table: id, user_id, name, description, icon, category, config (JSON), is_system
-- [x] `[API]` CRUD for templates
-- [x] `[UI]` Template picker in New Project modal
-- [x] `[UI]` "Save as Template" button in project Meta tab
-- [x] `[UI]` Template drives project phases and folder structure
-- [x] Seed 5 system templates: BUIDL, Software, Content, Business, Personal Goal
-- **Done when:** User can create projects from templates and save custom templates
-- **How:** Migration v7. Templates have `config.phases[]` and `config.folders[]`. Project creation uses template config.
-
-### 1.3 Tagging & Linking System `[DB]` `[API]` `[UI]` `[EXTENSIBLE]` ✅ COMPLETE (2026-03-08)
-
-**Goal:** Cross-entity relationships without rigid hierarchy.
-
-- [x] `[DB]` Create `tags` table: id, user_id, name, color, category
-- [x] `[DB]` Create `entity_tags` junction: tag_id, user_id, entity_type, entity_id
-- [x] `[DB]` Create `entity_links` table: user_id, source_type, source_id, target_type, target_id, relationship
-- [x] `[API]` CRUD for tags + entity_tags + entity_links
-- [x] `[UI]` QuickTagRow component on projects/ideas/staging/goals/files
-- [x] `[UI]` 🏷 Tags brain tab: tag cloud + cross-entity query
-- [x] `[UI]` 🔗 Links hub tab: entity relationship viewer/creator
-- **Done when:** User can tag anything and create relationships between entities
-- **How:** Migrations v8, v9, v10. `entity_type` enum: project, idea, staging, goal, file. Relationship types: parent, child, supports, blocks, related.
-
-### 1.4 Settings Persistence `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-08)
-
-**Goal:** User preferences survive across devices.
-
-- [x] `[DB]` Add `settings` JSON column to `users` table
-- [x] `[API]` GET/PUT `/api/data?resource=settings`
-- [x] `[UI]` Settings modal (⚙ gear icon in header)
-- [x] `[UI]` Font family selector (persist to DB)
-- [x] `[UI]` Font size selector (persist to DB)
-- [ ] `[UI]` Theme selector (dark/light) — deferred to Phase 2
-- [ ] `[UI]` Sidebar width persistence — deferred to Phase 2
-- **Done when:** Settings persist across sessions and devices
-- **How:** Migration v11. Settings merged from DB on load, cached in localStorage for speed.
+| Task | Status | Notes |
+|------|--------|-------|
+| 0.1 File loading from DB | ✅ | Lazy loading via `openHub()` |
+| 0.2 Comments loading from DB | ✅ | `useEffect` watches `[hubId, activeFile]` |
+| 0.3 AI Coach proxy function | ✅ | Server-side, key not exposed |
+| 0.4 Rename project stale ref | ✅ | Functional updater pattern |
+| 0.5 Session timer beforeunload | ✅ | Warns on active session |
+| 0.6 Bootstrap wizard null check | ✅ | Toast error on missing project |
+| 0.7 Soft deletes on project_files | ✅ | `deleted_at` column |
+| 0.8 Debounced saves in editor | ✅ | 2-second debounce |
+| 0.9 AI rate limiting | ⚠️ PARTIAL | Rate limit ✅, caching ❌ |
 
 ---
 
-## PHASE 2 — Daily Tool Features
+## PHASE 0.5 — Critical Path Tests 🔄 IN PROGRESS
+
+- [ ] Test: File save/load round-trip
+- [ ] Test: Comment persistence
+- [ ] Test: Session logging
+- [x] DB migration versioning (schema_migrations table)
+
+---
+
+## PHASE 1 — Foundations ✅ COMPLETE (2026-03-08)
+
+**Core "Life > Parts > Things" infrastructure**
+
+| Task | Status | Key Deliverable |
+|------|--------|-----------------|
+| 1.0 Life Areas (Parts) | ✅ | `life_areas` table, health tracking |
+| 1.1 Generic Goal Tracking | ✅ | Configurable goals, contributions |
+| 1.2 Project Templates | ✅ | 6 system templates, custom save |
+| 1.3 Tagging & Linking | ✅ | Cross-entity tags, relationships |
+| 1.4 Settings Persistence | ✅ | `settings` JSON on users table |
+
+---
+
+## PHASE 2 — Daily Tool Features ✅ COMPLETE (2026-03-11)
 
 _Make it usable every day without friction._
 
-### 2.1 Project Import `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] Support BUIDL format paste (text area with MANIFEST_START/END, FILES_START/END)
-- [x] Support JSON file upload (validated structure)
-- [x] Support folder picker (File System Access API) for entire project import
-- [x] Conflict detection: show diff when file exists
-- [x] Option to overwrite or skip conflicting files
-- [x] Auto-navigate to imported project on success
-- **Done when:** User can import projects from old Brain format or file system
-- **How:** `importMethod` state: "buidl" | "json" | "folder". `parseBuildlFormat()`, `validateImportJson()`, `parseFileSystemEntries()`. Import modal with 3-tab interface.
-
-### 2.2 Image & Binary File Handling `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] Image viewer component for .png/.jpg/.gif/.svg/.webp
-- [x] Binary detection by extension
-- [x] Base64 upload via drag-drop into staging
-- [x] Download link for non-image binaries
-- [x] Size warning for files >500KB
-- **Done when:** User can view images and download other binary files
-- **How:** `ImageViewer` component. Binary extensions list. Base64 encoding for storage.
-
-### 2.3 Metadata Editor Panel `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] `[DB]` Create `file_metadata` table: id, project_id, user_id, file_path, category, status, metadata_json
-- [x] `[API]` CRUD for file_metadata
-- [x] `[UI]` Collapsible right panel in editor showing metadata
-- [x] `[UI]` Category dropdown (documentation, planning, research, code, design, marketing, other)
-- [x] `[UI]` Status dropdown (draft, review, final, archived)
-- [x] `[UI]` Custom JSON fields (extensible)
-- [x] `[UI]` "File to Folder" flow: staging items → project folders with metadata
-- **Done when:** Every file can have category, status, and custom metadata
-- **How:** Migration for `file_metadata`. `MetadataEditor` component in editor. `folder_path`/`filed_at` fields on staging for "file to folder" flow.
-
-### 2.4 Offline Mode & localStorage Fallback `[UI]` `[CONFIG]` ✅ COMPLETE (2026-03-11)
-
-- [x] Full state cached to localStorage on load
-- [x] DB-first with cache fallback
-- [x] Sync-on-reconnect when back online
-- [x] Offline indicator in UI
-- [x] Write queue for offline changes
-- **Done when:** App works (read-only) when offline, syncs when reconnected
-- **How:** `cache.js` module with write queue. `writeWithQueue()` in api.js. Online/offline status indicator in header.
-
-### 2.5 Daily Check-in System `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] `[DB]` Create `daily_checkins` table: id, user_id, date, sleep_hours, energy_level, gut_symptoms, training_done, notes
-- [x] `[API]` GET/POST daily-checkins
-- [x] `[UI]` DailyCheckinModal with sliders for sleep (0-24), energy (0-10), gut (0-10)
-- [x] `[UI]` Training done checkbox
-- [x] `[UI]` Auto-prompt on first visit of day
-- [x] `[UI]` Energy emoji in top bar (🌙/🔄/⚡ based on level)
-- [x] `[UI]` Check-in data passed to AI Coach for state-based routing
-- **Done when:** User is prompted daily to check in; energy level visible and used by AI
-- **How:** Migration v12. `DailyCheckinModal`. localStorage tracks last check-in date. Energy-based routing: ≤4 = low-complexity, 5-7 = shipping/outreach, 8+ = deep work.
-
-### 2.6 Training Log `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] `[DB]` Create `training_logs` table: id, user_id, date, duration_minutes, type, notes, energy_after
-- [x] `[API]` GET/POST/PUT/DELETE training-logs + stats endpoint
-- [x] `[UI]` TrainingLogModal with type selector (solo/class/sparring/conditioning/other)
-- [x] `[UI]` Duration with quick presets (30/45/60/90m)
-- [x] `[UI]` Energy-after slider
-- [x] `[UI]` 🥋 top bar indicator (click to log)
-- [x] `[UI]` Command Centre training card: weekly sessions + progress bar
-- [x] `[UI]` Auto-marks today's check-in `training_done=true`
-- **Done when:** User can log training sessions and track weekly progress
-- **How:** Migration v13. `TrainingLogModal`. Stats endpoint with weekly buckets. 3/week target.
-
-### 2.7 Outreach Tracking `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] `[DB]` Create `outreach_log` table: id, user_id, date, type, target, project_id, notes
-- [x] `[API]` GET/POST/DELETE outreach-log
-- [x] `[UI]` OutreachLogModal with type selector (message/post/call/email/other)
-- [x] `[UI]` Target input + optional project link
-- [x] `[UI]` 📣 top bar indicator (purple when done, dim when zero)
-- [x] `[UI]` Command Centre outreach card: today's count + warning when none
-- [x] `[UI]` AI Coach context includes outreach count + "NOT DONE" flag
-- **Done when:** User logs outreach actions and sees daily progress
-- **How:** Migration v14. `OutreachLogModal`. Daily counts shown in Command Centre. Mandatory minimum tracked.
-
-### 2.8 Agent System Prompt Upgrade `[API]` `[CONFIG]` ✅ COMPLETE (2026-03-11)
-
-- [x] `agent-config.json` with 10 enforcement rules + state routing + model config
-- [x] `buildSystemPrompt()` in `api/ai.js` queries DB in parallel
-- [x] Server-side context building: user profile, goal + progress, today's check-in, training, outreach, projects, sessions
-- [x] Recovery/Steady/Power routing computed server-side
-- [x] 4,000 token budget with auto-truncation
-- [x] Graceful fallback to rules-only if DB unavailable
-- [x] `askAI()` sends `{ prompt }` only — no client-side context
-- **Done when:** AI Coach has full context and follows the 10 rules
-- **How:** `agent-config.json` loaded server-side. Parallel DB queries for context. Compressed project summaries.
-
-### 2.9 Weekly Review Automation `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] `[DB]` Create `weekly_reviews` table: id, user_id, week_start, data_json, what_shipped, what_blocked, next_priority, ai_analysis
-- [x] `[API]` GET/POST weekly-review with auto-aggregated stats
-- [x] `[UI]` WeeklyReviewPanel with week navigation
-- [x] `[UI]` 7 stat cards (sessions, energy, sleep, training, outreach, staging, etc.)
-- [x] `[UI]` Reflection fields: what shipped, what blocked, next priority
-- [x] `[UI]` AI-generated analysis
-- [x] `[UI]` Save to DB
-- **Done when:** User can review each week with auto-aggregated data + AI insights
-- **How:** Migration v15. `weekly-review` endpoint computes stats in parallel. `WeeklyReviewPanel` component.
-
-### 2.10 Drift Detection `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] `resource=drift-check` API with 5 detection rules
-  - Training < 3 sessions/week for 2 consecutive weeks
-  - Outreach = 0 for 5+ days
-  - Average energy declining over 7 days
-  - No sessions logged for 3+ days
-  - Same project focus 14+ days with no health improvement
-- [x] Drift alerts in Command Centre with dismiss functionality
-- [x] Drift flags included in AI Coach context
-- **Done when:** User sees early warning flags when patterns slip
-- **How:** Drift check queries multiple tables, computes trends, returns flags with severity. Dismissed flags stored in localStorage.
+| Task | Status | Key Deliverable |
+|------|--------|-----------------|
+| 2.1 Project Import | ✅ | BUIDL, JSON, folder picker |
+| 2.2 Image & Binary Handling | ✅ | Viewer, base64 upload, download |
+| 2.3 Metadata Editor Panel | ✅ | `file_metadata` table, categories |
+| 2.4 Offline Mode | ✅ | localStorage cache, sync queue |
+| 2.5 Daily Check-in System | ✅ | Sleep/energy/gut tracking |
+| 2.6 Training Log | ✅ | Weekly targets, correlation |
+| 2.7 Outreach Tracking | ✅ | Mandatory minimum enforcement |
+| 2.8 Agent System Prompt Upgrade | ✅ | 10 rules, state routing |
+| 2.9 Weekly Review Automation | ✅ | Auto-aggregated stats |
+| 2.10 Drift Detection | ✅ | 5 pattern alerts |
 
 ---
 
-## PHASE 3 — Power Features
+## PHASE 3 — Power Features ✅ COMPLETE (2026-03-11)
 
 _Features that multiply effectiveness._
 
-### 3.1 AI Metadata Suggestions `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] `resource=ai-metadata-suggestions` endpoint
-- [x] AI analyzes file content and suggests category, status, tags
-- [x] Suggestions shown in MetadataEditor panel as purple dashed pills
-- [x] Click to accept
-- [x] Ignore patterns (node_modules, .git, etc.)
-- [x] Content truncated to 3000 chars for analysis
-- **Done when:** AI suggests metadata for files based on content
-- **How:** Anthropic API call with structured system prompt. JSON response parsed for suggestions.
-
-### 3.2 Mermaid Diagram Rendering `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] Mermaid loaded via CDN in index.html
-- [x] `MermaidRenderer` component renders diagrams as SVG
-- [x] `MarkdownPreview` splits content and renders mermaid blocks
-- [x] `renderMd` detects and extracts mermaid code blocks
-- [x] Default `system/DEPENDENCY_GRAPH.md` template with example diagrams
-- **Done when:** Mermaid diagrams render visually in markdown preview
-- **How:** Mermaid loaded via CDN in index.html; `MermaidRenderer` component renders SVG with dark theme; `MarkdownPreview` splits content by mermaid blocks; default `system/DEPENDENCY_GRAPH.md` template with example diagrams
-
-### 3.3 Search improvements `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] Enhanced search API with filters (project, folder, file type)
-- [x] Highlighted excerpts in results
-- [x] Grouped results by project
-- [x] `SearchModal` component with Cmd+K shortcut
-- [x] Recent searches (localStorage)
-- [x] Filter dropdowns
-- [x] Debounced search with loading indicator
-- **Done when:** User can quickly find anything with Cmd+K
-- **How:** Search endpoint with SQL filters. Excerpt highlighting with match index. `SearchModal` with keyboard shortcut.
-
-### 3.4 Local File System Sync `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] `sync_state` and `sync_file_state` tables
-- [x] `resource=sync_state` API endpoints (GET/POST/PUT/DELETE)
-- [x] `desktop-sync.js` module with `selectFolder()`, `saveFolderHandle()`, `syncFiles()`
-- [x] `FolderSyncSetup` component in Meta tab
-- [x] `SyncReviewModal` for conflict resolution
-- [x] File System Access API for desktop folder access
-- [x] Bi-directional sync with overwrite confirmation
-- **Done when:** User can connect a local folder and sync bidirectionally
-- **How:** Migrations v16, v17. Folder handle persistence. Content hash comparison for conflict detection.
-
-### 3.5 File Validity Checker `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] `HealthCheck` component in Meta tab
-- [x] Checks for required files (PROJECT_OVERVIEW.md, DEVLOG.md, manifest.json)
-- [x] Validates manifest.json JSON
-- [x] Checks manifest-project state consistency
-- [x] Detects orphaned files (not in any folder)
-- [x] Checks template-required folders
-- [x] Shows error/warning/info counts
-- [x] Auto-fix for missing files with default content
-- **Done when:** Structural issues are flagged automatically
-- **How:** `HealthCheck` runs structural validation. Auto-fix creates default content for missing files.
-
-### 3.6 Script Execution `[API]` `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] `resource=scripts` POST endpoint
-- [x] Sandboxed JavaScript execution using Function constructor
-- [x] Safety controls: 30s timeout, no network, whitelisted globals
-- [x] `ScriptRunner` component in Meta tab
-- [x] Quick scripts: Word Count, List TODOs, Stats
-- [x] Custom script selector from `/tools/` folder
-- [x] Output display panel
-- **Done when:** User can run sandboxed scripts against project data
-- **How:** Server-side sandbox with restricted globals. Timeout via Promise.race. Script metadata extraction.
+| Task | Status | Key Deliverable |
+|------|--------|-----------------|
+| 3.1 AI Metadata Suggestions | ✅ | Content-based category/tags |
+| 3.2 Mermaid Diagram Rendering | ✅ | SVG diagrams from markdown |
+| 3.3 Search Improvements | ✅ | Cmd+K, filters, highlighting |
+| 3.4 Local File System Sync | ✅ | Bi-directional desktop sync |
+| 3.5 File Validity Checker | ✅ | Structural validation, auto-fix |
+| 3.6 Script Execution | ✅ | Sandboxed JS, `/tools/` folder |
 
 ---
 
-## PHASE 4 — Mobile, Offline, Polish
+## PHASE 4 — Mobile, Offline, Polish ✅ COMPLETE (2026-03-12)
 
 _Make it work everywhere, reliably._
 
-### 4.1 Mobile responsive layout `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] **Breakpoints:** Define mobile (<768px), tablet (768-1024px), desktop (>1024px)
-- [x] **Mobile nav:** Hamburger menu with slide-out drawer
-- [x] **File tree:** Slide-out drawer instead of persistent sidebar
-- [x] **Editor:** Full-width on mobile, no side panels
-- [x] **Command centre:** Stack cards vertically
-- [x] **Touch targets:** All buttons minimum 44px hit area
-- [x] **Session timer:** Floating pill button on mobile
-- **Done when:** ✅ All tabs and features are usable on a phone screen
-- **How:** `useBreakpoint()` hook, conditional rendering with `isMobile` flag, slide-out drawers for nav and file tree, responsive grid layouts, floating session timer
-
-### 4.2 Onboarding flow `[UI]` ✅ COMPLETE (2026-03-11)
-
-- [x] **First login detection:** Check if user has 0 projects
-- [x] **Step 1:** Welcome screen — multi-select use cases (business, creative, health, personal)
-- [x] **Step 2:** Set goal — pre-filled suggestions based on use case, always saved to DB
-- [x] **Step 3:** Create first project — template picker with smart recommendations
-- [x] **Step 4:** Quick tour — spotlight tooltips highlighting Brain, Hub, Session Timer, AI Coach
-- [x] **Skip option:** "I know what I'm doing" bypasses everything
-- [x] **Re-trigger:** Available in Settings and New Project modal
-- **Done when:** ✅ A brand new user can go from signup to working project in under 2 minutes
-- **How:** `OnboardingWizard` component with 4 steps, `TourTooltip` with spotlight overlay, `useEffect` check on login, `settingsApi.update({onboarding_completed:true})` persistence
-
-### 4.3 Integration connectors `[API]` `[CONFIG]` ✅ COMPLETE (2026-03-11)
-
-- [x] **Pattern:** Modular integration system with API endpoints
-- [x] **Store credentials:** Personal Access Token in `project_integrations` table
-- [x] **GitHub:** Full implementation — repo status, commits, connect/disconnect
-- [ ] **Netlify/Vercel:** Phase 5 (when needed)
-- [ ] **Social (Farcaster/Twitter):** Phase 5
-- [ ] **Blockchain (Base):** Phase 5
-- **Done when:** ✅ GitHub integration connects and shows real repo data
-- **How:** `project_integrations` table, `/api/integrations.js` serverless function, `GitHubIntegration` component with step-by-step setup instructions, PAT-based auth (OAuth upgradeable)
-
-### 4.4 Notification / reminder system `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-12)
-
-- [x] **Schema:** `notifications` table: id, user_id, type, message, read, action_url, created_at (migration v20)
-- [x] **Triggers:**
-  - Daily check-in not done by configured time
-  - Training minimum not met by end of week
-  - Project health dropped below threshold
-  - Staging items pending review > 7 days
-  - Drift detection alerts
-- [x] **UI:** Notification bell in top bar with count badge
-- [x] **API:** `/api/data?resource=notifications` for CRUD, `/api/data?resource=notification-check` for trigger evaluation
-- [x] **Auto-check:** Every 5 minutes for new triggers
-- [x] **Mobile:** Slide-out drawer for notifications on mobile
-- [ ] **Future:** Email/push notifications (out of scope for now — in-app only)
-- **Done when:** ✅ Actionable notifications appear in-app when triggers fire
-- **How:** Migration v20. `notificationsApi` client methods. Bell icon with badge in header. Desktop dropdown + mobile drawer. Click to navigate to relevant action. Dismiss/delete individual notifications or mark all read.
+| Task | Status | Key Deliverable |
+|------|--------|-----------------|
+| 4.1 Mobile Responsive Layout | ✅ | Breakpoints, touch targets |
+| 4.2 Onboarding Flow | ✅ | 4-step wizard, guided tour |
+| 4.3 Integration Connectors | ✅ | GitHub PAT integration |
+| 4.4 Notification System | ✅ | In-app bell, trigger-based alerts |
 
 ---
 
-## PHASE 5 — Future / Parking Lot
+# 🚀 PHASE 5 — Agent Orchestration Foundation
 
-_Don't build until Phases 0-4 are solid._
+**Goal:** Transform from "AI gives advice" to "AI assigns and tracks work"
 
-### 5.1 Real-time collaboration
-- [ ] WebSocket or SSE for live updates
-- [ ] Presence indicators (who's viewing what)
-- [ ] Cursor/selection sync for shared editing
+## 5.1 URI Scheme & Resource Addressing `[API]` `[EXTENSIBLE]` ✅ COMPLETE (2026-03-14)
 
-### 5.2 Version history
-- [ ] Per-file version history with diff
-- [ ] Revert to any previous version
-- [ ] Auto-snapshots on significant changes
+**Deliverable:** Standardized `brain://` URI system for all entities
 
-### 5.3 Advanced AI features
-- [ ] Content generation (write from prompts)
-- [ ] Code analysis and suggestions
-- [ ] Image generation for projects
+**Schema:**
+```
+brain://project/{id}
+brain://project/{id}/file/{path}
+brain://project/{id}/task/{taskId}
+brain://goal/{id}
+brain://staging/{id}
+brain://idea/{id}
+brain://agent/{agentId}
+brain://workflow/{id}/step/{stepNum}
+```
 
-### 5.4 External integrations
-- [ ] Calendar sync (Google/Outlook)
-- [ ] Email notifications
-- [ ] Slack/Discord webhooks
+**Tasks:**
+- [x] `[API]` Create `src/uri.js` — URI parser/generator utility
+- [x] `[API]` Update AI context builder to use URIs
+- [x] `[UI]` Clickable URI links in AI responses
+- [x] `[UI]` Cmd+Click navigation to resources
 
-### 5.5 Performance & scale
-- [ ] Pagination for large project lists
-- [ ] Virtual scrolling for long files
-- [ ] Lazy loading for images
-- [ ] CDN for static assets
+**Done when:** ✅ All resources have canonical URIs, AI references them precisely, user can click to navigate
 
-### 5.6 Security hardening
-- [ ] Rate limiting on all endpoints
-- [ ] Input sanitization audit
-- [ ] SQL injection prevention review
-- [ ] XSS prevention review
+---
+
+## 5.2 Hierarchical Context Summarization `[DB]` `[API]` `[EXTENSIBLE]` 📋
+
+**Deliverable:** L0/L1/L2 auto-generated summaries (Open Viking pattern)
+
+| Level | Tokens | Purpose | Generation |
+|-------|--------|---------|------------|
+| L0 Abstract | ~100 | Vector search, quick filtering | AI on file save |
+| L1 Overview | ~2,000 | Navigation, context routing | AI on file save |
+| L2 Detail | Unlimited | Full content, execution | Original file |
+
+**Schema:**
+```sql
+CREATE TABLE file_summaries (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  project_id VARCHAR(64),
+  file_path VARCHAR(512),
+  l0_abstract TEXT,
+  l1_overview TEXT,
+  content_hash VARCHAR(64),
+  generated_at DATETIME,
+  INDEX (project_id, file_path)
+);
+```
+
+**Tasks:**
+- [ ] `[DB]` Migration for `file_summaries` table
+- [ ] `[API]` `resource=generate-summary` endpoint
+- [ ] `[API]` Queue summarization on file save (background)
+- [ ] `[API]` `resource=summaries` for retrieval
+- [ ] `[API]` Update context builder to use L0/L1
+
+**Done when:** AI responses include "Based on overview of X files..." with retrieval traces
+
+---
+
+## 5.3 Agent Registry & Capabilities `[DB]` `[API]` `[EXTENSIBLE]` 📋
+
+**Deliverable:** Database-driven agent definitions (currently static SKILLS object)
+
+**Schema:**
+```sql
+CREATE TABLE agents (
+  id VARCHAR(32) PRIMARY KEY,
+  user_id INT,
+  name VARCHAR(64),
+  icon VARCHAR(8),
+  description TEXT,
+  capabilities JSON,       -- ['code', 'review', 'write']
+  permissions JSON,        -- ['read:all', 'write:code-modules']
+  ignore_patterns JSON,    -- ['node_modules/']
+  prompt_prefix TEXT,
+  cost_per_task DECIMAL(10,4),
+  avg_duration_minutes INT,
+  handoff_rules JSON,
+  is_system BOOLEAN DEFAULT FALSE
+);
+```
+
+**Tasks:**
+- [ ] `[DB]` Migration for `agents` table
+- [ ] `[DB]` Seed system agents (dev, content, strategy, design, research)
+- [ ] `[UI]` Agent management (custom agent creation)
+- [ ] `[API]` Update AI proxy to load from DB
+- [ ] `[API]` Capability-based routing logic
+
+**Done when:** Users can create custom agents with specific capabilities
+
+---
+
+## 5.4 Task Delegation System `[DB]` `[API]` `[UI]` `[EXTENSIBLE]` ✅ COMPLETE (2026-03-14)
+
+**Deliverable:** Universal task queue with intelligent assignment
+
+**Schema:**
+```sql
+CREATE TABLE tasks (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  project_id VARCHAR(64),
+  user_id INT,
+  title VARCHAR(256),
+  description TEXT,
+  context_uri VARCHAR(512),      -- brain:// reference
+  assignee_type ENUM('human', 'agent', 'integration'),
+  assignee_id VARCHAR(64),
+  status ENUM('pending', 'in_progress', 'blocked', 'review', 'complete'),
+  priority ENUM('critical', 'high', 'medium', 'low'),
+  due_date DATE,
+  parent_task_id INT,
+  workflow_instance_id INT,
+  assigned_by ENUM('ai', 'user', 'workflow'),
+  assignment_reason TEXT,
+  created_at DATETIME,
+  started_at DATETIME,
+  completed_at DATETIME,
+  result_summary TEXT,
+  output_uris JSON,
+  INDEX (user_id, status),
+  INDEX (assignee_type, assignee_id, status)
+);
+```
+
+**API Endpoints:**
+- `GET/POST/PUT /api/data?resource=tasks`
+- `POST /api/data?resource=tasks&action=assign`
+- `GET /api/data?resource=my-tasks`
+
+**UI Components:**
+- [ ] `[UI]` "My Tasks" view in Command Centre
+- [ ] `[UI]` Task detail panel (context, assignee, status)
+- [ ] `[UI]` Task creation modal with AI suggestion
+- [ ] `[UI]` "Delegate to Agent" button
+
+**Assignment Logic (v1):**
+```javascript
+// Simple rules-based routing
+if (task.type === 'code' && user.energy >= 7) → assign to dev agent
+if (task.type === 'code' && user.energy < 7) → assign to human + note
+if (task.type === 'content') → assign to content agent
+if (task.urgency === 'critical') → assign to human
+```
+
+**Done when:** Tasks can be created, assigned, tracked to completion
+
+---
+
+## 5.5 Workflow Execution Engine `[DB]` `[API]` `[UI]` 📋
+
+**Deliverable:** From static templates to executable instances
+
+**Schema:**
+```sql
+CREATE TABLE workflow_instances (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  workflow_template_id VARCHAR(64),
+  project_id VARCHAR(64),
+  user_id INT,
+  status ENUM('running', 'paused', 'completed', 'failed'),
+  current_step_index INT DEFAULT 0,
+  step_results JSON,
+  execution_log TEXT,
+  started_at DATETIME,
+  completed_at DATETIME
+);
+```
+
+**Execution Model:**
+1. Create task for current step
+2. If agent: trigger AI execution
+3. Wait for completion (async)
+4. On complete: auto-advance or branch
+
+**UI Components:**
+- [ ] `[UI]` Workflow instance viewer (progress, history)
+- [ ] `[UI]` "Start Workflow" button on projects
+- [ ] `[UI]` Pause/resume/abort controls
+
+**Done when:** Workflows execute step-by-step, create tasks, track progress
+
+---
+
+## 5.6 Agent Task Execution `[API]` `[CONFIG]` 📋
+
+**Deliverable:** Agents can DO things, not just advise
+
+**Agent Actions (function calling):**
+- `read_file(uri)` — Get L2 content
+- `write_file(uri, content)` — Create/update
+- `create_task(title, desc, assignee)` — Delegate
+- `search_projects(query)` — Find context
+- `request_review(reason)` — Escalate
+- `mark_complete(summary, outputs)` — Finish
+
+**Safety:**
+- [ ] `[CONFIG]` Sandboxed file operations (respect ignore_patterns)
+- [ ] `[UI]` Preview mode: propose changes, human approves
+- [ ] `[CONFIG]` Auto mode: trusted agents execute directly
+
+**Done when:** Agents can read, write, create sub-tasks, complete assignments
+
+---
+
+# 🎯 PHASE 6 — Adaptive Assistance Modes
+
+**Goal:** Three modes serving different user needs
+
+## 6.1 Mode System Core `[DB]` `[API]` `[UI]` `[CONFIG]` 📋
+
+**Deliverable:** Coach / Assistant / Silent modes
+
+**Settings Schema:**
+```json
+{
+  "assistance_mode": "coach",
+  "coach_intensity": 0.8,
+  "auto_run_agents": true,
+  "proactive_suggestions": true,
+  "checkin_required": true,
+  "interruption_policy": "respect_focus"
+}
+```
+
+**Mode Definitions:**
+
+| Aspect | Coach | Assistant | Silent |
+|--------|-------|-----------|--------|
+| Identity | "Direct accountability partner" | "Helpful project assistant" | "System tool" |
+| Tone | Challenging, direct | Supportive, neutral | Minimal, factual |
+| Check-ins | Mandatory daily | Available, not prompted | Off |
+| Drift alerts | Interruptive popups | Dashboard badge only | Off |
+| Outreach | "NOT DONE (mandatory)" | Tracked, optional | Off |
+| Task creation | Proactive | Proactive | Manual only |
+| Agent execution | Auto-runs | Auto-runs | Preview mode |
+
+**Tasks:**
+- [ ] `[DB]` Add `assistance_mode` to settings JSON
+- [ ] `[UI]` Mode selector in Settings with descriptions
+- [ ] `[API]` Mode-aware system prompt builder
+- [ ] `[UI]` Mode-based feature visibility
+- [ ] `[API]` Mode-aware interruption logic
+
+**Done when:** User can switch modes, UI adapts, AI tone changes
+
+---
+
+## 6.2 Smart Mode Suggestions `[API]` `[UI]` 📋
+
+**Deliverable:** System suggests mode changes based on behavior
+
+**Triggers:**
+- 30-day check-in streak → suggest Assistant mode
+- 3 missed check-ins → suggest back to Coach
+- 50%+ agent delegation rate → suggest Silent mode
+
+**UI:**
+- [ ] `[UI]` Gentle mode suggestion banners
+- [ ] `[UI]` "Try for a week" with easy revert
+
+**Done when:** Users get helpful mode transition suggestions
+
+---
+
+# 🧠 PHASE 7 — Intelligence & Evolution
+
+## 7.1 Recursive Directory Retrieval `[API]` `[EXTENSIBLE]` 📋
+
+**Deliverable:** AI explores project structure intelligently (Open Viking pattern)
+
+**Algorithm:**
+1. Intent analysis → extract keywords
+2. L0 vector search → find candidate directories
+3. L1 exploration within candidates
+4. Recursive descent if subdirectories found
+5. Return results + trace
+
+**UI:**
+- [ ] `[UI]` "Retrieval trace" in AI responses
+- [ ] Shows: "Explored briefs/ → system/ → skipped marketing/"
+
+**Done when:** AI finds context by exploring structure, not just flat search
+
+---
+
+## 7.2 Workflow Learning `[API]` `[DB]` 📋
+
+**Deliverable:** Detect patterns, suggest workflow improvements
+
+**Pattern Detection:**
+- After 3 similar projects → "Create workflow from this pattern?"
+- Track: planned vs actual duration
+- Track: agent success rates
+- Suggest: "Dev agent always takes 2x. Adjust estimate?"
+
+**Done when:** System suggests workflow templates from completed work
+
+---
+
+## 7.3 Auto Task Creation `[API]` `[DB]` 📋
+
+**Deliverable:** Create tasks from unstructured inputs
+
+**Sources:**
+- DEVLOG.md: "Started work on auth" → Task: "Complete auth"
+- Blockers: "Waiting for API key" → Task: "Follow up on API key"
+- Comments: "We should refactor this" → Task: "Refactor X"
+
+**Implementation:**
+- [ ] `[API]` Background job: scan DEVLOG.md daily
+- [ ] `[API]` Extract keywords: TODO|FIXME|XXX|BLOCKED
+- [ ] `[API]` AI classification: type, priority, assignee
+- [ ] `[UI]` "Proposed Tasks" queue for approval
+
+**Done when:** Unstructured inputs become structured tasks
+
+---
+
+## 7.4 Memory Self-Iteration `[DB]` `[API]` 📋
+
+**Deliverable:** Learn from execution (Open Viking pattern)
+
+**Six Memory Categories:**
+```sql
+CREATE TABLE memories (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT,
+  category ENUM('profile', 'preferences', 'entities', 'events', 'cases', 'patterns'),
+  content TEXT,
+  source_task_id INT,
+  confidence FLOAT,
+  created_at DATETIME
+);
+```
+
+**Auto-Extraction:**
+- After workflow completion → extract patterns
+- After task completion → update skill success rates
+- After project completion → update entity relationships
+
+**Usage:**
+- "You usually underestimate dev tasks by 2x"
+- "You work best on strategy in the morning"
+
+**Done when:** System personalizes based on execution history
+
+---
+
+# 📦 PHASE 8 — Ecosystem & Scale
+
+## 8.1 Community Workflows `[API]` `[UI]` 📋
+
+- Publish workflows (anonymized)
+- Star/fork templates
+- "Most used workflows for SaaS launches"
+
+## 8.2 Advanced Integrations `[API]` `[CONFIG]` 📋
+
+**Two-Way Sync:**
+- GitHub: PR creation, issue sync
+- Calendar: Block time for tasks
+- Email: Send/receive as task interactions
+- Slack/Discord: Channel as project feed
+
+## 8.3 Performance & Scale `[CONFIG]` 📋
+
+- Pagination for large project lists
+- Virtual scrolling for long files
+- CDN for static assets
+
+## 8.4 Security Hardening `[CONFIG]` 📋
+
+- Rate limiting on all endpoints
+- Input sanitization audit
+- SQL injection prevention review
+- XSS prevention review
+
+---
+
+# Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           THE BRAIN UI                               │
+│  ┌──────────────┐ ┌──────────┐ ┌────────┐ ┌──────────────────────┐ │
+│  │Command Centre│ │ Projects │ │ Tasks  │ │ AI Orchestrator      │ │
+│  │  (mode-aware)│ │          │ │(My/All)│ │ (Coach/Asst/Silent)  │ │
+│  └──────────────┘ └──────────┘ └────────┘ └──────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
+                                  │
+┌─────────────────────────────────────────────────────────────────────┐
+│                     ORCHESTRATION LAYER                              │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │
+│  │   Router    │  │   Planner   │  │    Workflow Engine          │ │
+│  │ (who does   │  │ (breakdown) │  │  (execute + track steps)    │ │
+│  │  what)      │  │             │  │                             │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────────────┘ │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │
+│  │  Mode Logic │  │ Task Queue  │  │  Agent Capability Matcher   │ │
+│  │ (Coach/Asst │  │             │  │                             │ │
+│  │  /Silent)   │  │             │  │                             │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
+                                  │
+        ┌─────────────────────────┼─────────────────────────┐
+        ▼                         ▼                         ▼
+┌──────────────┐    ┌─────────────────────┐    ┌──────────────┐
+│    HUMAN     │    │     AGENT POOL      │    │INTEGRATIONS  │
+│  (Tasks UI)  │    │  dev, content, etc. │    │ GitHub, etc. │
+└──────────────┘    └─────────────────────┘    └──────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────────────┐
+│              CONTEXT LAYER (Open Viking Patterns)                    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐  │
+│  │ URI Resolver │  │ L0/L1/L2     │  │ Recursive Directory      │  │
+│  │              │  │ Summaries    │  │ Retrieval                │  │
+│  └──────────────┘  └──────────────┘  └──────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+                                  │
+┌─────────────────────────────────────────────────────────────────────┐
+│                         DATA LAYER                                   │
+│  TiDB: projects, files, tasks, workflows, memories, agents, etc.    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+# Immediate Next Steps
+
+When you're ready to start Phase 5, I recommend this order:
+
+1. **5.1 URI Scheme** — Foundation for everything else
+2. **5.4 Task Schema** — Unlocks orchestration layer  
+3. **6.1 Mode Setting** — Gate existing features immediately
+
+These three can be done in parallel and set up the architecture for the rest.
+
+---
+
+*THE BRAIN v2.0 — From Coach to Orchestrator*
