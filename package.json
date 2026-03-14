@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "vercel-build": "npm install && vite build",
     "db:setup": "node scripts/db-setup.js",
     "db:migrate": "node scripts/migrate.js",
     "db:backup": "node scripts/backup.js",
