@@ -7,10 +7,9 @@
     "node": ">=18.0.0 <21.0.0"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "vercel-build": "npm install && vite build",
+    "dev": "npx vite",
+    "build": "npx vite build",
+    "preview": "npx vite preview",
     "db:setup": "node scripts/db-setup.js",
     "db:migrate": "node scripts/migrate.js",
     "db:backup": "node scripts/backup.js",
