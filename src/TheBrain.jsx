@@ -3689,8 +3689,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       // Toggle Brain/Hub: Cmd+B
       if (cmdOrCtrl && e.key === 'b') {
         e.preventDefault();
-        if (tab==='hub') setTab('brain');
-        else if (hubId) setTab('hub');
+        if (view==='hub') setView('brain');
+        else if (hubId) setView('hub');
         return;
       }
       
@@ -3770,7 +3770,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [tab, hubId, keySequence, fileHistory, sessionActive]);
+  }, [view, hubId, keySequence, fileHistory, sessionActive]);
 
   // ══════════════════════════════════════════════════════════
   // RENDER
