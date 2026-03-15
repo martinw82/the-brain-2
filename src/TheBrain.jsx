@@ -28,6 +28,9 @@ import {
 import { cache } from './cache.js';
 import { sync } from './sync.js';
 import { desktopSync } from './desktop-sync.js';
+import AICoach from './components/AICoach.jsx';
+import FileTree from './components/FileTree.jsx';
+import ProgressTrends from './components/ProgressTrends.jsx';
 import {
   parseURI,
   extractURIs,
@@ -51,6 +54,7 @@ import WeeklyReviewPanel from './components/WeeklyReviewPanel.jsx';
 import AgentManager from './components/AgentManager.jsx';
 import FileSummaryViewer from './components/FileSummaryViewer.jsx';
 import WorkflowRunner from './components/WorkflowRunner.jsx';
+import AICoach from './components/AICoach.jsx';
 import { seedSystemWorkflows } from './workflows.js';
 import { getMode, getBehavior, shouldShow, MODE_INFO } from './modeHelper.js';
 
@@ -234,83 +238,7 @@ const KeyboardShortcutsModal = ({ onClose }) => (
 );
 
 // ── PROGRESS TRENDS COMPONENT ───────────────────────────────
-const ProgressTrends = ({ title, data, color = C.blue, unit = '' }) => {
-  if (!data || data.length < 2) return null;
-
-  const max = Math.max(...data.map((d) => d.value));
-  const min = Math.min(...data.map((d) => d.value));
-  const range = max - min || 1;
-
-  return (
-    <div
-      style={{
-        padding: 12,
-        background: C.surface,
-        border: `1px solid ${C.border}`,
-        borderRadius: 8,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 10,
-          color: C.blue,
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
-          marginBottom: 8,
-        }}
-      >
-        {title}
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          gap: 4,
-          height: 60,
-          paddingBottom: 4,
-        }}
-      >
-        {data.map((d, i) => {
-          const height = ((d.value - min) / range) * 100;
-          return (
-            <div
-              key={i}
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 2,
-              }}
-            >
-              <div
-                style={{
-                  width: '100%',
-                  height: `${Math.max(4, height)}%`,
-                  background: color,
-                  borderRadius: 2,
-                  opacity: 0.7 + (i / data.length) * 0.3,
-                  minHeight: 4,
-                }}
-                title={`${d.label}: ${d.value}${unit}`}
-              />
-              <div
-                style={{
-                  fontSize: 8,
-                  color: C.muted,
-                  transform: 'rotate(-45deg)',
-                  transformOrigin: 'top left',
-                }}
-              >
-                {d.label}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
+// Moved to components/ProgressTrends.jsx
 
 const useBreakpoint = () => {
   const [bp, setBp] = useState(() => {
@@ -13733,107 +13661,24 @@ export default function TheBrain({
             )}
 
             {mainTab === 'ai' && (
-              <div>
-                <div style={S.card(false)}>
-                  <span style={S.label()}>💬 AI Coach</span>
-                  {getBehavior('ai_coach_tab', currentMode) === 'full' && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        gap: 5,
-                        flexWrap: 'wrap',
-                        marginBottom: 10,
-                      }}
-                    >
-                      {[
-                        'What should I work on today?',
-                        'Where am I looping?',
-                        'Thailand income path?',
-                        'Triage staging',
-                        'Rank by revenue potential',
-                        'Which project is dying?',
-                      ].map((p) => (
-                        <button
-                          key={p}
-                          style={S.btn('ghost')}
-                          onClick={() => askAI(p)}
-                        >
-                          {p}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <input
-                      style={S.input}
-                      value={aiIn}
-                      placeholder="Ask anything..."
-                      onChange={(e) => setAiIn(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && aiIn.trim()) {
-                          askAI(aiIn);
-                          setAiIn('');
-                        }
-                      }}
-                    />
-                    <button
-                      style={S.btn('primary')}
-                      onClick={() => {
-                        if (aiIn.trim()) {
-                          askAI(aiIn);
-                          setAiIn('');
-                        }
-                      }}
-                      disabled={aiLoad}
-                    >
-                      Ask
-                    </button>
-                  </div>
-                </div>
-                {(aiLoad || aiOut) && (
-                  <div ref={aiRef} style={{ ...S.card(true, C.green) }}>
-                    <span style={S.label(C.green)}>Response</span>
-                    {aiLoad ? (
-                      <div style={{ fontSize: 10, color: C.dim }}>
-                        Thinking...
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: C.text,
-                          lineHeight: 1.8,
-                          whiteSpace: 'pre-wrap',
-                        }}
-                      >
-                        {renderAIResponse(aiOut, projectsById, (uri) => {
-                          const nav = uriToNavigation(uri);
-                          if (!nav) return;
-                          if (
-                            nav.type === 'OPEN_PROJECT' ||
-                            nav.type === 'OPEN_FILE'
-                          ) {
-                            const proj = projects.find(
-                              (p) => p.id === nav.params.projectId
-                            );
-                            if (proj) {
-                              openHub(proj);
-                              if (nav.params.filePath) {
-                                setTimeout(
-                                  () => openFile(nav.params.filePath),
-                                  100
-                                );
-                              }
-                            }
-                          } else if (nav.type === 'OPEN_GOAL') {
-                            setShowGoalModal(true);
-                          }
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <AICoach
+                currentMode={currentMode}
+                aiIn={aiIn}
+                setAiIn={setAiIn}
+                aiLoad={aiLoad}
+                aiOut={aiOut}
+                aiRef={aiRef}
+                askAI={askAI}
+                renderAIResponse={renderAIResponse}
+                projectsById={projectsById}
+                uriToNavigation={uriToNavigation}
+                openHub={openHub}
+                openFile={openFile}
+                projects={projects}
+                setShowGoalModal={setShowGoalModal}
+                S={S}
+                C={C}
+              />
             )}
 
             {mainTab === 'review' && (
