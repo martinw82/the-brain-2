@@ -7,7 +7,7 @@
 **Version:** 8.2 → **v2.0 Vision**  
 **Live URL:** the-brain-2.vercel.app  
 **Last Updated:** 2026-03-15 (Session 046)  
-**Status:** v1.0 Complete (Phases 0-4) | v2.0 In Progress (Phase 7.4 Complete)
+**Status:** v1.0 Complete (Phases 0-4) | v2.0 In Progress (Phase 8.1 Complete)
 
 ---
 
@@ -405,9 +405,18 @@ All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
   - Memory categories: profile, preferences, entities, events, cases, patterns
   - Tracks: confidence, access count, last accessed timestamps
 
+- **Phase 8.1 — Community Workflows** (2026-03-15)
+  - Migration v27: `community_workflows` table
+  - `src/communityWorkflows.js` — Client module for community workflows
+  - `resource=community-workflows` API — List and publish workflows
+  - `resource=community-workflow-action` API — Star, unstar, fork, rate
+  - `resource=my-community-workflows` API — User's published workflows
+  - `communityWorkflows` client API wrapper
+  - Features: publish, star/fork/rate, search, categories, sorting
+
 ### 📋 v2.0 NEXT UP
 
-1. **Phase 8** — Ecosystem & Scale (Community Workflows, Integrations)
+1. **Phase 8.2** — Advanced Integrations (GitHub, Calendar, Email)
 
 ### 📦 v2.0 PARKING LOT
 
@@ -507,3 +516,12 @@ _THE BRAIN v2.0 — Orchestrator Edition (PLANNED)_
 - Migration v26: `memories` table with 6 categories
 - API: memories CRUD, extract-memories, memory-insights
 - Updated status: "Phase 7.4 Complete, Next: Phase 8 Ecosystem & Scale"
+
+---
+
+**Edit 2026-03-15 (v2.0 Phase 8.1 Complete):**
+
+- Phase 8.1: Community Workflows complete — publish, star, fork, rate workflows
+- Migration v27: `community_workflows` table
+- API: community-workflows CRUD, star/unstar/fork/rate actions
+- Updated status: "Phase 8.1 Complete, Next: Phase 8.2 Advanced Integrations"

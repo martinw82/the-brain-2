@@ -4,6 +4,55 @@ _Session-based progress tracking for The Brain project_
 
 ---
 
+## Session 051 — 2026-03-15
+
+**Branch:** `grok-fixes-everything`
+**Task:** Phase 8.1 — Community Workflows
+**Status:** ✅ Complete
+
+### Implementation Summary
+
+Built community workflow sharing and discovery system.
+
+**New Files:**
+
+- `src/communityWorkflows.js` — Client module for community workflows
+- Migration v27 — `community_workflows` table
+
+**Database Schema:**
+
+- name, description, icon, category
+- stars, forks, usage_count
+- avg_rating, rating_count
+
+**API Endpoints:**
+
+1. `resource=community-workflows` — List and publish workflows
+   - GET: List with filters (category, sort, search)
+   - POST: Publish workflow (anonymized)
+
+2. `resource=community-workflow-action` — Actions on workflows
+   - star/unstar: Toggle stars
+   - fork: Copy to user's templates
+   - rate: 1-5 star rating
+
+3. `resource=my-community-workflows` — User's published workflows
+
+**Client API (`src/api.js`):**
+
+- `communityWorkflows.list(options)` — Browse community
+- `communityWorkflows.publish(workflow)` — Publish
+- `communityWorkflows.star/fork/rate(workflowId)` — Actions
+
+**Features:**
+
+- Categories: general, product-launch, content, development, marketing, research, design, business
+- Sort by: stars, usage, rating, recent
+- Search by name/description
+- Fork creates copy in user's templates
+
+---
+
 ## Session 050 — 2026-03-15
 
 **Branch:** `grok-fixes-everything`

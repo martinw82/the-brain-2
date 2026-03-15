@@ -4430,6 +4430,253 @@ Provide metadata suggestions as JSON.`;
       }
     }
 
+    // ── COMMUNITY WORKFLOWS (Phase 8.1) ───────────────────────────
+    if (resource === 'community-workflows') {
+      const { method } = req;
+
+      // GET /api/data?resource=community-workflows — List public workflows
+      if (method === 'GET') {
+        const category = req.query.category || null;
+        const sort = req.query.sort || 'stars'; // stars, usage, recent
+        const search = req.query.search || null;
+
+        try {
+          let query =
+            'SELECT * FROM community_workflows WHERE is_published = TRUE';
+          const params = [];
+
+          if (category) {
+            query += ' AND category = ?';
+            params.push(category);
+          }
+
+          if (search) {
+            query += ' AND (name LIKE ? OR description LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`);
+          }
+
+          switch (sort) {
+            case 'usage':
+              query += ' ORDER BY usage_count DESC';
+              break;
+            case 'recent':
+              query += ' ORDER BY published_at DESC';
+              break;
+            case 'rating':
+              query += ' ORDER BY avg_rating DESC';
+              break;
+            case 'stars':
+            default:
+              query += ' ORDER BY stars DESC';
+          }
+
+          query += ' LIMIT 50';
+
+          const [rows] = await db.execute(query, params);
+
+          return ok(res, { workflows: rows });
+        } catch (e) {
+          if (
+            e.message.includes('Table') &&
+            e.message.includes("doesn't exist")
+          ) {
+            return ok(res, {
+              workflows: [],
+              message: 'Community workflows not found',
+            });
+          }
+          throw e;
+        }
+      }
+
+      // POST /api/data?resource=community-workflows — Publish workflow
+      if (method === 'POST') {
+        const { workflow_id, name, description, icon, category } =
+          req.body || {};
+
+        if (!workflow_id || !name) {
+          return err(res, 'workflow_id and name are required');
+        }
+
+        try {
+          // Get the original workflow template
+          const [templates] = await db.execute(
+            'SELECT * FROM workflow_templates WHERE id = ?',
+            [workflow_id]
+          );
+
+          if (!templates[0]) {
+            return err(res, 'Workflow template not found');
+          }
+
+          const template = templates[0];
+
+          // Anonymize user data
+          const [result] = await db.execute(
+            `INSERT INTO community_workflows 
+             (original_workflow_id, original_user_id, name, description, icon, category, steps, is_published)
+             VALUES (?, ?, ?, ?, ?, ?, ?, TRUE)`,
+            [
+              workflow_id,
+              null, // anonymize user
+              name,
+              description || template.description || '',
+              icon || template.icon || '📋',
+              category || 'general',
+              template.steps,
+            ]
+          );
+
+          // Update usage count of original
+          await db.execute(
+            'UPDATE workflow_templates SET usage_count = usage_count + 1 WHERE id = ?',
+            [workflow_id]
+          );
+
+          return ok(res, {
+            success: true,
+            id: result.insertId,
+            message: 'Workflow published to community',
+          });
+        } catch (e) {
+          throw e;
+        }
+      }
+
+      return err(res, 'Method not allowed', 405);
+    }
+
+    // ── STAR/FORK COMMUNITY WORKFLOW ─────────────────────────────
+    if (resource === 'community-workflow-action') {
+      if (req.method !== 'POST') return err(res, 'Method not allowed', 405);
+
+      const { action, workflow_id } = req.body || {};
+      if (!action || !workflow_id) {
+        return err(res, 'action and workflow_id are required');
+      }
+
+      try {
+        if (action === 'star') {
+          await db.execute(
+            'UPDATE community_workflows SET stars = stars + 1 WHERE id = ?',
+            [workflow_id]
+          );
+          return ok(res, { success: true, action: 'starred' });
+        }
+
+        if (action === 'unstar') {
+          await db.execute(
+            'UPDATE community_workflows SET stars = GREATEST(stars - 1, 0) WHERE id = ?',
+            [workflow_id]
+          );
+          return ok(res, { success: true, action: 'unstarred' });
+        }
+
+        if (action === 'fork') {
+          // Get the community workflow
+          const [workflows] = await db.execute(
+            'SELECT * FROM community_workflows WHERE id = ?',
+            [workflow_id]
+          );
+
+          if (!workflows[0]) {
+            return err(res, 'Workflow not found');
+          }
+
+          const wf = workflows[0];
+
+          // Create a copy in user's workflow_templates
+          const newId = `forked-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          await db.execute(
+            `INSERT INTO workflow_templates 
+             (id, user_id, name, description, icon, steps, is_system)
+             VALUES (?, ?, ?, ?, ?, ?, FALSE)`,
+            [
+              newId,
+              auth.userId,
+              `${wf.name} (fork)`,
+              wf.description,
+              wf.icon,
+              wf.steps,
+            ]
+          );
+
+          // Increment fork count
+          await db.execute(
+            'UPDATE community_workflows SET forks = forks + 1 WHERE id = ?',
+            [workflow_id]
+          );
+
+          return ok(res, {
+            success: true,
+            action: 'forked',
+            new_workflow_id: newId,
+          });
+        }
+
+        if (action === 'rate') {
+          const { rating } = req.body || {};
+          if (!rating || rating < 1 || rating > 5) {
+            return err(res, 'Valid rating (1-5) required');
+          }
+
+          // Get current rating data
+          const [workflows] = await db.execute(
+            'SELECT avg_rating, rating_count FROM community_workflows WHERE id = ?',
+            [workflow_id]
+          );
+
+          if (!workflows[0]) {
+            return err(res, 'Workflow not found');
+          }
+
+          const current = workflows[0];
+          const newCount = current.rating_count + 1;
+          const newAvg =
+            (current.avg_rating * current.rating_count + rating) / newCount;
+
+          await db.execute(
+            'UPDATE community_workflows SET avg_rating = ?, rating_count = ? WHERE id = ?',
+            [newAvg, newCount, workflow_id]
+          );
+
+          return ok(res, {
+            success: true,
+            action: 'rated',
+            new_rating: Math.round(newAvg * 10) / 10,
+          });
+        }
+
+        return err(res, 'Unknown action', 400);
+      } catch (e) {
+        throw e;
+      }
+    }
+
+    // ── MY PUBLISHED WORKFLOWS ─────────────────────────────────
+    if (resource === 'my-community-workflows') {
+      if (req.method !== 'GET') return err(res, 'Method not allowed', 405);
+
+      try {
+        const [rows] = await db.execute(
+          `SELECT * FROM community_workflows 
+           WHERE original_user_id = ? OR original_user_id IS NULL
+           ORDER BY published_at DESC`,
+          [auth.userId]
+        );
+
+        return ok(res, { workflows: rows });
+      } catch (e) {
+        if (
+          e.message.includes('Table') &&
+          e.message.includes("doesn't exist")
+        ) {
+          return ok(res, { workflows: [] });
+        }
+        throw e;
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e.message, e.stack);

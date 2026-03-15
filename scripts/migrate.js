@@ -480,14 +480,62 @@ async function runMigrations() {
           INDEX idx_memories_accessed (last_accessed)
         );`
     },
+    {
+        version: 27,
+        name: 'create_community_workflows_table',
+        sql: `CREATE TABLE IF NOT EXISTS community_workflows (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          original_workflow_id VARCHAR(64),
+          original_user_id VARCHAR(36),
+          name VARCHAR(64) NOT NULL,
+          description TEXT,
+          icon VARCHAR(8) DEFAULT '📋',
+          category VARCHAR(32) DEFAULT 'general',
+          steps JSON NOT NULL,
+          is_published BOOLEAN DEFAULT FALSE,
+          stars INT DEFAULT 0,
+          forks INT DEFAULT 0,
+          usage_count INT DEFAULT 0,
+          avg_rating FLOAT DEFAULT 0,
+          rating_count INT DEFAULT 0,
+          published_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_community_workflows_category (category),
+          INDEX idx_community_workflows_stars (stars DESC),
+          INDEX idx_community_workflows_usage (usage_count DESC)
+        );`
+    },
 ];
 
-console.log('All migrations complete.');
-    } catch (e) {
-        console.error('❌ Migration failed:', e.message);
-    } finally {
-        if (connection) await connection.end();
+async function runMigrations() {
+  let connection;
+  try {
+    connection = await mysql.createConnection(config);
+    await connection.connect();
+
+    for (const m of migrations) {
+      const [rows] = await connection.query(
+        'SELECT * FROM schema_migrations WHERE version = ?',
+        [m.version]
+      );
+      if (rows.length === 0) {
+        console.log(`Applying migration v${m.version}: ${m.name}...`);
+        await connection.query(m.sql);
+        await connection.query(
+          'INSERT INTO schema_migrations (version, name) VALUES (?, ?)',
+          [m.version, m.name]
+        );
+        console.log(`✅ Migration v${m.version} applied.`);
+      } else {
+        console.log(`Migration v${m.version} already applied.`);
+      }
     }
+    console.log('All migrations complete.');
+  } catch (e) {
+    console.error('❌ Migration failed:', e.message);
+  } finally {
+    if (connection) await connection.end();
+  }
 }
 
 runMigrations();

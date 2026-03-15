@@ -629,11 +629,28 @@ CREATE TABLE memories (
 
 # 📦 PHASE 8 — Ecosystem & Scale
 
-## 8.1 Community Workflows `[API]` `[UI]` 📋
+## 8.1 Community Workflows `[API]` `[UI]` ✅ COMPLETE (2026-03-15)
+
+**Deliverable:** Share and discover workflow templates
+
+**Features:**
 
 - Publish workflows (anonymized)
 - Star/fork templates
-- "Most used workflows for SaaS launches"
+- Rate workflows (1-5 stars)
+- Search and filter by category
+- Sort by stars, usage, rating, recent
+
+**Implementation:**
+
+- [x] `[DB]` Migration v27: `community_workflows` table
+- [x] `[API]` `resource=community-workflows` — List and publish workflows
+- [x] `[API]` `resource=community-workflow-action` — Star, unstar, fork, rate
+- [x] `[API]` `resource=my-community-workflows` — User's published workflows
+- [x] `[API]` `src/communityWorkflows.js` — Client module
+- [x] `[API]` `communityWorkflows` client API wrapper
+
+**Done when:** ✅ Users can share and discover workflows (Complete 2026-03-15)
 
 ## 8.2 Advanced Integrations `[API]` `[CONFIG]` 📋
 

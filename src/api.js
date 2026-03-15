@@ -572,6 +572,41 @@ export const memories = {
   insights: () => get(`${BASE}/api/data?resource=memory-insights`),
 };
 
+// ── COMMUNITY WORKFLOWS (Phase 8.1) ──────────────────────────
+export const communityWorkflows = {
+  list: (options = {}) => {
+    const params = new URLSearchParams({ resource: 'community-workflows' });
+    if (options.category) params.append('category', options.category);
+    if (options.sort) params.append('sort', options.sort);
+    if (options.search) params.append('search', options.search);
+    return get(`${BASE}/api/data?${params.toString()}`);
+  },
+  publish: (workflow) =>
+    post(`${BASE}/api/data?resource=community-workflows`, workflow),
+  star: (workflowId) =>
+    post(`${BASE}/api/data?resource=community-workflow-action`, {
+      action: 'star',
+      workflow_id: workflowId,
+    }),
+  unstar: (workflowId) =>
+    post(`${BASE}/api/data?resource=community-workflow-action`, {
+      action: 'unstar',
+      workflow_id: workflowId,
+    }),
+  fork: (workflowId) =>
+    post(`${BASE}/api/data?resource=community-workflow-action`, {
+      action: 'fork',
+      workflow_id: workflowId,
+    }),
+  rate: (workflowId, rating) =>
+    post(`${BASE}/api/data?resource=community-workflow-action`, {
+      action: 'rate',
+      workflow_id: workflowId,
+      rating,
+    }),
+  mine: () => get(`${BASE}/api/data?resource=my-community-workflows`),
+};
+
 // ── TASKS (Phase 5.4) ────────────────────────────────────────
 export const tasks = {
   // List tasks with optional filters

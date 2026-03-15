@@ -4,7 +4,7 @@
 
 **Version:** 2.0  
 **Last Updated:** 2026-03-15  
-**Status:** Phase 7.4 Complete, Next: Phase 8 Ecosystem & Scale
+**Status:** Phase 8.1 Complete, Next: Phase 8.2 Advanced Integrations
 
 ---
 
@@ -598,14 +598,11 @@ CREATE TABLE memories (
 10. **Recursive Directory Retrieval** — Intent analysis, L0/L1 exploration, trace visualization (2026-03-15)
 11. **Workflow Learning** — Pattern detection, step duration analysis, agent success rates, suggestions (2026-03-15)
 12. **Memory Self-Iteration** — Memories table, auto-extraction, insights (2026-03-15)
+13. **Community Workflows** — Publish, star, fork, rate workflows (2026-03-15)
 
-### Next Up (Phase 8)
+### Next Up (Phase 8.2)
 
-1. **Community Workflows** — Share and discover workflow templates
-
-### Medium-term
-
-1. **Memory Self-Iteration** — Auto-extraction, personalization
+1. **Advanced Integrations** — GitHub, Calendar, Email sync
 
 ---
 
