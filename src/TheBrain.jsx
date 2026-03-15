@@ -884,10 +884,10 @@ const URILink=({uri,label,onNavigate})=>{
 };
 
 const renderAIResponse=(text,projects={},onNavigate)=>{
-  if(!text)return text;
+  if(!text)return <span>{text}</span>;
   
   const uris=extractURIs(text);
-  if(uris.length===0)return text;
+  if(uris.length===0)return <span>{text}</span>;
   
   const parts=[];
   let lastIndex=0;
@@ -895,7 +895,7 @@ const renderAIResponse=(text,projects={},onNavigate)=>{
   uris.forEach(uri=>{
     const index=text.indexOf(uri,lastIndex);
     if(index>lastIndex){
-      parts.push(text.slice(lastIndex,index));
+      parts.push(<span key={`text-${index}`}>{text.slice(lastIndex,index)}</span>);
     }
     parts.push(
       <URILink key={uri+index} uri={uri} onNavigate={onNavigate}/>
@@ -904,10 +904,10 @@ const renderAIResponse=(text,projects={},onNavigate)=>{
   });
   
   if(lastIndex<text.length){
-    parts.push(text.slice(lastIndex));
+    parts.push(<span key="text-end">{text.slice(lastIndex)}</span>);
   }
   
-  return parts;
+  return <span>{parts}</span>;
 };
 
 // ── MARKDOWN + GANTT ──────────────────────────────────────────
