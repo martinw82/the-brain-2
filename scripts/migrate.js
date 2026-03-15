@@ -425,8 +425,51 @@ const migrations = [
           INDEX idx_workflow_instances_project (project_id),
           INDEX idx_workflow_instances_user (user_id)
         );`
+    },
+    {
+        version: 26,
+        name: 'create_memories_table',
+        sql: `CREATE TABLE IF NOT EXISTS memories (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          category ENUM('profile', 'preferences', 'entities', 'events', 'cases', 'patterns') NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          content TEXT NOT NULL,
+          source_type ENUM('workflow', 'task', 'project', 'session', 'checkin', 'manual') DEFAULT 'manual',
+          source_id VARCHAR(36) DEFAULT NULL,
+          confidence FLOAT DEFAULT 0.5,
+          is_active BOOLEAN DEFAULT TRUE,
+          last_accessed DATETIME DEFAULT NULL,
+          accessed_count INT DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_memories_user_category (user_id, category),
+          INDEX idx_memories_source (source_type, source_id)
+        );`
+    },
+    {
+        version: 26,
+        name: 'create_memories_table',
+        sql: `CREATE TABLE IF NOT EXISTS memories (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          category ENUM('profile', 'preferences', 'entities', 'events', 'cases', 'patterns') NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          content TEXT NOT NULL,
+          source_type ENUM('workflow', 'task', 'project', 'session', 'checkin', 'manual') DEFAULT 'manual',
+          source_id VARCHAR(36) DEFAULT NULL,
+          confidence FLOAT DEFAULT 0.5,
+          is_active BOOLEAN DEFAULT TRUE,
+          last_accessed DATETIME DEFAULT NULL,
+          accessed_count INT DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_memories_user_category (user_id, category),
+          INDEX idx_memories_source (source_type, source_id)
+        );`
     }
 ];
+
 
 async function runMigrations() {
     let connection;
