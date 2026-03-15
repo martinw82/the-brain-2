@@ -4677,6 +4677,343 @@ Provide metadata suggestions as JSON.`;
       }
     }
 
+    // ── USER INTEGRATIONS (Phase 8.2) ────────────────────────────
+    if (resource === 'integrations') {
+      const { method } = req;
+
+      // GET /api/data?resource=integrations — List user's integrations
+      if (method === 'GET') {
+        try {
+          const [rows] = await db.execute(
+            `SELECT id, user_id, provider, is_active, metadata, created_at, updated_at
+             FROM user_integrations 
+             WHERE user_id = ? AND is_active = TRUE`,
+            [auth.userId]
+          );
+
+          return ok(res, { integrations: rows });
+        } catch (e) {
+          if (
+            e.message.includes('Table') &&
+            e.message.includes("doesn't exist")
+          ) {
+            return ok(res, { integrations: [] });
+          }
+          throw e;
+        }
+      }
+
+      // POST /api/data?resource=integrations — Add integration
+      if (method === 'POST') {
+        const {
+          provider,
+          access_token,
+          refresh_token,
+          token_expires_at,
+          metadata,
+        } = req.body || {};
+
+        if (!provider || !access_token) {
+          return err(res, 'provider and access_token are required');
+        }
+
+        try {
+          // Check if integration already exists
+          const [existing] = await db.execute(
+            'SELECT id FROM user_integrations WHERE user_id = ? AND provider = ?',
+            [auth.userId, provider]
+          );
+
+          if (existing[0]) {
+            // Update existing
+            await db.execute(
+              `UPDATE user_integrations 
+               SET access_token = ?, refresh_token = ?, token_expires_at = ?, metadata = ?, is_active = TRUE
+               WHERE user_id = ? AND provider = ?`,
+              [
+                access_token,
+                refresh_token,
+                token_expires_at,
+                JSON.stringify(metadata),
+                auth.userId,
+                provider,
+              ]
+            );
+
+            return ok(res, { success: true, action: 'updated' });
+          } else {
+            // Insert new
+            const [result] = await db.execute(
+              `INSERT INTO user_integrations (user_id, provider, access_token, refresh_token, token_expires_at, metadata)
+               VALUES (?, ?, ?, ?, ?, ?)`,
+              [
+                auth.userId,
+                provider,
+                access_token,
+                refresh_token,
+                token_expires_at,
+                JSON.stringify(metadata),
+              ]
+            );
+
+            return ok(res, {
+              success: true,
+              action: 'created',
+              id: result.insertId,
+            });
+          }
+        } catch (e) {
+          throw e;
+        }
+      }
+
+      // DELETE /api/data?resource=integrations — Remove integration
+      if (method === 'DELETE') {
+        const { provider } = req.body || {};
+
+        if (!provider) {
+          return err(res, 'provider is required');
+        }
+
+        try {
+          await db.execute(
+            'UPDATE user_integrations SET is_active = FALSE WHERE user_id = ? AND provider = ?',
+            [auth.userId, provider]
+          );
+
+          return ok(res, { success: true });
+        } catch (e) {
+          throw e;
+        }
+      }
+
+      return err(res, 'Method not allowed', 405);
+    }
+
+    // ── GITHUB INTEGRATION (Phase 8.2) ──────────────────────────
+    if (resource === 'github-sync') {
+      if (req.method !== 'POST') return err(res, 'Method not allowed', 405);
+
+      const { action, project_id } = req.body || {};
+
+      try {
+        // Get GitHub integration
+        const [integrations] = await db.execute(
+          'SELECT * FROM user_integrations WHERE user_id = ? AND provider = ? AND is_active = TRUE',
+          [auth.userId, 'github']
+        );
+
+        if (!integrations[0]) {
+          return err(res, 'GitHub integration not connected');
+        }
+
+        const integration = integrations[0];
+        const token = integration.access_token;
+
+        if (action === 'sync-repos') {
+          // In production, this would call GitHub API
+          // For now, return mock data structure
+          return ok(res, {
+            success: true,
+            repos: [
+              {
+                name: 'the-brain-2',
+                full_name: 'user/the-brain-2',
+                private: false,
+              },
+            ],
+            message: 'GitHub sync would fetch repos here',
+          });
+        }
+
+        if (action === 'create-issue') {
+          const { repo, title, body } = req.body || {};
+          if (!repo || !title) {
+            return err(res, 'repo and title are required');
+          }
+
+          // In production, would create GitHub issue
+          return ok(res, {
+            success: true,
+            action: 'issue-created',
+            repo,
+            title,
+            message: 'Would create GitHub issue here',
+          });
+        }
+
+        if (action === 'link-project') {
+          const { repo, project_id: projId } = req.body || {};
+          if (!repo || !projId) {
+            return err(res, 'repo and project_id are required');
+          }
+
+          // Update project with GitHub repo info
+          await db.execute(
+            'UPDATE projects SET github_repo = ? WHERE id = ? AND user_id = ?',
+            [repo, projId, auth.userId]
+          );
+
+          return ok(res, { success: true, repo });
+        }
+
+        return err(res, 'Unknown action', 400);
+      } catch (e) {
+        throw e;
+      }
+    }
+
+    // ── CALENDAR INTEGRATION (Phase 8.2) ────────────────────────
+    if (resource === 'calendar-sync') {
+      if (req.method !== 'POST') return err(res, 'Method not allowed', 405);
+
+      const { action } = req.body || {};
+
+      try {
+        // Get Google integration
+        const [integrations] = await db.execute(
+          'SELECT * FROM user_integrations WHERE user_id = ? AND provider = ? AND is_active = TRUE',
+          [auth.userId, 'google']
+        );
+
+        if (!integrations[0]) {
+          return err(res, 'Google Calendar integration not connected');
+        }
+
+        if (action === 'create-event') {
+          const { title, description, start_time, end_time, task_id } =
+            req.body || {};
+
+          if (!title || !start_time) {
+            return err(res, 'title and start_time are required');
+          }
+
+          // In production, would create Google Calendar event
+          return ok(res, {
+            success: true,
+            action: 'event-created',
+            title,
+            start_time,
+            message: 'Would create Google Calendar event here',
+          });
+        }
+
+        if (action === 'block-time') {
+          const { task_id, duration_minutes } = req.body || {};
+
+          if (!task_id) {
+            return err(res, 'task_id is required');
+          }
+
+          // Get task details
+          const [tasks] = await db.execute(
+            'SELECT * FROM tasks WHERE id = ? AND user_id = ?',
+            [task_id, auth.userId]
+          );
+
+          if (!tasks[0]) {
+            return err(res, 'Task not found');
+          }
+
+          // In production, would block time on calendar
+          return ok(res, {
+            success: true,
+            action: 'time-blocked',
+            task_id,
+            duration_minutes: duration_minutes || 60,
+            message: 'Would block time on Google Calendar here',
+          });
+        }
+
+        return err(res, 'Unknown action', 400);
+      } catch (e) {
+        throw e;
+      }
+    }
+
+    // ── EMAIL INTEGRATION (Phase 8.2) ───────────────────────────
+    if (resource === 'email-sync') {
+      if (req.method !== 'POST') return err(res, 'Method not allowed', 405);
+
+      const { action } = req.body || {};
+
+      try {
+        // Get email integration
+        const [integrations] = await db.execute(
+          'SELECT * FROM user_integrations WHERE user_id = ? AND provider = ? AND is_active = TRUE',
+          [auth.userId, 'email']
+        );
+
+        if (!integrations[0]) {
+          return err(res, 'Email integration not connected');
+        }
+
+        if (action === 'send-task-update') {
+          const { task_id, recipients } = req.body || {};
+
+          if (!task_id || !recipients) {
+            return err(res, 'task_id and recipients are required');
+          }
+
+          // Get task details
+          const [tasks] = await db.execute(
+            'SELECT * FROM tasks WHERE id = ? AND user_id = ?',
+            [task_id, auth.userId]
+          );
+
+          if (!tasks[0]) {
+            return err(res, 'Task not found');
+          }
+
+          const task = tasks[0];
+
+          // In production, would send email
+          return ok(res, {
+            success: true,
+            action: 'email-sent',
+            recipients,
+            subject: `Task Update: ${task.title}`,
+            message: 'Would send email notification here',
+          });
+        }
+
+        return err(res, 'Unknown action', 400);
+      } catch (e) {
+        throw e;
+      }
+    }
+
+    // ── SYNC LOG (Phase 8.2) ────────────────────────────────────
+    if (resource === 'integration-sync-log') {
+      if (req.method !== 'GET') return err(res, 'Method not allowed', 405);
+
+      const provider = req.query.provider || null;
+
+      try {
+        let query = 'SELECT * FROM integration_sync_log WHERE user_id = ?';
+        const params = [auth.userId];
+
+        if (provider) {
+          query += ' AND provider = ?';
+          params.push(provider);
+        }
+
+        query += ' ORDER BY started_at DESC LIMIT 20';
+
+        const [rows] = await db.execute(query, params);
+
+        return ok(res, { sync_logs: rows });
+      } catch (e) {
+        if (
+          e.message.includes('Table') &&
+          e.message.includes("doesn't exist")
+        ) {
+          return ok(res, { sync_logs: [] });
+        }
+        throw e;
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e.message, e.stack);

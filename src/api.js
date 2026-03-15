@@ -607,6 +607,61 @@ export const communityWorkflows = {
   mine: () => get(`${BASE}/api/data?resource=my-community-workflows`),
 };
 
+// ── INTEGRATIONS (Phase 8.2) ─────────────────────────────────
+export const integrations = {
+  list: () => get(`${BASE}/api/data?resource=integrations`),
+  add: (integration) =>
+    post(`${BASE}/api/data?resource=integrations`, integration),
+  remove: (provider) =>
+    post(`${BASE}/api/data?resource=integrations`, {
+      method: 'DELETE',
+      provider,
+    }),
+  github: {
+    syncRepos: () =>
+      post(`${BASE}/api/data?resource=github-sync`, { action: 'sync-repos' }),
+    createIssue: (repo, title, body) =>
+      post(`${BASE}/api/data?resource=github-sync`, {
+        action: 'create-issue',
+        repo,
+        title,
+        body,
+      }),
+    linkProject: (repo, projectId) =>
+      post(`${BASE}/api/data?resource=github-sync`, {
+        action: 'link-project',
+        repo,
+        project_id: projectId,
+      }),
+  },
+  calendar: {
+    createEvent: (event) =>
+      post(`${BASE}/api/data?resource=calendar-sync`, {
+        action: 'create-event',
+        ...event,
+      }),
+    blockTime: (taskId, duration) =>
+      post(`${BASE}/api/data?resource=calendar-sync`, {
+        action: 'block-time',
+        task_id: taskId,
+        duration_minutes: duration,
+      }),
+  },
+  email: {
+    sendTaskUpdate: (taskId, recipients) =>
+      post(`${BASE}/api/data?resource=email-sync`, {
+        action: 'send-task-update',
+        task_id: taskId,
+        recipients,
+      }),
+  },
+  syncLogs: (provider) => {
+    const params = new URLSearchParams({ resource: 'integration-sync-log' });
+    if (provider) params.append('provider', provider);
+    return get(`${BASE}/api/data?${params.toString()}`);
+  },
+};
+
 // ── TASKS (Phase 5.4) ────────────────────────────────────────
 export const tasks = {
   // List tasks with optional filters

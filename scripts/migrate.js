@@ -505,6 +505,44 @@ async function runMigrations() {
           INDEX idx_community_workflows_usage (usage_count DESC)
         );`
     },
+    {
+        version: 28,
+        name: 'create_integrations_tables',
+        sql: `CREATE TABLE IF NOT EXISTS user_integrations (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          provider ENUM('github', 'google', 'slack', 'discord', 'email') NOT NULL,
+          access_token TEXT,
+          refresh_token TEXT,
+          token_expires_at DATETIME,
+          metadata JSON DEFAULT NULL,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          UNIQUE KEY unique_user_provider (user_id, provider),
+          INDEX idx_integrations_user (user_id),
+          INDEX idx_integrations_provider (provider)
+        );
+
+        CREATE TABLE IF NOT EXISTS integration_sync_log (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          integration_id VARCHAR(36) NOT NULL,
+          provider ENUM('github', 'google', 'slack', 'discord', 'email') NOT NULL,
+          sync_type ENUM('full', 'incremental') DEFAULT 'incremental',
+          direction ENUM('inbound', 'outbound', 'bidirectional') DEFAULT 'inbound',
+          status ENUM('pending', 'running', 'completed', 'failed') DEFAULT 'pending',
+          items_synced INT DEFAULT 0,
+          errors JSON DEFAULT NULL,
+          started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          completed_at DATETIME DEFAULT NULL,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (integration_id) REFERENCES user_integrations(id) ON DELETE CASCADE,
+          INDEX idx_sync_log_user (user_id),
+          INDEX idx_sync_log_status (status)
+        );`
+    },
 ];
 
 async function runMigrations() {
