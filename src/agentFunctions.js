@@ -13,6 +13,7 @@
 
 import { tasks as tasksApi, projects as projectsApi } from './api.js';
 import { contentHash } from './uri.js';
+import { retrieveContext } from './retrieval.js';
 
 // Function definitions for AI function calling
 export const FUNCTION_DEFINITIONS = [
@@ -117,6 +118,31 @@ export const FUNCTION_DEFINITIONS = [
         file_type: {
           type: 'string',
           description: 'Filter by file extension (e.g., md, js, json)',
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'explore_project',
+    description:
+      'Intelligently explore project structure to find relevant files. Uses AI to analyze directories recursively and returns results with a trace of what was explored. Best for: "find all files related to authentication", "explore the API structure", "find testing patterns".',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description:
+            'What to find in the project (e.g., "authentication", "API routes", "test patterns")',
+        },
+        project_id: {
+          type: 'string',
+          description:
+            'Project ID to explore (optional, uses current project if not provided)',
+        },
+        max_depth: {
+          type: 'integer',
+          description: 'Maximum directory depth to explore (default: 3)',
         },
       },
       required: ['query'],
@@ -237,6 +263,8 @@ export async function executeFunction(functionName, arguments_) {
       return await createTask(arguments_);
     case 'search_projects':
       return await searchProjects(arguments_);
+    case 'explore_project':
+      return await exploreProject(arguments_);
     case 'mark_complete':
       return await markComplete(arguments_);
     case 'request_review':
@@ -431,6 +459,42 @@ async function searchProjects(args) {
         excerpt: r.excerpt || '',
         uri: `brain://project/${r.project_id}/file/${r.file_path}`,
       })),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Explore project structure (Phase 7.1 - Recursive Directory Retrieval)
+ */
+async function exploreProject(args) {
+  const ctx = getExecutionContext();
+
+  const projectId = args.project_id || ctx.projectId;
+  if (!projectId) {
+    return {
+      success: false,
+      error:
+        'No project context available. Provide project_id or set project context.',
+    };
+  }
+
+  try {
+    const result = await retrieveContext(projectId, args.query, {
+      maxDepth: args.max_depth || 3,
+    });
+
+    return {
+      success: true,
+      query: args.query,
+      projectId,
+      results: result.results,
+      trace: result.trace,
+      summary: `Found ${result.results.length} relevant directory(ies). ${result.trace.summary}`,
     };
   } catch (error) {
     return {
