@@ -31,6 +31,7 @@ import { desktopSync } from './desktop-sync.js';
 import AICoach from './components/AICoach.jsx';
 import FileTree from './components/FileTree.jsx';
 import ProgressTrends from './components/ProgressTrends.jsx';
+import CommandCentre from './components/CommandCentre.jsx';
 import {
   parseURI,
   extractURIs,
