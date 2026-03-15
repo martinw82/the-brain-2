@@ -10,6 +10,14 @@
     "dev": "vite",
     "build": "node scripts/migrate.js && npx vite build",
     "preview": "vite preview",
+    "lint": "eslint src --ext .js,.jsx",
+    "lint:fix": "eslint src --ext .js,.jsx --fix",
+    "format": "prettier --write src/**/*.{js,jsx}",
+    "format:check": "prettier --check src/**/*.{js,jsx}",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
     "postinstall": "npm install rollup@4.27.0 --save-exact --legacy-peer-deps || true",
     "db:setup": "node scripts/db-setup.js",
     "db:migrate": "node scripts/migrate.js",
@@ -17,7 +25,8 @@
     "db:backup:user": "node scripts/backup.js --user",
     "test:critical": "node scripts/test-critical.js",
     "drizzle:push": "drizzle-kit push:mysql",
-    "drizzle:generate": "drizzle-kit generate:mysql"
+    "drizzle:generate": "drizzle-kit generate:mysql",
+    "prepare": "husky"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -30,8 +39,24 @@
     "rollup": "4.27.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.0",
+    "@babel/preset-react": "^7.28.5",
+    "@eslint/js": "^10.0.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^4.3.1",
+    "babel-jest": "^30.3.0",
+    "cypress": "^15.12.0",
     "drizzle-kit": "^0.20.11",
+    "eslint": "^10.0.3",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "husky": "^9.1.7",
+    "jest": "^30.3.0",
+    "jest-environment-jsdom": "^30.3.0",
+    "prettier": "^3.8.1",
     "vite": "6.0.0"
   }
 }

@@ -1,7 +1,7 @@
 /**
  * URI Utility for The Brain
  * Standardized resource addressing using brain:// scheme
- * 
+ *
  * Patterns:
  *   brain://project/{id}                    - Project reference
  *   brain://project/{id}/file/{path}        - File within project
@@ -25,7 +25,7 @@ const URI_SCHEME = 'brain://';
  */
 export function parseURI(uri) {
   if (!uri || typeof uri !== 'string') return null;
-  
+
   // Ensure it starts with brain://
   if (!uri.startsWith(URI_SCHEME)) {
     // Try to handle bare paths by assuming project/file
@@ -37,39 +37,39 @@ export function parseURI(uri) {
         id: parts[0],
         resource: 'file',
         resourceId: parts.slice(1).join('/'),
-        raw: uri
+        raw: uri,
       };
     }
     return null;
   }
-  
+
   // Remove brain:// prefix
   const path = uri.slice(URI_SCHEME.length);
   const segments = path.split('/').filter(Boolean);
-  
+
   if (segments.length === 0) return null;
-  
+
   const [type, id, ...rest] = segments;
-  
+
   const result = {
     scheme: 'brain',
-    type,           // project, goal, staging, idea, agent, workflow, user, context
-    id,             // The ID of the resource
-    raw: uri
+    type, // project, goal, staging, idea, agent, workflow, user, context
+    id, // The ID of the resource
+    raw: uri,
   };
-  
+
   // Parse resource-specific paths
   if (type === 'project' && rest.length >= 2) {
     const [resource, ...resourcePath] = rest;
-    result.resource = resource;  // file, task, folder
+    result.resource = resource; // file, task, folder
     result.resourceId = resourcePath.join('/');
   } else if (type === 'workflow' && rest.length >= 2 && rest[0] === 'step') {
     result.resource = 'step';
     result.resourceId = rest[1];
   } else if (type === 'user' && rest.length >= 1) {
-    result.resource = rest[0];  // settings, profile, etc.
+    result.resource = rest[0]; // settings, profile, etc.
   }
-  
+
   return result;
 }
 
@@ -86,16 +86,16 @@ export function generateURI({ type, id, resource, resourceId }) {
   if (!type || !id) {
     throw new Error('URI generation requires type and id');
   }
-  
+
   let uri = `${URI_SCHEME}${type}/${id}`;
-  
+
   if (resource) {
     uri += `/${resource}`;
     if (resourceId) {
       uri += `/${resourceId}`;
     }
   }
-  
+
   return uri;
 }
 
@@ -117,7 +117,12 @@ export function projectURI(projectId) {
 export function fileURI(projectId, filePath) {
   // Normalize path (remove leading slash, encode special chars)
   const normalizedPath = filePath.replace(/^\//, '').replace(/\\/g, '/');
-  return generateURI({ type: 'project', id: projectId, resource: 'file', resourceId: normalizedPath });
+  return generateURI({
+    type: 'project',
+    id: projectId,
+    resource: 'file',
+    resourceId: normalizedPath,
+  });
 }
 
 /**
@@ -127,7 +132,12 @@ export function fileURI(projectId, filePath) {
  * @returns {string} - brain://project/{id}/task/{taskId}
  */
 export function taskURI(projectId, taskId) {
-  return generateURI({ type: 'project', id: projectId, resource: 'task', resourceId: String(taskId) });
+  return generateURI({
+    type: 'project',
+    id: projectId,
+    resource: 'task',
+    resourceId: String(taskId),
+  });
 }
 
 /**
@@ -174,7 +184,12 @@ export function agentURI(agentId) {
  */
 export function workflowURI(workflowId, stepNum) {
   if (stepNum !== undefined) {
-    return generateURI({ type: 'workflow', id: workflowId, resource: 'step', resourceId: String(stepNum) });
+    return generateURI({
+      type: 'workflow',
+      id: workflowId,
+      resource: 'step',
+      resourceId: String(stepNum),
+    });
   }
   return generateURI({ type: 'workflow', id: workflowId });
 }
@@ -198,9 +213,9 @@ export function contextURI(contextType, contextId) {
 export function resolveLabel(uri, context = {}) {
   const parsed = parseURI(uri);
   if (!parsed) return uri;
-  
+
   const { type, id, resource, resourceId } = parsed;
-  
+
   // Use provided context if available
   if (context.projects?.[id]) {
     const project = context.projects[id];
@@ -212,7 +227,7 @@ export function resolveLabel(uri, context = {}) {
     }
     return project.name || id;
   }
-  
+
   // Default labels
   switch (type) {
     case 'project':
@@ -242,7 +257,7 @@ export function resolveLabel(uri, context = {}) {
  */
 export function extractURIs(text) {
   if (!text || typeof text !== 'string') return [];
-  
+
   const uriRegex = /brain:\/\/[^\s\)\]\>\"\']+/g;
   return text.match(uriRegex) || [];
 }
@@ -256,29 +271,29 @@ export function extractURIs(text) {
  */
 export function renderURIs(text, linkRenderer, context = {}) {
   if (!text || typeof text !== 'string') return [text];
-  
+
   const uris = extractURIs(text);
   if (uris.length === 0) return [text];
-  
+
   const parts = [];
   let lastIndex = 0;
-  
-  uris.forEach(uri => {
+
+  uris.forEach((uri) => {
     const index = text.indexOf(uri, lastIndex);
     if (index > lastIndex) {
       parts.push(text.slice(lastIndex, index));
     }
-    
+
     const label = resolveLabel(uri, context);
     parts.push(linkRenderer(uri, label));
-    
+
     lastIndex = index + uri.length;
   });
-  
+
   if (lastIndex < text.length) {
     parts.push(text.slice(lastIndex));
   }
-  
+
   return parts;
 }
 
@@ -290,58 +305,58 @@ export function renderURIs(text, linkRenderer, context = {}) {
 export function uriToNavigation(uri) {
   const parsed = parseURI(uri);
   if (!parsed) return null;
-  
+
   const { type, id, resource, resourceId } = parsed;
-  
+
   switch (type) {
     case 'project':
       if (resource === 'file') {
         return {
           type: 'OPEN_FILE',
-          params: { projectId: id, filePath: resourceId }
+          params: { projectId: id, filePath: resourceId },
         };
       }
       if (resource === 'task') {
         return {
           type: 'OPEN_TASK',
-          params: { projectId: id, taskId: resourceId }
+          params: { projectId: id, taskId: resourceId },
         };
       }
       return {
         type: 'OPEN_PROJECT',
-        params: { projectId: id }
+        params: { projectId: id },
       };
-      
+
     case 'goal':
       return {
         type: 'OPEN_GOAL',
-        params: { goalId: id }
+        params: { goalId: id },
       };
-      
+
     case 'staging':
       return {
         type: 'OPEN_STAGING',
-        params: { stagingId: id }
+        params: { stagingId: id },
       };
-      
+
     case 'idea':
       return {
         type: 'OPEN_IDEA',
-        params: { ideaId: id }
+        params: { ideaId: id },
       };
-      
+
     case 'workflow':
       if (resource === 'step') {
         return {
           type: 'OPEN_WORKFLOW_STEP',
-          params: { workflowId: id, stepNum: parseInt(resourceId, 10) }
+          params: { workflowId: id, stepNum: parseInt(resourceId, 10) },
         };
       }
       return {
         type: 'OPEN_WORKFLOW',
-        params: { workflowId: id }
+        params: { workflowId: id },
       };
-      
+
     default:
       return null;
   }
@@ -374,14 +389,14 @@ export function projectToURI(project) {
  */
 export function isValidURI(uri) {
   if (!uri || typeof uri !== 'string') return false;
-  
+
   // Must start with brain://
   if (!uri.startsWith(URI_SCHEME)) return false;
-  
+
   // Must have type and id
   const path = uri.slice(URI_SCHEME.length);
   const segments = path.split('/').filter(Boolean);
-  
+
   return segments.length >= 2;
 }
 
@@ -393,12 +408,12 @@ export function isValidURI(uri) {
 export function getParentURI(uri) {
   const parsed = parseURI(uri);
   if (!parsed) return null;
-  
+
   // If has resource, return parent type/id
   if (parsed.resource) {
     return generateURI({ type: parsed.type, id: parsed.id });
   }
-  
+
   return null;
 }
 
@@ -411,13 +426,15 @@ export function getParentURI(uri) {
 export function compareURIs(uri1, uri2) {
   const p1 = parseURI(uri1);
   const p2 = parseURI(uri2);
-  
+
   if (!p1 || !p2) return uri1 === uri2;
-  
-  return p1.type === p2.type && 
-         p1.id === p2.id && 
-         p1.resource === p2.resource && 
-         p1.resourceId === p2.resourceId;
+
+  return (
+    p1.type === p2.type &&
+    p1.id === p2.id &&
+    p1.resource === p2.resource &&
+    p1.resourceId === p2.resourceId
+  );
 }
 
 // Default export for convenience
@@ -441,7 +458,7 @@ export default {
   projectToURI,
   isValid: isValidURI,
   getParent: getParentURI,
-  compare: compareURIs
+  compare: compareURIs,
 };
 
 /**
@@ -454,7 +471,7 @@ export function contentHash(content) {
   let hash = 0;
   for (let i = 0; i < content.length; i++) {
     const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash;
   }
   return Math.abs(hash).toString(16).padStart(16, '0');

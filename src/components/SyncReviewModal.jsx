@@ -3,31 +3,31 @@
  * Modal for reviewing sync changes and resolving conflicts before applying
  */
 
-import { useState } from "react";
+import { useState } from 'react';
 
 const C = {
-  bg: "#0f172a",
-  bgModal: "#1a1f36",
-  border: "#1e293b",
-  text: "#e2e8f0",
-  dim: "#94a3b8",
-  blue: "#3b82f6",
-  green: "#10b981",
-  amber: "#f59e0b",
-  red: "#ef4444",
+  bg: '#0f172a',
+  bgModal: '#1a1f36',
+  border: '#1e293b',
+  text: '#e2e8f0',
+  dim: '#94a3b8',
+  blue: '#3b82f6',
+  green: '#10b981',
+  amber: '#f59e0b',
+  red: '#ef4444',
 };
 
 const S = {
   overlay: {
-    position: "fixed",
+    position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    background: "rgba(0, 0, 0, 0.6)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+    background: 'rgba(0, 0, 0, 0.6)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 1000,
   },
   modal: {
@@ -36,22 +36,22 @@ const S = {
     borderRadius: 6,
     padding: 20,
     maxWidth: 600,
-    maxHeight: "80vh",
-    overflowY: "auto",
-    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5)",
+    maxHeight: '80vh',
+    overflowY: 'auto',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
   },
   header: {
     fontSize: 14,
     fontWeight: 600,
     color: C.text,
     marginBottom: 16,
-    display: "flex",
-    alignItems: "center",
+    display: 'flex',
+    alignItems: 'center',
     gap: 8,
   },
   summary: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr 1fr",
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr 1fr 1fr',
     gap: 12,
     marginBottom: 16,
     padding: 12,
@@ -59,7 +59,7 @@ const S = {
     borderRadius: 4,
   },
   summaryItem: {
-    textAlign: "center",
+    textAlign: 'center',
   },
   summaryCount: {
     fontSize: 20,
@@ -69,8 +69,8 @@ const S = {
   summaryLabel: {
     fontSize: 8,
     color: C.dim,
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
   },
   section: {
     marginBottom: 16,
@@ -79,8 +79,8 @@ const S = {
     fontSize: 9,
     color: C.blue,
     fontWeight: 600,
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
     marginBottom: 8,
     paddingBottom: 6,
     borderBottom: `1px solid ${C.border}`,
@@ -91,8 +91,8 @@ const S = {
     background: C.border,
     borderRadius: 3,
     fontSize: 9,
-    display: "flex",
-    alignItems: "center",
+    display: 'flex',
+    alignItems: 'center',
     gap: 8,
   },
   icon: {
@@ -102,9 +102,9 @@ const S = {
   filePath: {
     flex: 1,
     color: C.text,
-    fontFamily: "monospace",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
+    fontFamily: 'monospace',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   conflictItem: {
     padding: 8,
@@ -118,62 +118,63 @@ const S = {
     fontWeight: 600,
     color: C.red,
     marginBottom: 6,
-    display: "flex",
-    alignItems: "center",
+    display: 'flex',
+    alignItems: 'center',
     gap: 4,
   },
   conflictChoice: {
-    display: "flex",
+    display: 'flex',
     gap: 4,
     marginTop: 6,
   },
-  btn: (type = "primary") => ({
-    primary: {
-      background: C.blue,
-      color: "white",
-      border: "none",
-      borderRadius: 4,
-      padding: "6px 12px",
-      fontSize: 9,
-      cursor: "pointer",
-      fontWeight: 500,
-    },
-    danger: {
-      background: C.red,
-      color: "white",
-      border: "none",
-      borderRadius: 4,
-      padding: "6px 12px",
-      fontSize: 9,
-      cursor: "pointer",
-      fontWeight: 500,
-    },
-    ghost: {
-      background: "transparent",
-      border: `1px solid ${C.border}`,
-      color: C.text,
-      borderRadius: 4,
-      padding: "6px 12px",
-      fontSize: 9,
-      cursor: "pointer",
-    },
-    small: {
-      background: "transparent",
-      border: `1px solid ${C.border}`,
-      color: C.dim,
-      borderRadius: 3,
-      padding: "3px 6px",
-      fontSize: 8,
-      cursor: "pointer",
-    },
-  })[type],
+  btn: (type = 'primary') =>
+    ({
+      primary: {
+        background: C.blue,
+        color: 'white',
+        border: 'none',
+        borderRadius: 4,
+        padding: '6px 12px',
+        fontSize: 9,
+        cursor: 'pointer',
+        fontWeight: 500,
+      },
+      danger: {
+        background: C.red,
+        color: 'white',
+        border: 'none',
+        borderRadius: 4,
+        padding: '6px 12px',
+        fontSize: 9,
+        cursor: 'pointer',
+        fontWeight: 500,
+      },
+      ghost: {
+        background: 'transparent',
+        border: `1px solid ${C.border}`,
+        color: C.text,
+        borderRadius: 4,
+        padding: '6px 12px',
+        fontSize: 9,
+        cursor: 'pointer',
+      },
+      small: {
+        background: 'transparent',
+        border: `1px solid ${C.border}`,
+        color: C.dim,
+        borderRadius: 3,
+        padding: '3px 6px',
+        fontSize: 8,
+        cursor: 'pointer',
+      },
+    })[type],
   footer: {
-    display: "flex",
+    display: 'flex',
     gap: 8,
     marginTop: 16,
     paddingTop: 12,
     borderTop: `1px solid ${C.border}`,
-    justifyContent: "flex-end",
+    justifyContent: 'flex-end',
   },
 };
 
@@ -197,7 +198,9 @@ export default function SyncReviewModal({
     }));
   };
 
-  const canApprove = !conflicts || conflicts.length === 0 ||
+  const canApprove =
+    !conflicts ||
+    conflicts.length === 0 ||
     Object.keys(conflictResolutions).length === conflicts.length;
 
   const handleApprove = () => {
@@ -211,7 +214,7 @@ export default function SyncReviewModal({
         <div style={S.header}>
           <span>🔄 Review Sync Changes</span>
           <span
-            style={{ cursor: "pointer", marginLeft: "auto", fontSize: 16 }}
+            style={{ cursor: 'pointer', marginLeft: 'auto', fontSize: 16 }}
             onClick={onCancel}
           >
             ×
@@ -291,8 +294,8 @@ export default function SyncReviewModal({
                     fontSize: 8,
                     color: C.dim,
                     marginBottom: 6,
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
                     gap: 8,
                   }}
                 >
@@ -306,7 +309,10 @@ export default function SyncReviewModal({
                     >
                       Desktop:
                     </div>
-                    <div>Modified {new Date(conflict.desktopModified).toLocaleString()}</div>
+                    <div>
+                      Modified{' '}
+                      {new Date(conflict.desktopModified).toLocaleString()}
+                    </div>
                   </div>
                   <div>
                     <div
@@ -318,30 +324,39 @@ export default function SyncReviewModal({
                     >
                       Cloud:
                     </div>
-                    <div>Modified {new Date(conflict.cloudModified).toLocaleString()}</div>
+                    <div>
+                      Modified{' '}
+                      {new Date(conflict.cloudModified).toLocaleString()}
+                    </div>
                   </div>
                 </div>
                 <div style={S.conflictChoice}>
                   <button
                     style={{
-                      ...S.btn("small"),
+                      ...S.btn('small'),
                       borderColor: C.blue,
-                      color: conflictResolutions[conflict.path] === "desktop" ? C.blue : C.dim,
+                      color:
+                        conflictResolutions[conflict.path] === 'desktop'
+                          ? C.blue
+                          : C.dim,
                     }}
                     onClick={() =>
-                      handleResolveConflict(conflict.path, "desktop")
+                      handleResolveConflict(conflict.path, 'desktop')
                     }
                   >
                     💻 Use Desktop
                   </button>
                   <button
                     style={{
-                      ...S.btn("small"),
+                      ...S.btn('small'),
                       borderColor: C.green,
-                      color: conflictResolutions[conflict.path] === "cloud" ? C.green : C.dim,
+                      color:
+                        conflictResolutions[conflict.path] === 'cloud'
+                          ? C.green
+                          : C.dim,
                     }}
                     onClick={() =>
-                      handleResolveConflict(conflict.path, "cloud")
+                      handleResolveConflict(conflict.path, 'cloud')
                     }
                   >
                     ☁️ Use Cloud
@@ -354,14 +369,14 @@ export default function SyncReviewModal({
 
         {/* Footer */}
         <div style={S.footer}>
-          <button style={S.btn("ghost")} onClick={onCancel}>
+          <button style={S.btn('ghost')} onClick={onCancel}>
             Cancel
           </button>
           <button
             style={{
-              ...S.btn("primary"),
+              ...S.btn('primary'),
               opacity: canApprove ? 1 : 0.5,
-              cursor: canApprove ? "pointer" : "not-allowed",
+              cursor: canApprove ? 'pointer' : 'not-allowed',
             }}
             onClick={handleApprove}
             disabled={!canApprove}

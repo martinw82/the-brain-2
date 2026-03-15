@@ -3,7 +3,12 @@
  * Orchestrates multi-step workflows by creating tasks
  */
 
-import { workflowInstances, tasks, workflows as workflowsApi, agentExecution } from './api.js';
+import {
+  workflowInstances,
+  tasks,
+  workflows as workflowsApi,
+  agentExecution,
+} from './api.js';
 import { selectAgent, buildAgentPrompt } from './agents.js';
 
 /**
@@ -15,12 +20,12 @@ import { selectAgent, buildAgentPrompt } from './agents.js';
 export async function startWorkflow(templateId, projectId) {
   // Create instance
   const result = await workflowInstances.start(templateId, projectId);
-  
+
   if (result.success && result.instance) {
     // Execute first step
     await executeStep(result.instance.id, 0);
   }
-  
+
   return result;
 }
 
@@ -37,41 +42,44 @@ export async function executeStep(instanceId, stepIndex) {
       console.error('[Workflow] Instance not found:', instanceId);
       return;
     }
-    
+
     const instance = instanceResult.instance;
-    
+
     // Parse steps from template
     let steps = [];
     try {
-      steps = typeof instance.template_steps === 'string' 
-        ? JSON.parse(instance.template_steps) 
-        : instance.template_steps || [];
+      steps =
+        typeof instance.template_steps === 'string'
+          ? JSON.parse(instance.template_steps)
+          : instance.template_steps || [];
     } catch (e) {
       console.error('[Workflow] Failed to parse steps:', e);
       return;
     }
-    
+
     if (stepIndex >= steps.length) {
       // Workflow complete
       await workflowInstances.completeStep(instanceId, { steps });
       return;
     }
-    
+
     const step = steps[stepIndex];
-    
+
     // Determine assignee
     let assigneeType = 'human';
     let assigneeId = 'user';
-    
+
     if (step.capability && step.auto_assign) {
       // Find agent by capability
-      const agent = await selectAgent(step.capability, { projectId: instance.project_id });
+      const agent = await selectAgent(step.capability, {
+        projectId: instance.project_id,
+      });
       if (agent) {
         assigneeType = 'agent';
         assigneeId = agent.id;
       }
     }
-    
+
     // Create task for this step
     const taskResult = await tasks.create({
       project_id: instance.project_id,
@@ -81,12 +89,14 @@ export async function executeStep(instanceId, stepIndex) {
       assignee_id: assigneeId,
       priority: 'medium',
       workflow_instance_id: instanceId,
-      workflow_step_id: step.id
+      workflow_step_id: step.id,
     });
-    
+
     if (taskResult.success) {
-      console.log(`[Workflow] Step ${stepIndex + 1} task created: ${taskResult.id}`);
-      
+      console.log(
+        `[Workflow] Step ${stepIndex + 1} task created: ${taskResult.id}`
+      );
+
       // If assigned to agent and auto_assign, trigger execution (Phase 5.6)
       if (assigneeType === 'agent' && step.auto_assign) {
         try {
@@ -96,7 +106,10 @@ export async function executeStep(instanceId, stepIndex) {
           }
           // 'preview' (assistant mode) or 'blocked' → UI handles via polling
         } catch (execErr) {
-          console.error(`[Workflow] Agent execution failed for step ${stepIndex + 1}:`, execErr);
+          console.error(
+            `[Workflow] Agent execution failed for step ${stepIndex + 1}:`,
+            execErr
+          );
         }
       }
     }
@@ -116,37 +129,38 @@ export async function onTaskComplete(taskId) {
     if (!taskResult?.task?.workflow_instance_id) {
       return; // Not part of a workflow
     }
-    
+
     const task = taskResult.task;
     const instanceId = task.workflow_instance_id;
-    
+
     // Get instance
     const instanceResult = await workflowInstances.get(instanceId);
     if (!instanceResult?.instance) return;
-    
+
     const instance = instanceResult.instance;
-    
+
     // Parse steps
     let steps = [];
     try {
-      steps = typeof instance.template_steps === 'string' 
-        ? JSON.parse(instance.template_steps) 
-        : instance.template_steps || [];
+      steps =
+        typeof instance.template_steps === 'string'
+          ? JSON.parse(instance.template_steps)
+          : instance.template_steps || [];
     } catch (e) {
       return;
     }
-    
+
     // Complete current step
     const currentStepIndex = instance.current_step_index || 0;
-    
+
     await workflowInstances.completeStep(instanceId, {
       steps,
       step_id: task.workflow_step_id,
       task_id: taskId,
       status: 'complete',
-      completed_at: new Date().toISOString()
+      completed_at: new Date().toISOString(),
     });
-    
+
     // Advance to next step (via helper for future branching/conditions)
     const nextStepIndex = getNextStep(instance, steps, currentStepIndex);
     if (nextStepIndex !== null && nextStepIndex < steps.length) {
@@ -181,24 +195,29 @@ export function getNextStep(instance, steps, completedStepIndex) {
  */
 export function getProgress(instance) {
   try {
-    const steps = typeof instance.template_steps === 'string' 
-      ? JSON.parse(instance.template_steps) 
-      : instance.template_steps || [];
-    
-    const stepResults = typeof instance.step_results === 'string'
-      ? JSON.parse(instance.step_results)
-      : instance.step_results || {};
-    
+    const steps =
+      typeof instance.template_steps === 'string'
+        ? JSON.parse(instance.template_steps)
+        : instance.template_steps || [];
+
+    const stepResults =
+      typeof instance.step_results === 'string'
+        ? JSON.parse(instance.step_results)
+        : instance.step_results || {};
+
     const totalSteps = steps.length;
-    const completedSteps = Object.values(stepResults).filter(r => r.status === 'complete').length;
-    const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
-    
+    const completedSteps = Object.values(stepResults).filter(
+      (r) => r.status === 'complete'
+    ).length;
+    const progress =
+      totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
     return {
       total: totalSteps,
       completed: completedSteps,
       current: instance.current_step_index || 0,
       progress,
-      remaining: totalSteps - completedSteps
+      remaining: totalSteps - completedSteps,
     };
   } catch (e) {
     return { total: 0, completed: 0, current: 0, progress: 0, remaining: 0 };
@@ -213,24 +232,24 @@ export async function seedSystemWorkflows() {
   try {
     // Check if already seeded
     const result = await workflowsApi.list();
-    const hasSystemWorkflows = result?.templates?.some(t => t.is_system);
-    
+    const hasSystemWorkflows = result?.templates?.some((t) => t.is_system);
+
     if (hasSystemWorkflows) {
       console.log('[Workflow] System workflows already seeded');
       return;
     }
-    
+
     // Load system workflows from JSON
     const response = await fetch('/agents/system-workflows.json');
     const data = await response.json();
-    
+
     for (const wf of data.workflows) {
       await workflowsApi.create({
         ...wf,
-        is_system: true
+        is_system: true,
       });
     }
-    
+
     console.log('[Workflow] System workflows seeded:', data.workflows.length);
   } catch (e) {
     console.error('[Workflow] Failed to seed workflows:', e);
@@ -244,19 +263,24 @@ export async function seedSystemWorkflows() {
  */
 export function formatExecutionLog(logText) {
   if (!logText) return [];
-  
-  return logText.split('\n').filter(Boolean).map(line => {
-    // Parse timestamp: 2026-03-15T10:30:00Z: Message
-    const match = line.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z):\s*(.+)$/);
-    if (match) {
-      return {
-        timestamp: match[1],
-        message: match[2],
-        time: new Date(match[1]).toLocaleTimeString()
-      };
-    }
-    return { message: line, time: null };
-  });
+
+  return logText
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      // Parse timestamp: 2026-03-15T10:30:00Z: Message
+      const match = line.match(
+        /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z):\s*(.+)$/
+      );
+      if (match) {
+        return {
+          timestamp: match[1],
+          message: match[2],
+          time: new Date(match[1]).toLocaleTimeString(),
+        };
+      }
+      return { message: line, time: null };
+    });
 }
 
 export default {
@@ -265,5 +289,5 @@ export default {
   onTaskComplete,
   getProgress,
   seedSystemWorkflows,
-  formatExecutionLog
+  formatExecutionLog,
 };
