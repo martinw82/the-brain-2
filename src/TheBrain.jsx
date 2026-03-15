@@ -11,6 +11,7 @@ import DailyCheckinModal from "./components/DailyCheckinModal.jsx";
 import TrainingLogModal from "./components/TrainingLogModal.jsx";
 import OutreachLogModal from "./components/OutreachLogModal.jsx";
 import WeeklyReviewPanel from "./components/WeeklyReviewPanel.jsx";
+import AgentManager from "./components/AgentManager.jsx";
 import FileSummaryViewer from "./components/FileSummaryViewer.jsx";
 
 // ============================================================
@@ -2508,7 +2509,9 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
-  const [taskForm, setTaskForm] = useState({ title: '', description: '', priority: 'medium', project_id: '' });
+  const [taskForm, setTaskForm] = useState({ title: '', description: '', priority: 'medium', project_id: '', assignee_type: 'human', assignee_id: 'user' });
+  const [taskAgents, setTaskAgents] = useState([]);
+  const [taskLoadingAgents, setTaskLoadingAgents] = useState(false);
 
   // Desktop sync state (Phase 2.4B)
   const [syncState, setSyncState] = useState(null);
@@ -3558,10 +3561,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     try{
       const result=await tasksApi.create(taskData);
       if(result.success){
-        showToast('Task created');
+        showToast(`Task created${taskData.assignee_type==='agent'?` → assigned to ${taskData.assignee_id}`:''}`);
         loadTasks();
         setShowTaskModal(false);
-        setTaskForm({ title: '', description: '', priority: 'medium', project_id: '' });
+        setTaskForm({ title: '', description: '', priority: 'medium', project_id: '', assignee_type: 'human', assignee_id: 'user' });
+        setTaskAgents([]);
       }
     }catch(e){
       console.error('Create task error:',e);
@@ -4567,9 +4571,9 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
         />
       )}
 
-      {/* Task Creation Modal (Phase 5.4) */}
+      {/* Task Creation Modal (Phase 5.4 + 5.3) */}
       {showTaskModal&&(
-        <Modal title="✓ New Task" onClose={()=>setShowTaskModal(false)} width={420}>
+        <Modal title="✓ New Task" onClose={()=>{setShowTaskModal(false);setTaskAgents([]);}} width={480}>
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
             <div>
               <label style={{fontSize:9,color:C.dim,marginBottom:4,display:"block"}}>Title *</label>
@@ -4584,7 +4588,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             <div>
               <label style={{fontSize:9,color:C.dim,marginBottom:4,display:"block"}}>Description</label>
               <textarea 
-                style={{...S.input,height:80,resize:"vertical"}} 
+                style={{...S.input,height:60,resize:"vertical"}} 
                 value={taskForm.description} 
                 onChange={e=>setTaskForm(f=>({...f,description:e.target.value}))}
                 placeholder="Add details, context, or notes..."
@@ -4596,7 +4600,20 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 <select 
                   style={S.input}
                   value={taskForm.project_id} 
-                  onChange={e=>setTaskForm(f=>({...f,project_id:e.target.value}))}
+                  onChange={async e=>{
+                    const newProjectId = e.target.value;
+                    setTaskForm(f=>({...f,project_id:newProjectId}));
+                    // Load agents for capability-based routing
+                    if(newProjectId){
+                      setTaskLoadingAgents(true);
+                      try{
+                        const { getAgents } = await import('./agents.js');
+                        const agents = await getAgents(newProjectId);
+                        setTaskAgents(agents);
+                      }catch(err){console.error('Failed to load agents:',err);}
+                      finally{setTaskLoadingAgents(false);}
+                    }
+                  }}
                 >
                   <option value="">No project</option>
                   {projects.map(p=><option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}
@@ -4616,11 +4633,79 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 </select>
               </div>
             </div>
+            
+            {/* Assignee Selection (Phase 5.3) */}
+            <div style={{borderTop:`1px solid ${C.border}`,paddingTop:12}}>
+              <label style={{fontSize:9,color:C.blue2,marginBottom:8,display:"block"}}>ASSIGNEE</label>
+              
+              <div style={{display:"flex",gap:8,marginBottom:10}}>
+                <button
+                  style={{...S.btn(taskForm.assignee_type==='human'?"primary":"ghost"),flex:1}}
+                  onClick={()=>setTaskForm(f=>({...f,assignee_type:'human',assignee_id:'user'}))}
+                >
+                  👤 Me (Human)
+                </button>
+                <button
+                  style={{...S.btn(taskForm.assignee_type==='agent'?"primary":"ghost"),flex:1}}
+                  onClick={()=>setTaskForm(f=>({...f,assignee_type:'agent',assignee_id:''}))}
+                  disabled={!taskForm.project_id}
+                  title={!taskForm.project_id?"Select a project first":"Assign to AI agent"}
+                >
+                  🤖 Agent
+                </button>
+              </div>
+              
+              {taskForm.assignee_type==='agent'&&(
+                <div>
+                  {taskLoadingAgents?(
+                    <div style={{fontSize:10,color:C.dim}}>Loading agents...</div>
+                  ):taskAgents.length===0?(
+                    <div style={{fontSize:10,color:C.dim}}>No agents available. Create agents in Skills tab.</div>
+                  ):(
+                    <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:150,overflow:"auto"}}>
+                      {taskAgents.map(agent=>{
+                        const selected = taskForm.assignee_id===agent.id;
+                        return(
+                          <div
+                            key={agent.id}
+                            onClick={()=>setTaskForm(f=>({...f,assignee_id:agent.id}))}
+                            style={{
+                              display:"flex",
+                              alignItems:"center",
+                              gap:8,
+                              padding:"8px 10px",
+                              borderRadius:5,
+                              cursor:"pointer",
+                              background:selected?C.blue+"20":"transparent",
+                              border:`1px solid ${selected?C.blue:C.border}`,
+                            }}
+                          >
+                            <span style={{fontSize:16}}>{agent.icon}</span>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:10,color:C.text,fontWeight:selected?600:400}}>
+                                {agent.name}
+                                {agent.is_system!==false&&<span style={{...S.badge(C.purple),marginLeft:6,fontSize:8}}>SYSTEM</span>}
+                              </div>
+                              <div style={{fontSize:8,color:C.dim,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                                {agent.capabilities?.slice(0,3).join(', ')}
+                                {agent.capabilities?.length>3&&` +${agent.capabilities.length-3} more`}
+                              </div>
+                            </div>
+                            {selected&&<span style={{color:C.green}}>✓</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
             <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}>
-              <button style={S.btn("ghost")} onClick={()=>setShowTaskModal(false)}>Cancel</button>
+              <button style={S.btn("ghost")} onClick={()=>{setShowTaskModal(false);setTaskAgents([]);}}>Cancel</button>
               <button 
                 style={S.btn("primary")} 
-                disabled={!taskForm.title.trim()}
+                disabled={!taskForm.title.trim()||(taskForm.assignee_type==='agent'&&!taskForm.assignee_id)}
                 onClick={()=>createTask(taskForm)}
               >
                 Create Task
@@ -5563,22 +5648,18 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
           )}
 
           {mainTab==="skills"&&(
-            <div>
-              <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>{Object.values(SKILLS).map(sk=><button key={sk.id} style={{...S.btn(activeSkill===sk.id?"primary":"ghost"),fontSize:10}} onClick={()=>setActiveSkill(sk.id)}>{sk.icon} {sk.label}</button>)}</div>
-              {SKILLS[activeSkill]&&(()=>{const sk=SKILLS[activeSkill];return <div style={S.card(true)}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:8}}>
-                  <div><div style={{fontSize:13,fontWeight:700,color:"#f1f5f9"}}>{sk.icon} {sk.label}</div><div style={{fontSize:10,color:C.muted}}>{sk.description}</div></div>
-                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                    <select style={{...S.sel,width:160}} value={briefProj} onChange={e=>setBriefProj(e.target.value)}>{projects.map(p=><option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}</select>
-                    <button style={S.btn("primary")} onClick={()=>copy(buildBrief(activeSkill,briefProj))}>{copied?"✓ Copied!":"📋 Copy Briefing"}</button>
-                  </div>
-                </div>
-                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:10}}>
-                  <div><span style={S.label()}>SOP</span>{sk.sop.map((s,i)=><div key={i} style={{fontSize:10,color:C.muted,padding:"3px 0",borderBottom:`1px solid ${C.border}`,lineHeight:1.5}}>{i+1}. {s}</div>)}</div>
-                  <div><span style={S.label(C.green)}>Permissions</span>{sk.permissions.map(p=><div key={p} style={{fontSize:10,color:C.green,padding:"2px 0"}}>✅ {p}</div>)}<span style={{...S.label(C.red),marginTop:8}}>agent.ignore</span>{sk.ignore.map(p=><div key={p} style={{fontSize:10,color:C.red,padding:"2px 0"}}>🚫 {p}</div>)}</div>
-                </div>
-                <div style={{marginTop:10,background:C.bg,border:`1px solid ${C.blue}`,borderRadius:5,padding:"10px 13px"}}><span style={S.label()}>Prompt Prefix</span><div style={{fontSize:10,color:C.muted,fontStyle:"italic"}}>{sk.prompt_prefix}</div></div>
-              </div>;})()} 
+            <div style={{ height: "calc(100vh - 200px)" }}>
+              <AgentManager 
+                projectId={hubId}
+                projectFiles={hub?.files}
+                onSaveAgent={async (agentId, content) => {
+                  // Save custom agent to project files
+                  if (hubId) {
+                    await saveFile(hubId, `agents/${agentId}.md`, content);
+                    showToast(`✓ Agent ${agentId} created`);
+                  }
+                }}
+              />
             </div>
           )}
 
