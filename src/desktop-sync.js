@@ -4,7 +4,7 @@
  * Uses File System Access API for browser-based folder access
  */
 
-import { cache } from "./cache.js";
+import { cache } from './cache.js';
 
 /**
  * Compute SHA256 hash of content
@@ -13,11 +13,10 @@ import { cache } from "./cache.js";
  */
 async function hashContent(content) {
   const encoder = new TextEncoder();
-  const data =
-    typeof content === "string" ? encoder.encode(content) : content;
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const data = typeof content === 'string' ? encoder.encode(content) : content;
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -26,15 +25,15 @@ async function hashContent(content) {
  * @param {string} prefix path prefix
  * @returns {Promise<Map<string, File>>} Map of path -> File object
  */
-async function getDirectoryFiles(dirHandle, prefix = "") {
+async function getDirectoryFiles(dirHandle, prefix = '') {
   const files = new Map();
 
   for await (const [name, handle] of dirHandle.entries()) {
     const path = prefix ? `${prefix}/${name}` : name;
 
-    if (handle.kind === "file") {
+    if (handle.kind === 'file') {
       files.set(path, handle);
-    } else if (handle.kind === "directory") {
+    } else if (handle.kind === 'directory') {
       const subFiles = await getDirectoryFiles(handle, path);
       for (const [subPath, file] of subFiles) {
         files.set(subPath, file);
@@ -62,7 +61,7 @@ async function readFileContent(fileHandle) {
  * @param {string} content
  */
 async function writeFileContent(dirHandle, filePath, content) {
-  const parts = filePath.split("/");
+  const parts = filePath.split('/');
   const fileName = parts.pop();
 
   let currentDir = dirHandle;
@@ -86,7 +85,7 @@ async function writeFileContent(dirHandle, filePath, content) {
  * @param {string} filePath relative path
  */
 async function deleteFileFromDisk(dirHandle, filePath) {
-  const parts = filePath.split("/");
+  const parts = filePath.split('/');
   const fileName = parts.pop();
 
   let currentDir = dirHandle;
@@ -117,17 +116,17 @@ export const desktopSync = {
   async selectFolder() {
     try {
       if (!window.showDirectoryPicker) {
-        console.warn("File System Access API not supported");
+        console.warn('File System Access API not supported');
         return null;
       }
 
       const dirHandle = await window.showDirectoryPicker({
-        mode: "readwrite",
-        startIn: "documents",
+        mode: 'readwrite',
+        startIn: 'documents',
       });
       return dirHandle;
     } catch (e) {
-      if (e.name !== "AbortError") console.error("Folder picker error:", e);
+      if (e.name !== 'AbortError') console.error('Folder picker error:', e);
       return null;
     }
   },
@@ -143,23 +142,23 @@ export const desktopSync = {
     try {
       // Get permission before storing
       const permission = await dirHandle.requestPermission({
-        mode: "readwrite",
+        mode: 'readwrite',
       });
-      if (permission !== "granted") {
-        throw new Error("Permission denied");
+      if (permission !== 'granted') {
+        throw new Error('Permission denied');
       }
 
       // Store handle in IndexedDB for persistence
       const handleKey = `sync_folder_${projectId}`;
-      if ("storage" in navigator && "getDirectory" in navigator.storage) {
+      if ('storage' in navigator && 'getDirectory' in navigator.storage) {
         // Store in browser's persistent storage
-        const dbRequest = indexedDB.open("brain_sync_storage");
+        const dbRequest = indexedDB.open('brain_sync_storage');
 
         return new Promise((resolve, reject) => {
           dbRequest.onsuccess = () => {
             const db = dbRequest.result;
-            const transaction = db.transaction("handles", "readwrite");
-            const store = transaction.objectStore("handles");
+            const transaction = db.transaction('handles', 'readwrite');
+            const store = transaction.objectStore('handles');
 
             store.put({
               key: handleKey,
@@ -168,18 +167,16 @@ export const desktopSync = {
             });
 
             transaction.oncomplete = () => resolve(handleKey);
-            transaction.onerror = () =>
-              reject(new Error("IndexedDB error"));
+            transaction.onerror = () => reject(new Error('IndexedDB error'));
           };
 
-          dbRequest.onerror = () =>
-            reject(new Error("IndexedDB open error"));
+          dbRequest.onerror = () => reject(new Error('IndexedDB open error'));
         });
       }
 
       return handleKey;
     } catch (e) {
-      console.error("Save folder handle error:", e);
+      console.error('Save folder handle error:', e);
       throw e;
     }
   },
@@ -192,13 +189,13 @@ export const desktopSync = {
   async getFolderHandle(projectId) {
     try {
       const handleKey = `sync_folder_${projectId}`;
-      const dbRequest = indexedDB.open("brain_sync_storage");
+      const dbRequest = indexedDB.open('brain_sync_storage');
 
       return new Promise((resolve) => {
         dbRequest.onsuccess = () => {
           const db = dbRequest.result;
-          const transaction = db.transaction("handles", "readonly");
-          const store = transaction.objectStore("handles");
+          const transaction = db.transaction('handles', 'readonly');
+          const store = transaction.objectStore('handles');
           const request = store.get(handleKey);
 
           request.onsuccess = () => {
@@ -286,8 +283,7 @@ export const desktopSync = {
       if (!cloudFile) continue;
 
       const cloudHash = await hashContent(cloudFile.content);
-      const previousDesktopHash = this._getSyncState(file.path)
-        ?.desktopHash;
+      const previousDesktopHash = this._getSyncState(file.path)?.desktopHash;
 
       // Conflict if both changed since last sync
       if (
@@ -320,17 +316,12 @@ export const desktopSync = {
    * @param {Function} onConflict callback for conflict resolution
    * @returns {Promise<{synced, failed, conflicts}>}
    */
-  async syncFiles(
-    dirHandle,
-    projectId,
-    cloudFiles,
-    onConflict = null
-  ) {
-    const syncState = cache.getCollection("sync_state");
+  async syncFiles(dirHandle, projectId, cloudFiles, onConflict = null) {
+    const syncState = cache.getCollection('sync_state');
     const state = syncState.data.find((s) => s.project_id === projectId);
 
     if (!state) {
-      throw new Error("Sync state not found for project");
+      throw new Error('Sync state not found for project');
     }
 
     // Detect changes on desktop
@@ -363,7 +354,7 @@ export const desktopSync = {
     for (const file of changes.modified) {
       const resolution = conflictResolutions[file.path];
 
-      if (resolution === "desktop" || !resolution) {
+      if (resolution === 'desktop' || !resolution) {
         // Desktop wins or no conflict
         try {
           await this._uploadFile(projectId, file.path, file.content);
@@ -391,8 +382,7 @@ export const desktopSync = {
 
       // Download if new on cloud or if cloud version is newer (in conflict)
       const resolution = conflictResolutions[desktopPath];
-      const shouldDownload =
-        !previousDesktopHash || resolution === "cloud";
+      const shouldDownload = !previousDesktopHash || resolution === 'cloud';
 
       if (shouldDownload) {
         try {
@@ -428,9 +418,8 @@ export const desktopSync = {
       conflicts: conflicts.length,
       details: {
         uploaded: changes.added.length + changes.modified.length,
-        downloaded: cloudFiles.filter(
-          (f) => !changes.deleted.includes(f.path)
-        ).length,
+        downloaded: cloudFiles.filter((f) => !changes.deleted.includes(f.path))
+          .length,
         deleted: changes.deleted.length,
       },
     };
@@ -447,7 +436,7 @@ export const desktopSync = {
    * @returns {Map}
    */
   _loadPreviousSyncState(projectId) {
-    const syncFiles = cache.getCollection("sync_file_state");
+    const syncFiles = cache.getCollection('sync_file_state');
     const state = new Map();
 
     if (syncFiles.data) {
@@ -473,13 +462,13 @@ export const desktopSync = {
   async _updateSyncState(projectId, currentState) {
     // Update last_sync_at in database via API
     try {
-      const response = await fetch("/api/data?resource=sync_state", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/data?resource=sync_state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           project_id: projectId,
           last_sync_at: new Date().toISOString(),
-          sync_status: "idle",
+          sync_status: 'idle',
         }),
       });
 
@@ -487,7 +476,7 @@ export const desktopSync = {
         throw new Error(`HTTP ${response.status}`);
       }
     } catch (e) {
-      console.error("Failed to update sync state:", e);
+      console.error('Failed to update sync state:', e);
     }
   },
 
@@ -511,9 +500,9 @@ export const desktopSync = {
    * @param {string} content
    */
   async _uploadFile(projectId, filePath, content) {
-    const response = await fetch("/api/data?resource=project_files", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const response = await fetch('/api/data?resource=project_files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         project_id: projectId,
         path: filePath,
@@ -536,11 +525,11 @@ export const desktopSync = {
    * @returns {string}
    */
   formatFileSize(bytes) {
-    if (bytes === 0) return "0 B";
+    if (bytes === 0) return '0 B';
     const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
+    const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   },
 
   /**
@@ -548,7 +537,7 @@ export const desktopSync = {
    * @returns {boolean}
    */
   isSupported() {
-    return typeof window !== "undefined" && "showDirectoryPicker" in window;
+    return typeof window !== 'undefined' && 'showDirectoryPicker' in window;
   },
 };
 

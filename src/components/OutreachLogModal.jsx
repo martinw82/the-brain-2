@@ -3,103 +3,149 @@
  * Quick-log an outreach action: type, target, project link, notes
  */
 
-import { useState } from "react";
+import { useState } from 'react';
 
 const C = {
-  bg: "#0f172a",
-  bgModal: "#1a1f36",
-  border: "#1e293b",
-  text: "#e2e8f0",
-  dim: "#94a3b8",
-  blue: "#3b82f6",
-  green: "#10b981",
-  amber: "#f59e0b",
-  purple: "#6366f1",
+  bg: '#0f172a',
+  bgModal: '#1a1f36',
+  border: '#1e293b',
+  text: '#e2e8f0',
+  dim: '#94a3b8',
+  blue: '#3b82f6',
+  green: '#10b981',
+  amber: '#f59e0b',
+  purple: '#6366f1',
 };
 
 const TYPES = [
-  { id: "message", label: "Message / DM", emoji: "💬" },
-  { id: "post", label: "Post / Thread", emoji: "📣" },
-  { id: "call", label: "Call / Meeting", emoji: "📞" },
-  { id: "email", label: "Email", emoji: "📧" },
-  { id: "other", label: "Other", emoji: "🤝" },
+  { id: 'message', label: 'Message / DM', emoji: '💬' },
+  { id: 'post', label: 'Post / Thread', emoji: '📣' },
+  { id: 'call', label: 'Call / Meeting', emoji: '📞' },
+  { id: 'email', label: 'Email', emoji: '📧' },
+  { id: 'other', label: 'Other', emoji: '🤝' },
 ];
 
 const S = {
   overlay: {
-    position: "fixed",
-    top: 0, left: 0, right: 0, bottom: 0,
-    background: "rgba(0, 0, 0, 0.7)",
-    display: "flex", alignItems: "center", justifyContent: "center",
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 1000,
   },
   modal: {
     background: C.bgModal,
     border: `1px solid ${C.border}`,
-    borderRadius: 8, padding: 24, maxWidth: 450, width: "90%",
-    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5)",
+    borderRadius: 8,
+    padding: 24,
+    maxWidth: 450,
+    width: '90%',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
   },
   header: { fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 20 },
   section: { marginBottom: 16 },
   label: {
-    fontSize: 11, color: C.purple, fontWeight: 600,
-    textTransform: "uppercase", letterSpacing: "0.05em",
-    marginBottom: 6, display: "block",
+    fontSize: 11,
+    color: C.purple,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    marginBottom: 6,
+    display: 'block',
   },
-  typeGrid: { display: "flex", gap: 6, flexWrap: "wrap" },
+  typeGrid: { display: 'flex', gap: 6, flexWrap: 'wrap' },
   typeBtn: (active) => ({
-    padding: "6px 12px", borderRadius: 4,
+    padding: '6px 12px',
+    borderRadius: 4,
     border: `1px solid ${active ? C.purple : C.border}`,
-    background: active ? C.purple + "20" : "transparent",
+    background: active ? C.purple + '20' : 'transparent',
     color: active ? C.purple : C.dim,
-    fontSize: 10, fontWeight: active ? 600 : 400, cursor: "pointer",
+    fontSize: 10,
+    fontWeight: active ? 600 : 400,
+    cursor: 'pointer',
   }),
   input: {
-    width: "100%", padding: "7px 10px",
-    background: "#0d1424", border: `1px solid ${C.border}`,
-    borderRadius: 4, color: C.text, fontSize: 11,
-    fontFamily: "'JetBrains Mono', monospace", outline: "none",
-    boxSizing: "border-box",
+    width: '100%',
+    padding: '7px 10px',
+    background: '#0d1424',
+    border: `1px solid ${C.border}`,
+    borderRadius: 4,
+    color: C.text,
+    fontSize: 11,
+    fontFamily: "'JetBrains Mono', monospace",
+    outline: 'none',
+    boxSizing: 'border-box',
   },
   sel: {
-    width: "100%", padding: "7px 10px",
-    background: "#0d1424", border: `1px solid ${C.border}`,
-    borderRadius: 4, color: C.text, fontSize: 11,
-    fontFamily: "'JetBrains Mono', monospace", outline: "none",
+    width: '100%',
+    padding: '7px 10px',
+    background: '#0d1424',
+    border: `1px solid ${C.border}`,
+    borderRadius: 4,
+    color: C.text,
+    fontSize: 11,
+    fontFamily: "'JetBrains Mono', monospace",
+    outline: 'none',
   },
   textarea: {
-    width: "100%", padding: 8,
-    background: C.border, border: `1px solid ${C.border}`,
-    borderRadius: 4, color: C.text, fontSize: 10,
+    width: '100%',
+    padding: 8,
+    background: C.border,
+    border: `1px solid ${C.border}`,
+    borderRadius: 4,
+    color: C.text,
+    fontSize: 10,
     fontFamily: "'JetBrains Mono', monospace",
-    resize: "vertical", minHeight: 50, boxSizing: "border-box",
+    resize: 'vertical',
+    minHeight: 50,
+    boxSizing: 'border-box',
   },
-  footer: { display: "flex", gap: 8, marginTop: 20, justifyContent: "flex-end" },
-  btn: (type = "primary") => ({
-    primary: {
-      background: C.purple, color: "white", border: "none",
-      borderRadius: 4, padding: "8px 16px", fontSize: 10,
-      fontWeight: 600, cursor: "pointer",
-    },
-    ghost: {
-      background: "transparent", border: `1px solid ${C.border}`,
-      color: C.dim, borderRadius: 4, padding: "8px 16px",
-      fontSize: 10, cursor: "pointer",
-    },
-  })[type],
+  footer: {
+    display: 'flex',
+    gap: 8,
+    marginTop: 20,
+    justifyContent: 'flex-end',
+  },
+  btn: (type = 'primary') =>
+    ({
+      primary: {
+        background: C.purple,
+        color: 'white',
+        border: 'none',
+        borderRadius: 4,
+        padding: '8px 16px',
+        fontSize: 10,
+        fontWeight: 600,
+        cursor: 'pointer',
+      },
+      ghost: {
+        background: 'transparent',
+        border: `1px solid ${C.border}`,
+        color: C.dim,
+        borderRadius: 4,
+        padding: '8px 16px',
+        fontSize: 10,
+        cursor: 'pointer',
+      },
+    })[type],
 };
 
 export default function OutreachLogModal({ onSave, onDismiss, projects = [] }) {
-  const [type, setType] = useState("message");
-  const [target, setTarget] = useState("");
-  const [projectId, setProjectId] = useState("");
-  const [notes, setNotes] = useState("");
+  const [type, setType] = useState('message');
+  const [target, setTarget] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = new Date().toISOString().split('T')[0];
       await onSave({
         date: today,
         type,
@@ -177,11 +223,19 @@ export default function OutreachLogModal({ onSave, onDismiss, projects = [] }) {
 
         {/* Footer */}
         <div style={S.footer}>
-          <button style={S.btn("ghost")} onClick={onDismiss} disabled={isLoading}>
+          <button
+            style={S.btn('ghost')}
+            onClick={onDismiss}
+            disabled={isLoading}
+          >
             Cancel
           </button>
-          <button style={S.btn("primary")} onClick={handleSave} disabled={isLoading}>
-            {isLoading ? "Saving..." : "📣 Log Outreach"}
+          <button
+            style={S.btn('primary')}
+            onClick={handleSave}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Saving...' : '📣 Log Outreach'}
           </button>
         </div>
       </div>

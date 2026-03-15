@@ -31,8 +31,8 @@
  * ```
  */
 
-const CACHE_KEY = "brain_cache";
-const CACHE_VERSION = "2.4.0";
+const CACHE_KEY = 'brain_cache';
+const CACHE_VERSION = '2.4.0';
 
 export const cache = {
   // ────────────────────────────────────────────────────────────────
@@ -50,7 +50,9 @@ export const cache = {
         const parsed = JSON.parse(stored);
         // Validate version matches
         if (parsed.version !== CACHE_VERSION) {
-          console.warn(`Cache version mismatch: ${parsed.version} != ${CACHE_VERSION}, clearing`);
+          console.warn(
+            `Cache version mismatch: ${parsed.version} != ${CACHE_VERSION}, clearing`
+          );
           this.clear();
           return this._createEmpty();
         }
@@ -58,7 +60,7 @@ export const cache = {
       }
       return this._createEmpty();
     } catch (e) {
-      console.error("Cache init failed:", e);
+      console.error('Cache init failed:', e);
       return this._createEmpty();
     }
   },
@@ -97,9 +99,9 @@ export const cache = {
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify(cacheObj));
     } catch (e) {
-      console.error("Cache save failed:", e);
+      console.error('Cache save failed:', e);
       // Quota exceeded - prune old items
-      if (e.name === "QuotaExceededError") {
+      if (e.name === 'QuotaExceededError') {
         this.prune();
       }
     }
@@ -130,7 +132,10 @@ export const cache = {
       version: 1,
       synced_at: new Date().toISOString(),
       data: Array.isArray(data) ? data : [],
-      _meta: { count: Array.isArray(data) ? data.length : 0, sync_status: "synced" },
+      _meta: {
+        count: Array.isArray(data) ? data.length : 0,
+        sync_status: 'synced',
+      },
     };
     cacheObj.timestamp = new Date().toISOString();
     this._save(cacheObj);
@@ -258,7 +263,7 @@ export const cache = {
       action,
       params,
       timestamp: new Date().toISOString(),
-      status: "pending",
+      status: 'pending',
       retries: 0,
       lastAttempt: null,
     });
@@ -313,7 +318,7 @@ export const cache = {
   getQueuedWrites(resource) {
     const cacheObj = this.init();
     return cacheObj.writeQueue.filter(
-      (item) => item.resource === resource && item.status === "pending"
+      (item) => item.resource === resource && item.status === 'pending'
     );
   },
 
@@ -387,11 +392,17 @@ export const cache = {
     const cacheObj = this.init();
 
     // Remove write queue items older than 7 days
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    cacheObj.writeQueue = cacheObj.writeQueue.filter((item) => item.timestamp > sevenDaysAgo);
+    const sevenDaysAgo = new Date(
+      Date.now() - 7 * 24 * 60 * 60 * 1000
+    ).toISOString();
+    cacheObj.writeQueue = cacheObj.writeQueue.filter(
+      (item) => item.timestamp > sevenDaysAgo
+    );
 
     // Keep only last 30 days of conflicts
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const thirtyDaysAgo = new Date(
+      Date.now() - 30 * 24 * 60 * 60 * 1000
+    ).toISOString();
     cacheObj.conflictLog = cacheObj.conflictLog.filter(
       (item) => item.timestamp > thirtyDaysAgo
     );
@@ -407,7 +418,7 @@ export const cache = {
     try {
       localStorage.removeItem(CACHE_KEY);
     } catch (e) {
-      console.error("Cache clear failed:", e);
+      console.error('Cache clear failed:', e);
     }
   },
 

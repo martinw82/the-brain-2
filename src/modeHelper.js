@@ -6,14 +6,14 @@
  */
 
 const MODE_MATRIX = {
-  daily_checkin:         { coach: 'mandatory', assistant: 'available', silent: 'off' },
-  drift_alerts:          { coach: 'alert',     assistant: 'badge',     silent: 'off' },
-  outreach_enforcement:  { coach: 'modal',     assistant: 'tracked',   silent: 'off' },
-  ai_coach_tab:          { coach: 'full',      assistant: 'no_presets', silent: 'hidden' },
-  notifications:         { coach: 'all',       assistant: 'filtered',  silent: 'none' },
-  ai_tone:               { coach: 'challenging', assistant: 'supportive', silent: 'minimal' },
-  agent_trigger:         { coach: 'auto',      assistant: 'preview',   silent: 'manual' },
-  workflow_advance:      { coach: 'auto',      assistant: 'auto',      silent: 'manual' },
+  daily_checkin: { coach: 'mandatory', assistant: 'available', silent: 'off' },
+  drift_alerts: { coach: 'alert', assistant: 'badge', silent: 'off' },
+  outreach_enforcement: { coach: 'modal', assistant: 'tracked', silent: 'off' },
+  ai_coach_tab: { coach: 'full', assistant: 'no_presets', silent: 'hidden' },
+  notifications: { coach: 'all', assistant: 'filtered', silent: 'none' },
+  ai_tone: { coach: 'challenging', assistant: 'supportive', silent: 'minimal' },
+  agent_trigger: { coach: 'auto', assistant: 'preview', silent: 'manual' },
+  workflow_advance: { coach: 'auto', assistant: 'auto', silent: 'manual' },
 };
 
 const OFF_BEHAVIORS = new Set(['off', 'hidden', 'none']);
@@ -58,7 +58,8 @@ export const MODE_INFO = {
   coach: {
     label: 'Coach',
     icon: '🔥',
-    description: 'Active coaching — mandatory check-ins, drift alerts, direct tone',
+    description:
+      'Active coaching — mandatory check-ins, drift alerts, direct tone',
   },
   assistant: {
     label: 'Assistant',

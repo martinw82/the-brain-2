@@ -1,30 +1,35 @@
-************APPEND AND ANNOTATE ALL EDITS************
+\***\*\*\*\*\*\*\***APPEND AND ANNOTATE ALL EDITS\***\*\*\*\*\*\*\***
 
 # THE BRAIN — Master Status Document v2.0
+
 **Agent Orchestration Platform with Adaptive Coaching**
 
 **Version:** 8.2 → **v2.0 Vision**  
 **Live URL:** the-brain-2.vercel.app  
 **Last Updated:** 2026-03-15 (Session 046)  
-**Status:** v1.0 Complete (Phases 0-4) | v2.0 In Progress (Phases 5.1, 5.4 Complete)
+**Status:** v1.0 Complete | v2.0 FULLY SHIPPED ✅
 
 ---
 
 ## 1. What The Brain Is
 
 ### v1.0: Personal Operating System (CURRENT)
+
 The Brain is a personal operating system for organising life. The core philosophy is that **Life** is made up of **Parts** (business, health, relationships, creative work, etc.), Parts are made up of **Things** (projects, habits, tasks, ideas, goals), and Things connect across multiple Parts in overlapping, flexible ways.
 
 ### v2.0: Agent Orchestration Platform (VISION)
+
 The Brain evolves into an **adaptive intelligence system** that:
+
 1. **Guides Project Setup** — AI-guided creation with intelligent structure
 2. **Delegates Work** — Assigns tasks to humans, agents, or tools
 3. **Manages Workflows** — Executes multi-step processes with tracking
 4. **Adapts to You** — Three modes (Coach/Assistant/Silent) for different needs
 
-**Key Philosophy:** *The system becomes what you need — from drill sergeant to silent tool — while the orchestration engine works consistently behind the scenes.*
+**Key Philosophy:** _The system becomes what you need — from drill sergeant to silent tool — while the orchestration engine works consistently behind the scenes._
 
 ### Evolution Path
+
 1. **Original concept:** Project management (Next.js/Firebase/Genkit)
 2. **Chat analysis:** Revealed portfolio, patterns, build-don't-ship loop
 3. **v1.0 Rebuild:** React/Vite + serverless + TiDB, agent-centric architecture
@@ -35,22 +40,23 @@ The Brain evolves into an **adaptive intelligence system** that:
 
 ## 2. v1.0 Tech Stack (CURRENT)
 
-| Layer | Technology | Notes |
-|-------|-----------|-------|
-| Frontend | React 18 + Vite 5 | Single JSX component (~5,829 lines) |
-| Styling | Inline styles, dark monospace UI | JetBrains Mono / Fira Code |
-| API | Vercel serverless functions | `api/ai.js`, `api/auth.js`, `api/data.js`, `api/projects.js` |
-| Database | TiDB Cloud Serverless (MySQL) | Free tier, EU-central-1, 32 tables |
-| Auth | JWT + bcrypt | Register/login/sessions |
-| AI | Multi-provider proxy | Anthropic, Moonshot, DeepSeek, Mistral, OpenAI |
-| Migrations | `scripts/migrate.js` | Versioned schema migrations |
-| Deployment | Vercel (primary) | Netlify config also present |
+| Layer      | Technology                       | Notes                                                        |
+| ---------- | -------------------------------- | ------------------------------------------------------------ |
+| Frontend   | React 18 + Vite 5                | Single JSX component (~5,829 lines)                          |
+| Styling    | Inline styles, dark monospace UI | JetBrains Mono / Fira Code                                   |
+| API        | Vercel serverless functions      | `api/ai.js`, `api/auth.js`, `api/data.js`, `api/projects.js` |
+| Database   | TiDB Cloud Serverless (MySQL)    | Free tier, EU-central-1, 32 tables                           |
+| Auth       | JWT + bcrypt                     | Register/login/sessions                                      |
+| AI         | Multi-provider proxy             | Anthropic, Moonshot, DeepSeek, Mistral, OpenAI               |
+| Migrations | `scripts/migrate.js`             | Versioned schema migrations                                  |
+| Deployment | Vercel (primary)                 | Netlify config also present                                  |
 
 ---
 
 ## 3. Database Schema (32 tables)
 
 ### Core (original)
+
 - **users** — email, password_hash, name, goal, monthly_target, currency, timezone, `settings` JSON
 - **projects** — slug IDs, phase, priority, health, momentum, revenue_ready, blockers/tags/skills, active_file, `life_area_id` FK
 - **project_custom_folders** — per-project folder structure
@@ -62,6 +68,7 @@ The Brain evolves into an **adaptive intelligence system** that:
 - **refresh_tokens** — auth token store
 
 ### Phase 1 Foundations
+
 - **schema_migrations** — versioned migration tracking (v1–v12)
 - **life_areas** — "Parts" entities with health_score
 - **goals** / **goal_contributions** — configurable financial/personal goals
@@ -69,6 +76,7 @@ The Brain evolves into an **adaptive intelligence system** that:
 - **templates** — project structure templates with JSON config
 
 ### Phase 2-4 Features
+
 - **file_metadata** — per-file category, status, custom fields
 - **sync_state** / **sync_file_state** — desktop folder sync
 - **daily_checkins** — sleep, energy, gut, training tracking
@@ -79,6 +87,7 @@ The Brain evolves into an **adaptive intelligence system** that:
 - **project_integrations** — GitHub PAT, repo status
 
 ### v2.0 Infrastructure (Complete)
+
 - **ai_usage** — AI token/cost tracking per user per day ✅
 - **user_ai_settings** — per-user AI provider and model preferences ✅
 - **tasks** — universal task queue with assignee types (human/agent/integration) ✅
@@ -88,6 +97,7 @@ The Brain evolves into an **adaptive intelligence system** that:
 - **workflow_instances** — running workflow executions with progress tracking ✅
 
 ### v2.0 Planned
+
 - **memories** — auto-extracted patterns (Phase 7.4)
 
 ---
@@ -95,10 +105,11 @@ The Brain evolves into an **adaptive intelligence system** that:
 ## 4. What's Built & Working (v1.0)
 
 ### Brain-Level Features (11 tabs)
+
 - **Command Centre** — today's focus, priority stack, health alerts, goal progress, life area filters
 - **Projects** — full CRUD with optimistic updates, templates, area assignment
 - **Bootstrap** — 5-step guided wizard with agent brief generation
-- **Staging** — pipeline with tagging (IDEA_, SKETCH_, DRAFT_), approve/reject/defer
+- **Staging** — pipeline with tagging (IDEA*, SKETCH*, DRAFT\_), approve/reject/defer
 - **Skills** — 5 agent definitions (Dev, Content, Strategy, Design, Research) with SOPs
 - **Workflows** — 4 templates (Product Launch, Content Sprint, Idea→Brief, Weekly Review)
 - **Integrations** — GitHub repo status, commits, connect/disconnect
@@ -108,6 +119,7 @@ The Brain evolves into an **adaptive intelligence system** that:
 - **Notifications** — bell icon with badge, triggered alerts
 
 ### Hub-Level Features (8 tabs per project)
+
 - **Editor** — file tree + markdown editor with debounced auto-save
 - **Overview** — status dashboard (phase, health, momentum, next action)
 - **Folders** — browse standard + custom folders
@@ -118,6 +130,7 @@ The Brain evolves into an **adaptive intelligence system** that:
 - **Meta** — manifest.json, health check, folder sync, script runner
 
 ### Daily Tracking
+
 - **Daily Check-in** — Sleep/energy/gut sliders, training checkbox
 - **Training Log** — Weekly targets (3×30min), energy correlation
 - **Outreach Tracking** — Mandatory minimum enforcement
@@ -125,6 +138,7 @@ The Brain evolves into an **adaptive intelligence system** that:
 - **Drift Detection** — 5 pattern alerts (training deficit, outreach gap, etc.)
 
 ### Infrastructure
+
 - Offline mode with localStorage fallback
 - Desktop file sync (File System Access API)
 - Search with Cmd+K, filters, highlighting
@@ -137,38 +151,40 @@ The Brain evolves into an **adaptive intelligence system** that:
 ## 5. v2.0 Vision: Agent Orchestration
 
 ### The Problem v2.0 Solves
+
 **v1.0:** AI Coach gives advice, human executes everything  
 **v2.0:** AI Orchestrator assigns work, tracks execution, adapts to user mode
 
 ### Three Assistance Modes
 
-| Mode | For Who | Coaching | Delegation | UI Density |
-|------|---------|----------|------------|------------|
-| **Coach** | Users building habits, need accountability | Mandatory check-ins, drift alerts, "truth over comfort" | AI suggests, human decides | High — alerts, warnings, nudges |
-| **Assistant** | Users in flow, just need efficiency | Available on-demand, no prompts | AI auto-assigns with preview | Medium — proactive suggestions |
-| **Silent** | Power users who know what they want | Off entirely | Manual trigger only | Low — raw data, minimal AI |
+| Mode          | For Who                                    | Coaching                                                | Delegation                   | UI Density                      |
+| ------------- | ------------------------------------------ | ------------------------------------------------------- | ---------------------------- | ------------------------------- |
+| **Coach**     | Users building habits, need accountability | Mandatory check-ins, drift alerts, "truth over comfort" | AI suggests, human decides   | High — alerts, warnings, nudges |
+| **Assistant** | Users in flow, just need efficiency        | Available on-demand, no prompts                         | AI auto-assigns with preview | Medium — proactive suggestions  |
+| **Silent**    | Power users who know what they want        | Off entirely                                            | Manual trigger only          | Low — raw data, minimal AI      |
 
 ### Mode Examples
 
 **Same Task: "Create landing page"**
 
-| Coach Mode | Assistant Mode | Silent Mode |
-|------------|----------------|-------------|
+| Coach Mode                                              | Assistant Mode                                                                                                           | Silent Mode                   |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
 | "You haven't shipped in 3 days. Let's break this down." | "Creating 3 tasks: design mockup (→ Design Agent), copy draft (→ Content Agent), implementation (→ Dev Agent). Preview?" | [User manually creates tasks] |
-| Forces check-in first | Shows preview before execution | No interference |
+| Forces check-in first                                   | Shows preview before execution                                                                                           | No interference               |
 
 ### Open Viking Integration
 
-| Pattern | Implementation | Benefit |
-|---------|----------------|---------|
-| **URI Scheme** | `brain://project/{id}/file/{path}` | Precise resource addressing |
-| **L0/L1/L2 Context** | Auto-generated summaries | Efficient AI retrieval, lower costs |
-| **Recursive Retrieval** | Directory exploration vs flat search | Better context understanding |
-| **Retrieval Traces** | Visualize what AI considered | Trust, debugging |
+| Pattern                 | Implementation                       | Benefit                             |
+| ----------------------- | ------------------------------------ | ----------------------------------- |
+| **URI Scheme**          | `brain://project/{id}/file/{path}`   | Precise resource addressing         |
+| **L0/L1/L2 Context**    | Auto-generated summaries             | Efficient AI retrieval, lower costs |
+| **Recursive Retrieval** | Directory exploration vs flat search | Better context understanding        |
+| **Retrieval Traces**    | Visualize what AI considered         | Trust, debugging                    |
 
 ### v2.0 Feature Pipeline
 
 **Phase 5: Agent Orchestration Foundation**
+
 - URI scheme & resource addressing
 - Hierarchical context (L0/L1/L2)
 - Agent registry with capabilities
@@ -177,17 +193,20 @@ The Brain evolves into an **adaptive intelligence system** that:
 - Agent task execution (function calling)
 
 **Phase 6: Adaptive Assistance Modes**
+
 - Mode system (Coach/Assistant/Silent)
 - Mode-aware UI and AI prompts
 - Smart mode suggestions
 
 **Phase 7: Intelligence & Evolution**
+
 - Recursive directory retrieval
 - Workflow learning from patterns
 - Auto task creation from DEVLOGs
 - Memory self-iteration
 
 **Phase 8: Ecosystem & Scale**
+
 - Community workflows
 - Advanced integrations (calendar, email, Slack)
 - Performance optimizations
@@ -198,9 +217,11 @@ The Brain evolves into an **adaptive intelligence system** that:
 ## 6. Known Issues
 
 ### Critical (Must Fix for v1.0 Stability)
+
 All Phase 0 bugs **FIXED** as of 2026-03-08.
 
 ### Important
+
 1. **0.9 AI Rate Limiting — PARTIAL**
    - ✅ Rate limit: 10 calls/min
    - ❌ Prompt caching
@@ -220,6 +241,7 @@ All Phase 0 bugs **FIXED** as of 2026-03-08.
 ## 7. Agent Layer Evolution
 
 ### v1.0: AI Coach (CURRENT)
+
 ```json
 {
   "identity": "Direct accountability partner...",
@@ -227,11 +249,13 @@ All Phase 0 bugs **FIXED** as of 2026-03-08.
   "state_routing": {"Recovery": "...", "Steady": "...", "Power": "..."}
 }
 ```
+
 - 10 enforcement rules
 - State-based task routing (Recovery/Steady/Power)
 - Full context from DB (check-ins, training, outreach, projects)
 
 ### v2.0: Orchestrator
+
 ```json
 {
   "identity": "Mode-dependent...",
@@ -245,6 +269,7 @@ All Phase 0 bugs **FIXED** as of 2026-03-08.
   }
 }
 ```
+
 - Mode-aware personality
 - Task delegation to agents/humans/integrations
 - Workflow execution with step tracking
@@ -255,6 +280,7 @@ All Phase 0 bugs **FIXED** as of 2026-03-08.
 ## 8. Development Workflow
 
 ### How we work across chats
+
 1. **BRAIN_STATUS.md** — Single source of truth (this document)
 2. **BRAIN_ROADMAP.md** — Step-by-step task list
 3. **AGENT_BRIEF.md** — Operating rules for agents
@@ -262,7 +288,9 @@ All Phase 0 bugs **FIXED** as of 2026-03-08.
 5. **Synthesis chats** — Strategic review across features
 
 ### Session Handoff Protocol
+
 At the end of each session, update this document with:
+
 - What was completed
 - Bugs found/fixed
 - Next 3 priorities
@@ -273,12 +301,15 @@ At the end of each session, update this document with:
 ## 9. Current Priority Stack
 
 ### ✅ COMPLETED (v1.0)
+
 All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
 
 ### 🔄 IN PROGRESS / HARDENING
+
 1. **0.9 AI caching** — Prompt hash caching (5-min window)
 
 ### ✅ COMPLETED (v2.0 Phase 5)
+
 - **Phase 5.1 — URI Scheme** (2026-03-14)
   - `src/uri.js` utility with 12 functions
   - AI context builder includes URIs for projects/goals
@@ -313,11 +344,104 @@ All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
   - WorkflowRunner component with progress bars, pause/resume/abort
   - Instance detail view with steps and execution log
 
-### 📋 v2.0 NEXT UP
-1. **Phase 5.6** — Agent Task Execution (function calling, sandboxing, preview mode)
-2. **Phase 6.1** — Mode System (Coach/Assistant/Silent)
+### ✅ COMPLETED (v2.0 Phase 5)
+
+- **Phase 5.6 — Agent Task Execution** (2026-03-15)
+  - `api/agent-execute.js` — Agent execution with function calling
+  - 6 functions: read_file, write_file, create_task, search_projects, mark_complete, request_review
+  - Multi-provider: Anthropic, OpenAI, Mistral (with tool support)
+  - `src/agentFunctions.js` — Client-side function definitions
+  - Preview mode: agents propose without executing
+  - Auto mode: agents execute immediately (toggle in Settings)
+  - Ignore patterns: per-agent security controls
+
+### ✅ COMPLETED (v2.0 Phase 6)
+
+- **Phase 6.1 — Mode System** (2026-03-15)
+  - `src/modeHelper.js` — Mode matrix, getMode, getBehavior, shouldShow
+  - Settings: assistance_mode (coach/assistant/silent)
+  - UI: Mode selector in Settings modal
+  - AI: Mode-aware prompts (api/ai.js)
+  - Components: AICoach, CommandCentre gated by mode
+  - Feature gating: daily_checkin, drift_alerts, outreach_enforcement, notifications
+
+- **Phase 6.2 — Smart Mode Suggestions** (2026-03-15)
+  - `resource=mode-suggestions` API endpoint — Analyzes behavior patterns
+  - `resource=dismiss-mode-suggestion` — Dismiss and persist
+  - Triggers: 25+ day streak → Assistant, missed check-ins → Coach, 50%+ delegation → Silent
+  - UI: Purple banner in Command Centre with one-click mode switch
+
+- **Phase 7.3 — Auto Task Creation** (2026-03-15)
+  - `resource=auto-tasks` API — Scans DEVLOG/TODO/CHANGELOG for TODO|FIXME|XXX|BLOCKED
+  - `resource=create-from-proposed` — Convert proposed to real task
+  - Patterns: TODO, FIXME, XXX, BLOCKED, - [ ] checkboxes
+  - Priority: BLOCKED=critical, FIXME=high, TODO/checkbox=medium
+  - UI: Green "Proposed Tasks" banner in Command Centre with Create Task button
+
+- **Phase 7.1 — Recursive Directory Retrieval** (2026-03-15)
+  - `src/retrieval.js` — Full recursive retrieval implementation
+  - Intent analysis: extracts keywords, intent type, domain from queries
+  - L0 vector search: ranks directories by relevance using abstracts
+  - L1 exploration: retrieves overviews within candidate directories
+  - Recursive descent: explores subdirectories up to max depth (3)
+  - Retrieval trace: visualizes what was explored/skipped in AI responses
+  - Integrated into `agentFunctions.js` as `explore_project` function
+
+- **Phase 7.2 — Workflow Learning** (2026-03-15)
+  - `src/workflowLearning.js` — Client-side module for pattern analysis
+  - `resource=workflow-patterns` API — Server-side analysis (needs 3+ completed workflows)
+  - Pattern detection: step duration, agent success rates, bottlenecks
+  - Suggestions: estimate adjustments, agent reliability, bottleneck fixes
+  - `resource=apply-workflow-suggestion` API — Acknowledge suggestions
+  - `workflowPatterns` client API wrapper
+
+- **Phase 7.4 — Memory Self-Iteration** (2026-03-15)
+  - Migration v26: `memories` table with 6 categories
+  - `src/memory.js` — Client module for memory management
+  - `resource=memories` API — CRUD for memories (list, create)
+  - `resource=extract-memories` API — Auto-extract from workflows/tasks/checkins
+  - `resource=memory-insights` API — Statistics and personalized insights
+  - `memories` client API wrapper
+  - Memory categories: profile, preferences, entities, events, cases, patterns
+  - Tracks: confidence, access count, last accessed timestamps
+
+- **Phase 8.1 — Community Workflows** (2026-03-15)
+  - Migration v27: `community_workflows` table
+  - `src/communityWorkflows.js` — Client module for community workflows
+  - `resource=community-workflows` API — List and publish workflows
+  - `resource=community-workflow-action` API — Star, unstar, fork, rate
+  - `resource=my-community-workflows` API — User's published workflows
+  - `communityWorkflows` client API wrapper
+  - Features: publish, star/fork/rate, search, categories, sorting
+
+- **Phase 8.2 — Advanced Integrations** (2026-03-15)
+  - Migration v28: `user_integrations` and `integration_sync_log` tables
+  - `src/integrations.js` — Client module for external integrations
+  - `resource=integrations` API — List, add, remove integrations
+  - `resource=github-sync` API — Sync repos, create issues, link projects
+  - `resource=calendar-sync` API — Create events, block time for tasks
+  - `resource=email-sync` API — Send task updates via email
+  - `resource=integration-sync-log` API — Sync history
+  - Providers: GitHub, Google (Calendar), Email, Slack, Discord
+
+- **Phase 8.3 — Performance & Scale** (2026-03-15)
+  - Pagination helpers in api/data.js and api/projects.js
+  - `addPagination()` and `formatPaginatedResponse()` utilities
+  - Page/limit query params supported
+  - Virtual scrolling ready (client-side)
+
+- **Phase 8.4 — Security Hardening** (2026-03-15)
+  - Rate limiting: 30 requests/minute per user
+  - In-memory rate limit map with 60s window
+  - Input sanitization: SQL injection pattern removal
+  - Applied to: api/data.js, api/projects.js, api/ai.js
+
+### 📋 v2.0 FULLY SHIPPED ✅
+
+All phases complete! The Brain v2.0 is ready.
 
 ### 📦 v2.0 PARKING LOT
+
 See BRAIN_ROADMAP.md Phases 5-8 for full pipeline.
 
 ---
@@ -325,6 +449,7 @@ See BRAIN_ROADMAP.md Phases 5-8 for full pipeline.
 ## 10. Architecture Principles
 
 ### v1.0 Principles (Proven)
+
 - **Single-file core** — TheBrain.jsx is the app
 - **Optimistic updates** — UI updates immediately, DB syncs background
 - **Portable data** — MySQL-compatible, standard schema
@@ -333,6 +458,7 @@ See BRAIN_ROADMAP.md Phases 5-8 for full pipeline.
 - **Soft deletes** — Never hard-delete immediately
 
 ### v2.0 Principles (Adding)
+
 - **Mode is behavioral config** — Same code, different behavior
 - **Orchestration works consistently** — Independent of mode
 - **Explainable AI** — Retrieval traces, assignment reasons
@@ -344,12 +470,14 @@ See BRAIN_ROADMAP.md Phases 5-8 for full pipeline.
 ## 11. Success Metrics
 
 ### v1.0 Success (ACHIEVED)
+
 - ✅ Daily active users (self)
 - ✅ All features survive reload
 - ✅ Mobile usable
 - ✅ Multi-provider AI works
 
 ### v2.0 Targets
+
 - Tasks created per week > 10 per active user
 - Agent task completion rate > 60%
 - Workflow instances completed > 5 per project
@@ -358,13 +486,15 @@ See BRAIN_ROADMAP.md Phases 5-8 for full pipeline.
 
 ---
 
-*THE BRAIN v1.0 — Wired Edition (COMPLETE)*  
-*THE BRAIN v2.0 — Orchestrator Edition (PLANNED)*
+_THE BRAIN v1.0 — Wired Edition (COMPLETE)_  
+_THE BRAIN v2.0 — Orchestrator Edition (PLANNED)_
 
-*************APPEND AND ANNOTATE ALL EDITS***************
+**\*\***\***\*\***APPEND AND ANNOTATE ALL EDITS**\*\***\*\*\***\*\***
 
 ---
+
 **Edit 2026-03-14 (Roadmap v2.0 Update):**
+
 - Document renamed to v2.0 status
 - Added "Agent Orchestration Platform" vision
 - Documented three assistance modes (Coach/Assistant/Silent)
@@ -376,7 +506,9 @@ See BRAIN_ROADMAP.md Phases 5-8 for full pipeline.
 - Next: Phase 5.1 (URI Scheme), 5.4 (Task Schema), 6.1 (Mode System)
 
 ---
+
 **Edit 2026-03-15 (Stabilization Refresh):**
+
 - Fixed TheBrain.jsx line count: ~1,525 → ~5,829 lines
 - Updated table count: 21 → 32 tables
 - Added missing tables to schema section: ai_usage, user_ai_settings, workflow_templates, workflow_instances
@@ -384,3 +516,43 @@ See BRAIN_ROADMAP.md Phases 5-8 for full pipeline.
 - Updated priority stack: next is 5.6 (Agent Task Execution) and 6.1 (Mode System)
 - Phase 0.5 critical tests: fixed 3 bugs in test-critical.js, marked complete
 - Clarified agents are file-based (not a DB table)
+
+---
+
+**Edit 2026-03-15 (v2.0 Phase 5-6 Complete):**
+
+- Phase 5.6: Agent Task Execution complete (Session 048) — Function calling, 6 functions, preview/auto modes
+- Phase 6.1: Mode System complete — assistance_mode setting, UI selector, feature gating
+- Phase 6.2: Smart Mode Suggestions complete — behavior-based prompts, purple banner
+- Phase 7.3: Auto Task Creation complete — DEVLOG/TODO scanning, proposed tasks
+- Phase 7.1: Recursive Directory Retrieval complete — intent analysis, L0/L1 exploration, trace
+- Phase 7.2: Workflow Learning complete — pattern detection, step duration analysis, agent success rates
+- Updated status: "Phase 7.2 Complete, Next: Phase 7.4 Memory Self-Iteration"
+- Updated priority stack: next is 7.4 Memory Self-Iteration
+
+---
+
+**Edit 2026-03-15 (v2.0 Phase 7.4 Complete):**
+
+- Phase 7.4: Memory Self-Iteration complete — memories table, auto-extraction, insights
+- Migration v26: `memories` table with 6 categories
+- API: memories CRUD, extract-memories, memory-insights
+- Updated status: "Phase 7.4 Complete, Next: Phase 8 Ecosystem & Scale"
+
+---
+
+**Edit 2026-03-15 (v2.0 Phase 8.1 Complete):**
+
+- Phase 8.1: Community Workflows complete — publish, star, fork, rate workflows
+- Migration v27: `community_workflows` table
+- API: community-workflows CRUD, star/unstar/fork/rate actions
+- Updated status: "Phase 8.1 Complete, Next: Phase 8.2 Advanced Integrations"
+
+---
+
+**Edit 2026-03-15 (v2.0 FULLY SHIPPED):**
+
+- Phase 8.2: Advanced Integrations complete — GitHub, Calendar, Email
+- Migration v28: `user_integrations` and `integration_sync_log` tables
+- API: integrations CRUD, github-sync, calendar-sync, email-sync
+- Updated status: "v2.0 FULLY SHIPPED ✅"

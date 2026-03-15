@@ -3,11 +3,11 @@
 
 import { cache } from './cache.js';
 
-const BASE = '';  // same domain, no prefix needed
+const BASE = ''; // same domain, no prefix needed
 
 export const token = {
-  get:   () => localStorage.getItem('brain_token'),
-  set:   (t) => localStorage.setItem('brain_token', t),
+  get: () => localStorage.getItem('brain_token'),
+  set: (t) => localStorage.setItem('brain_token', t),
   clear: () => localStorage.removeItem('brain_token'),
 };
 
@@ -121,10 +121,10 @@ function _cacheResponse(resource, data) {
   }
 }
 
-const get  = (url)        => req('GET',    url);
-const post = (url, body)  => req('POST',   url, body);
-const put  = (url, body)  => req('PUT',    url, body);
-const del  = (url, body)  => req('DELETE', url, body);
+const get = (url) => req('GET', url);
+const post = (url, body) => req('POST', url, body);
+const put = (url, body) => req('PUT', url, body);
+const del = (url, body) => req('DELETE', url, body);
 
 /**
  * Helper: Wrap a write operation with write queue support for offline mode
@@ -137,7 +137,14 @@ const del  = (url, body)  => req('DELETE', url, body);
  * @param {Object} params - Full parameters to queue (for retry on reconnect)
  * @returns {Promise<Object>}
  */
-export async function writeWithQueue(method, url, body, resource, action, params) {
+export async function writeWithQueue(
+  method,
+  url,
+  body,
+  resource,
+  action,
+  params
+) {
   // Enqueue before attempting API call
   const queueId = cache.enqueueWrite(action, resource, action, params);
 
@@ -170,34 +177,31 @@ export const auth = {
   login: (email, password) =>
     post(`${BASE}/api/auth?action=login`, { email, password }),
 
-  me: () =>
-    get(`${BASE}/api/auth?action=me`),
+  me: () => get(`${BASE}/api/auth?action=me`),
 
-  updateProfile: (data) =>
-    put(`${BASE}/api/auth?action=me`, data),
+  updateProfile: (data) => put(`${BASE}/api/auth?action=me`, data),
 
   logout: () => token.clear(),
 };
 
 // ── PROJECTS ──────────────────────────────────────────────────
 export const projects = {
-  list: () =>
-    get(`${BASE}/api/projects?action=list`),
+  list: () => get(`${BASE}/api/projects?action=list`),
 
-  get: (id) =>
-    get(`${BASE}/api/projects?action=get&id=${id}`),
+  get: (id) => get(`${BASE}/api/projects?action=get&id=${id}`),
 
-  create: (project) =>
-    post(`${BASE}/api/projects?action=create`, project),
+  create: (project) => post(`${BASE}/api/projects?action=create`, project),
 
   update: (id, data) =>
     put(`${BASE}/api/projects?action=update&id=${id}`, data),
 
-  delete: (id) =>
-    del(`${BASE}/api/projects?action=delete&id=${id}`),
+  delete: (id) => del(`${BASE}/api/projects?action=delete&id=${id}`),
 
   saveFile: (projectId, path, content) =>
-    put(`${BASE}/api/projects?action=save-file&id=${projectId}`, { path, content }),
+    put(`${BASE}/api/projects?action=save-file&id=${projectId}`, {
+      path,
+      content,
+    }),
 
   deleteFile: (projectId, path) =>
     del(`${BASE}/api/projects?action=delete-file&id=${projectId}`, { path }),
@@ -209,36 +213,35 @@ export const projects = {
     put(`${BASE}/api/projects?action=active-file&id=${projectId}`, { path }),
 
   import: (method, projectId, name, data, lifeAreaId, templateId) =>
-    post(`${BASE}/api/projects?action=import`, { method, projectId, name, data, lifeAreaId, templateId }),
+    post(`${BASE}/api/projects?action=import`, {
+      method,
+      projectId,
+      name,
+      data,
+      lifeAreaId,
+      templateId,
+    }),
 };
 
 // ── AREAS ─────────────────────────────────────────────────────
 export const areas = {
-  list: () =>
-    get(`${BASE}/api/data?resource=areas`),
+  list: () => get(`${BASE}/api/data?resource=areas`),
 
-  create: (area) =>
-    post(`${BASE}/api/data?resource=areas`, area),
+  create: (area) => post(`${BASE}/api/data?resource=areas`, area),
 
-  update: (id, data) =>
-    put(`${BASE}/api/data?resource=areas&id=${id}`, data),
+  update: (id, data) => put(`${BASE}/api/data?resource=areas&id=${id}`, data),
 
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=areas&id=${id}`),
+  delete: (id) => del(`${BASE}/api/data?resource=areas&id=${id}`),
 };
 
 export const goals = {
-  list: () =>
-    get(`${BASE}/api/data?resource=goals`),
+  list: () => get(`${BASE}/api/data?resource=goals`),
 
-  create: (goal) =>
-    post(`${BASE}/api/data?resource=goals`, goal),
+  create: (goal) => post(`${BASE}/api/data?resource=goals`, goal),
 
-  update: (id, data) =>
-    put(`${BASE}/api/data?resource=goals&id=${id}`, data),
+  update: (id, data) => put(`${BASE}/api/data?resource=goals&id=${id}`, data),
 
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=goals&id=${id}`),
+  delete: (id) => del(`${BASE}/api/data?resource=goals&id=${id}`),
 
   listContributions: (goalId) =>
     get(`${BASE}/api/data?resource=contributions&goal_id=${goalId}`),
@@ -251,65 +254,60 @@ export const goals = {
 };
 
 export const templates = {
-  list: () =>
-    get(`${BASE}/api/data?resource=templates`),
+  list: () => get(`${BASE}/api/data?resource=templates`),
 
-  create: (template) =>
-    post(`${BASE}/api/data?resource=templates`, template),
+  create: (template) => post(`${BASE}/api/data?resource=templates`, template),
 
   update: (id, data) =>
     put(`${BASE}/api/data?resource=templates&id=${id}`, data),
 
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=templates&id=${id}`),
+  delete: (id) => del(`${BASE}/api/data?resource=templates&id=${id}`),
 };
 
 // ── STAGING ───────────────────────────────────────────────────
 export const staging = {
   list: (projectId) =>
-    get(`${BASE}/api/data?resource=staging${projectId ? `&project_id=${projectId}` : ''}`),
+    get(
+      `${BASE}/api/data?resource=staging${projectId ? `&project_id=${projectId}` : ''}`
+    ),
 
-  create: (item) =>
-    post(`${BASE}/api/data?resource=staging`, item),
+  create: (item) => post(`${BASE}/api/data?resource=staging`, item),
 
-  update: (id, data) =>
-    put(`${BASE}/api/data?resource=staging&id=${id}`, data),
+  update: (id, data) => put(`${BASE}/api/data?resource=staging&id=${id}`, data),
 
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=staging&id=${id}`),
+  delete: (id) => del(`${BASE}/api/data?resource=staging&id=${id}`),
 
   moveToFolder: (id, folderId, filename) =>
-    put(`${BASE}/api/data?resource=staging&id=${id}&action=moveToFolder`, { folder_id: folderId, filename }),
+    put(`${BASE}/api/data?resource=staging&id=${id}&action=moveToFolder`, {
+      folder_id: folderId,
+      filename,
+    }),
 };
 
 // ── FILE METADATA (Roadmap 2.3) ────────────────────────────
 export const fileMetadata = {
   get: (projectId, filePath) =>
-    get(`${BASE}/api/data?resource=file_metadata&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`),
+    get(
+      `${BASE}/api/data?resource=file_metadata&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`
+    ),
 
-  create: (data) =>
-    post(`${BASE}/api/data?resource=file_metadata`, data),
+  create: (data) => post(`${BASE}/api/data?resource=file_metadata`, data),
 
   update: (id, data) =>
     put(`${BASE}/api/data?resource=file_metadata&id=${id}`, data),
 
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=file_metadata&id=${id}`),
+  delete: (id) => del(`${BASE}/api/data?resource=file_metadata&id=${id}`),
 };
 
 // ── IDEAS ─────────────────────────────────────────────────────
 export const ideas = {
-  list: () =>
-    get(`${BASE}/api/data?resource=ideas`),
+  list: () => get(`${BASE}/api/data?resource=ideas`),
 
-  create: (idea) =>
-    post(`${BASE}/api/data?resource=ideas`, idea),
+  create: (idea) => post(`${BASE}/api/data?resource=ideas`, idea),
 
-  update: (id, data) =>
-    put(`${BASE}/api/data?resource=ideas&id=${id}`, data),
+  update: (id, data) => put(`${BASE}/api/data?resource=ideas&id=${id}`, data),
 
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=ideas&id=${id}`),
+  delete: (id) => del(`${BASE}/api/data?resource=ideas&id=${id}`),
 };
 
 // ── SESSIONS ──────────────────────────────────────────────────
@@ -317,23 +315,27 @@ export const sessions = {
   list: (limit = 20) =>
     get(`${BASE}/api/data?resource=sessions&limit=${limit}`),
 
-  create: (session) =>
-    post(`${BASE}/api/data?resource=sessions`, session),
+  create: (session) => post(`${BASE}/api/data?resource=sessions`, session),
 };
 
 // ── COMMENTS ─────────────────────────────────────────────────
 export const comments = {
   list: (projectId, filePath) =>
-    get(`${BASE}/api/data?resource=comments&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`),
+    get(
+      `${BASE}/api/data?resource=comments&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`
+    ),
 
   create: (projectId, filePath, text) =>
-    post(`${BASE}/api/data?resource=comments`, { project_id: projectId, file_path: filePath, text }),
+    post(`${BASE}/api/data?resource=comments`, {
+      project_id: projectId,
+      file_path: filePath,
+      text,
+    }),
 
   resolve: (id, resolved) =>
     put(`${BASE}/api/data?resource=comments&id=${id}`, { resolved }),
 
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=comments&id=${id}`),
+  delete: (id) => del(`${BASE}/api/data?resource=comments&id=${id}`),
 };
 
 // ── SEARCH ────────────────────────────────────────────────────
@@ -350,42 +352,56 @@ export const search = {
 
 // ── TAGS ──────────────────────────────────────────────────────
 export const tags = {
-  list: () =>
-    get(`${BASE}/api/data?resource=tags`),
+  list: () => get(`${BASE}/api/data?resource=tags`),
 
   create: (name, color, category) =>
     post(`${BASE}/api/data?resource=tags`, { name, color, category }),
 
-  update: (id, data) =>
-    put(`${BASE}/api/data?resource=tags&id=${id}`, data),
+  update: (id, data) => put(`${BASE}/api/data?resource=tags&id=${id}`, data),
 
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=tags&id=${id}`),
+  delete: (id) => del(`${BASE}/api/data?resource=tags&id=${id}`),
 
   // Entity tag operations
-  listEntityTags: () =>
-    get(`${BASE}/api/data?resource=entity-tags`),
+  listEntityTags: () => get(`${BASE}/api/data?resource=entity-tags`),
 
   attach: (tagId, entityType, entityId) =>
-    post(`${BASE}/api/data?resource=entity-tags`, { tag_id: tagId, entity_type: entityType, entity_id: entityId }),
+    post(`${BASE}/api/data?resource=entity-tags`, {
+      tag_id: tagId,
+      entity_type: entityType,
+      entity_id: entityId,
+    }),
 
   attachByName: (tagName, entityType, entityId, color) =>
-    post(`${BASE}/api/data?resource=entity-tags`, { tag_name: tagName, tag_color: color, entity_type: entityType, entity_id: entityId }),
+    post(`${BASE}/api/data?resource=entity-tags`, {
+      tag_name: tagName,
+      tag_color: color,
+      entity_type: entityType,
+      entity_id: entityId,
+    }),
 
   detach: (tagId, entityType, entityId) =>
-    del(`${BASE}/api/data?resource=entity-tags&tag_id=${tagId}&entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}`),
+    del(
+      `${BASE}/api/data?resource=entity-tags&tag_id=${tagId}&entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}`
+    ),
 };
 
 // ── LINKS ─────────────────────────────────────────────────────
 export const links = {
   query: (entityType, entityId) =>
-    get(`${BASE}/api/data?resource=links&entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}`),
+    get(
+      `${BASE}/api/data?resource=links&entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}`
+    ),
 
   create: (sourceType, sourceId, targetType, targetId, relationship) =>
-    post(`${BASE}/api/data?resource=links`, { source_type: sourceType, source_id: sourceId, target_type: targetType, target_id: targetId, relationship }),
+    post(`${BASE}/api/data?resource=links`, {
+      source_type: sourceType,
+      source_id: sourceId,
+      target_type: targetType,
+      target_id: targetId,
+      relationship,
+    }),
 
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=links&id=${id}`),
+  delete: (id) => del(`${BASE}/api/data?resource=links&id=${id}`),
 };
 
 // ── SETTINGS ──────────────────────────────────────────────────
@@ -396,56 +412,49 @@ export const settings = {
 
 // ── DAILY CHECKINS (Phase 2.5) ────────────────────────────────
 export const dailyCheckins = {
-  save: (checkin) =>
-    post(`${BASE}/api/data?resource=daily-checkins`, checkin),
-  get: (date) =>
-    get(`${BASE}/api/data?resource=daily-checkins&date=${date}`),
+  save: (checkin) => post(`${BASE}/api/data?resource=daily-checkins`, checkin),
+  get: (date) => get(`${BASE}/api/data?resource=daily-checkins&date=${date}`),
   getRecent: (days = 7) =>
     get(`${BASE}/api/data?resource=daily-checkins&days=${days}`),
 };
 
 // ── OUTREACH LOG (Phase 2.7) ─────────────────────────────────
 export const outreachLog = {
-  save: (entry) =>
-    post(`${BASE}/api/data?resource=outreach-log`, entry),
+  save: (entry) => post(`${BASE}/api/data?resource=outreach-log`, entry),
   list: (days = 7) =>
     get(`${BASE}/api/data?resource=outreach-log&days=${days}`),
   today: () => {
     const today = new Date().toISOString().split('T')[0];
     return get(`${BASE}/api/data?resource=outreach-log&date=${today}`);
   },
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=outreach-log&id=${id}`),
+  delete: (id) => del(`${BASE}/api/data?resource=outreach-log&id=${id}`),
 };
 
 // ── TRAINING LOGS (Phase 2.6) ────────────────────────────────
 export const trainingLogs = {
-  save: (log) =>
-    post(`${BASE}/api/data?resource=training-logs`, log),
+  save: (log) => post(`${BASE}/api/data?resource=training-logs`, log),
   list: (days = 7) =>
     get(`${BASE}/api/data?resource=training-logs&days=${days}`),
   stats: (weeks = 4) =>
     get(`${BASE}/api/data?resource=training-logs&weeks=${weeks}`),
   update: (id, data) =>
     put(`${BASE}/api/data?resource=training-logs&id=${id}`, data),
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=training-logs&id=${id}`),
+  delete: (id) => del(`${BASE}/api/data?resource=training-logs&id=${id}`),
 };
 
 // ── WEEKLY REVIEW (Phase 2.9) ─────────────────────────────────
 export const weeklyReview = {
   fetch: (weekStart) =>
-    get(`${BASE}/api/data?resource=weekly-review${weekStart ? `&week=${weekStart}` : ''}`),
-  list: (n = 8) =>
-    get(`${BASE}/api/data?resource=weekly-review&list=${n}`),
-  save: (data) =>
-    post(`${BASE}/api/data?resource=weekly-review`, data),
+    get(
+      `${BASE}/api/data?resource=weekly-review${weekStart ? `&week=${weekStart}` : ''}`
+    ),
+  list: (n = 8) => get(`${BASE}/api/data?resource=weekly-review&list=${n}`),
+  save: (data) => post(`${BASE}/api/data?resource=weekly-review`, data),
 };
 
 // ── DRIFT DETECTION (Phase 2.10) ──────────────────────────────
 export const drift = {
-  check: () =>
-    get(`${BASE}/api/data?resource=drift-check`),
+  check: () => get(`${BASE}/api/data?resource=drift-check`),
 };
 
 // ── AI METADATA SUGGESTIONS (Phase 3.1) ───────────────────────
@@ -479,40 +488,123 @@ export const ai = {
 
 // ── USER AI SETTINGS ─────────────────────────────────────────
 export const userAISettings = {
-  get: () =>
-    get(`${BASE}/api/data?resource=user-ai-settings`),
+  get: () => get(`${BASE}/api/data?resource=user-ai-settings`),
   update: (settings) =>
     put(`${BASE}/api/data?resource=user-ai-settings`, settings),
-  deleteKey: () =>
-    del(`${BASE}/api/data?resource=user-ai-settings`),
+  deleteKey: () => del(`${BASE}/api/data?resource=user-ai-settings`),
 };
 
 // ── INTEGRATIONS (Phase 4.3) ─────────────────────────────────
 export const integrations = {
   get: (projectId, provider) =>
-    get(`${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`),
+    get(
+      `${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`
+    ),
   connect: (projectId, provider, data) =>
-    post(`${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`, data),
+    post(
+      `${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`,
+      data
+    ),
   update: (projectId, provider, data) =>
-    put(`${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`, data),
+    put(
+      `${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`,
+      data
+    ),
   disconnect: (projectId, provider) =>
-    del(`${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`),
+    del(
+      `${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`
+    ),
 };
 
 // ── NOTIFICATIONS (Phase 4.4) ────────────────────────────────
 export const notifications = {
   list: (unreadOnly = false, limit = 50) =>
-    get(`${BASE}/api/data?resource=notifications&unread_only=${unreadOnly}&limit=${limit}`),
+    get(
+      `${BASE}/api/data?resource=notifications&unread_only=${unreadOnly}&limit=${limit}`
+    ),
   create: (type, message, actionUrl) =>
-    post(`${BASE}/api/data?resource=notifications`, { type, message, action_url: actionUrl }),
-  markRead: (id) =>
-    put(`${BASE}/api/data?resource=notifications&id=${id}`),
+    post(`${BASE}/api/data?resource=notifications`, {
+      type,
+      message,
+      action_url: actionUrl,
+    }),
+  markRead: (id) => put(`${BASE}/api/data?resource=notifications&id=${id}`),
   markAllRead: () =>
     put(`${BASE}/api/data?resource=notifications&action=mark-all-read`),
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=notifications&id=${id}`),
-  checkTriggers: () =>
-    get(`${BASE}/api/data?resource=notification-check`),
+  delete: (id) => del(`${BASE}/api/data?resource=notifications&id=${id}`),
+  checkTriggers: () => get(`${BASE}/api/data?resource=notification-check`),
+};
+
+// ── MODE SUGGESTIONS (Phase 6.2) ────────────────────────────
+export const modeSuggestions = {
+  get: () => get(`${BASE}/api/data?resource=mode-suggestions`),
+  dismiss: (suggestionType) =>
+    post(`${BASE}/api/data?resource=dismiss-mode-suggestion`, {
+      suggestion_type: suggestionType,
+    }),
+};
+
+// ── WORKFLOW PATTERNS (Phase 7.2) ───────────────────────────
+export const workflowPatterns = {
+  get: (projectId = null) => {
+    const params = new URLSearchParams({ resource: 'workflow-patterns' });
+    if (projectId) params.append('project_id', projectId);
+    return get(`${BASE}/api/data?${params.toString()}`);
+  },
+  applySuggestion: (suggestion) =>
+    post(`${BASE}/api/data?resource=apply-workflow-suggestion`, suggestion),
+};
+
+// ── MEMORIES (Phase 7.4) ─────────────────────────────────────
+export const memories = {
+  list: (options = {}) => {
+    const params = new URLSearchParams({ resource: 'memories' });
+    if (options.category) params.append('category', options.category);
+    if (options.active === false) params.append('active', 'false');
+    return get(`${BASE}/api/data?${params.toString()}`);
+  },
+  create: (memory) => post(`${BASE}/api/data?resource=memories`, memory),
+  extract: (sourceType, sourceId) =>
+    post(`${BASE}/api/data?resource=extract-memories`, {
+      source_type: sourceType,
+      source_id: sourceId,
+    }),
+  insights: () => get(`${BASE}/api/data?resource=memory-insights`),
+};
+
+// ── COMMUNITY WORKFLOWS (Phase 8.1) ──────────────────────────
+export const communityWorkflows = {
+  list: (options = {}) => {
+    const params = new URLSearchParams({ resource: 'community-workflows' });
+    if (options.category) params.append('category', options.category);
+    if (options.sort) params.append('sort', options.sort);
+    if (options.search) params.append('search', options.search);
+    return get(`${BASE}/api/data?${params.toString()}`);
+  },
+  publish: (workflow) =>
+    post(`${BASE}/api/data?resource=community-workflows`, workflow),
+  star: (workflowId) =>
+    post(`${BASE}/api/data?resource=community-workflow-action`, {
+      action: 'star',
+      workflow_id: workflowId,
+    }),
+  unstar: (workflowId) =>
+    post(`${BASE}/api/data?resource=community-workflow-action`, {
+      action: 'unstar',
+      workflow_id: workflowId,
+    }),
+  fork: (workflowId) =>
+    post(`${BASE}/api/data?resource=community-workflow-action`, {
+      action: 'fork',
+      workflow_id: workflowId,
+    }),
+  rate: (workflowId, rating) =>
+    post(`${BASE}/api/data?resource=community-workflow-action`, {
+      action: 'rate',
+      workflow_id: workflowId,
+      rating,
+    }),
+  mine: () => get(`${BASE}/api/data?resource=my-community-workflows`),
 };
 
 // ── TASKS (Phase 5.4) ────────────────────────────────────────
@@ -522,85 +614,100 @@ export const tasks = {
     const params = new URLSearchParams({ resource: 'tasks' });
     if (filters.my_tasks) params.append('my_tasks', 'true');
     if (filters.status) params.append('status', filters.status);
-    if (filters.assignee_type) params.append('assignee_type', filters.assignee_type);
+    if (filters.assignee_type)
+      params.append('assignee_type', filters.assignee_type);
     if (filters.project_id) params.append('project_id', filters.project_id);
     return get(`${BASE}/api/data?${params.toString()}`);
   },
-  
+
   // Get my tasks (assigned to human user)
-  myTasks: () =>
-    get(`${BASE}/api/data?resource=tasks&my_tasks=true`),
-  
+  myTasks: () => get(`${BASE}/api/data?resource=tasks&my_tasks=true`),
+
   // Get tasks by project
   byProject: (projectId) =>
     get(`${BASE}/api/data?resource=tasks&project_id=${projectId}`),
-  
+
   // Create a new task
-  create: (task) =>
-    post(`${BASE}/api/data?resource=tasks`, task),
-  
+  create: (task) => post(`${BASE}/api/data?resource=tasks`, task),
+
   // Update task status or fields
   update: (id, updates) =>
     put(`${BASE}/api/data?resource=tasks&id=${id}`, updates),
-  
+
   // Start working on a task
   start: (id) =>
     put(`${BASE}/api/data?resource=tasks&id=${id}&action=start`, {}),
-  
+
   // Complete a task
   complete: (id, result_summary, output_uris) =>
-    put(`${BASE}/api/data?resource=tasks&id=${id}&action=complete`, { result_summary, output_uris }),
-  
+    put(`${BASE}/api/data?resource=tasks&id=${id}&action=complete`, {
+      result_summary,
+      output_uris,
+    }),
+
   // Block a task with reason
   block: (id, reason) =>
     put(`${BASE}/api/data?resource=tasks&id=${id}&action=block`, { reason }),
-  
+
   // Assign task to someone (human, agent, integration)
   assign: (id, assignee_type, assignee_id, reason) =>
-    put(`${BASE}/api/data?resource=tasks&id=${id}&action=assign`, { assignee_type, assignee_id, reason }),
-  
+    put(`${BASE}/api/data?resource=tasks&id=${id}&action=assign`, {
+      assignee_type,
+      assignee_id,
+      reason,
+    }),
+
   // Delete a task
-  delete: (id) =>
-    del(`${BASE}/api/data?resource=tasks&id=${id}`),
+  delete: (id) => del(`${BASE}/api/data?resource=tasks&id=${id}`),
+
+  // Auto Task Creation (Phase 7.3)
+  // Scan DEVLOG/TODO files for tasks
+  getProposed: () => get(`${BASE}/api/data?resource=auto-tasks`),
+
+  // Create task from proposed
+  createFromProposed: (task) =>
+    post(`${BASE}/api/data?resource=create-from-proposed`, task),
 };
 
 // ── FILE SUMMARIES (Phase 5.2) ───────────────────────────────
 export const fileSummaries = {
   // Get summary for a specific file
   get: (projectId, filePath) =>
-    get(`${BASE}/api/data?resource=file-summaries&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`),
-  
+    get(
+      `${BASE}/api/data?resource=file-summaries&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`
+    ),
+
   // Get all summaries for a project
   list: (projectId) =>
     get(`${BASE}/api/data?resource=file-summaries&project_id=${projectId}`),
-  
+
   // Store/update a summary
   store: (projectId, filePath, summary) =>
     post(`${BASE}/api/data?resource=file-summaries`, {
       project_id: projectId,
       file_path: filePath,
-      ...summary
+      ...summary,
     }),
-  
+
   // Delete a summary
   delete: (projectId, filePath) =>
-    del(`${BASE}/api/data?resource=file-summaries&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`),
+    del(
+      `${BASE}/api/data?resource=file-summaries&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`
+    ),
 };
 
 // ── WORKFLOWS (Phase 5.5) ─────────────────────────────────────
 export const workflows = {
   // List all workflow templates
-  list: () =>
-    get(`${BASE}/api/data?resource=workflows`),
-  
+  list: () => get(`${BASE}/api/data?resource=workflows`),
+
   // Get specific template
   get: (templateId) =>
     get(`${BASE}/api/data?resource=workflows&template_id=${templateId}`),
-  
+
   // Create/update template
-  create: (template) =>
-    post(`${BASE}/api/data?resource=workflows`, template),
-  
+  create: (template) => post(`${BASE}/api/data?resource=workflows`, template),
+
   // Delete custom template
   delete: (templateId) =>
     del(`${BASE}/api/data?resource=workflows&template_id=${templateId}`),
@@ -614,43 +721,45 @@ export const workflowInstances = {
     if (filters.status) params.append('status', filters.status);
     return get(`${BASE}/api/data?${params.toString()}`);
   },
-  
+
   // Get specific instance
   get: (instanceId) =>
-    get(`${BASE}/api/data?resource=workflow-instances&instance_id=${instanceId}`),
-  
+    get(
+      `${BASE}/api/data?resource=workflow-instances&instance_id=${instanceId}`
+    ),
+
   // Start new workflow instance
   start: (templateId, projectId) =>
     post(`${BASE}/api/data?resource=workflow-instances`, {
       template_id: templateId,
-      project_id: projectId
+      project_id: projectId,
     }),
-  
+
   // Pause instance
   pause: (instanceId) =>
     put(`${BASE}/api/data?resource=workflow-instances&id=${instanceId}`, {
-      action: 'pause'
+      action: 'pause',
     }),
-  
+
   // Resume instance
   resume: (instanceId) =>
     put(`${BASE}/api/data?resource=workflow-instances&id=${instanceId}`, {
-      action: 'resume'
+      action: 'resume',
     }),
-  
+
   // Abort instance
   abort: (instanceId) =>
     put(`${BASE}/api/data?resource=workflow-instances&id=${instanceId}`, {
-      action: 'abort'
+      action: 'abort',
     }),
-  
+
   // Complete current step and advance
   completeStep: (instanceId, stepResult) =>
     put(`${BASE}/api/data?resource=workflow-instances&id=${instanceId}`, {
       action: 'complete-step',
-      step_result: stepResult
+      step_result: stepResult,
     }),
-  
+
   // Delete instance
   delete: (instanceId) =>
     del(`${BASE}/api/data?resource=workflow-instances&id=${instanceId}`),
@@ -658,14 +767,18 @@ export const workflowInstances = {
 
 // ── AGENT EXECUTION (Phase 5.6) ──────────────────────────────
 export const agentExecution = {
-  execute: (taskId) =>
-    post(`${BASE}/api/agents?action=execute`, { task_id: taskId }),
+  execute: (options) => post(`${BASE}/api/agent-execute`, options),
 
-  confirm: (taskId) =>
-    post(`${BASE}/api/agents?action=execute&confirmed=true`, { task_id: taskId, confirmed: true }),
+  executeTask: (taskId) =>
+    post(`${BASE}/api/agent-execute`, { task_id: taskId }),
 
-  status: (taskId) =>
-    get(`${BASE}/api/agents?action=status&task_id=${taskId}`),
+  executeWithMessage: (agentId, message, projectId, context) =>
+    post(`${BASE}/api/agent-execute`, {
+      agent_id: agentId,
+      message,
+      project_id: projectId,
+      context,
+    }),
 };
 
 // ── IMPORT PARSERS ────────────────────────────────────────────
@@ -674,8 +787,10 @@ export function parseBuildlFormat(text) {
   const manifestMatch = text.match(/MANIFEST_START\n([\s\S]*?)\nMANIFEST_END/);
   const filesMatch = text.match(/FILES_START\n([\s\S]*?)\nFILES_END/);
 
-  if (!manifestMatch) throw new Error('Invalid BUIDL format: MANIFEST_START/END not found');
-  if (!filesMatch) throw new Error('Invalid BUIDL format: FILES_START/END not found');
+  if (!manifestMatch)
+    throw new Error('Invalid BUIDL format: MANIFEST_START/END not found');
+  if (!filesMatch)
+    throw new Error('Invalid BUIDL format: FILES_START/END not found');
 
   let manifest;
   try {
@@ -719,7 +834,9 @@ export function validateImportJson(json) {
   }
 
   if (!/^[a-z0-9-]+$/.test(json.projectId)) {
-    throw new Error('Invalid projectId: must contain only lowercase letters, numbers, and hyphens');
+    throw new Error(
+      'Invalid projectId: must contain only lowercase letters, numbers, and hyphens'
+    );
   }
 
   if (!json.name || typeof json.name !== 'string') {
@@ -750,8 +867,24 @@ export function validateImportJson(json) {
 
 export async function parseFileSystemEntries(dirHandle) {
   // Recursively read directory entries from File System Access API
-  const skipPatterns = ['.git', 'node_modules', '.DS_Store', '__pycache__', '.env'];
-  const binaryExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.pdf', '.bin', '.exe', '.zip'];
+  const skipPatterns = [
+    '.git',
+    'node_modules',
+    '.DS_Store',
+    '__pycache__',
+    '.env',
+  ];
+  const binaryExtensions = [
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.svg',
+    '.pdf',
+    '.bin',
+    '.exe',
+    '.zip',
+  ];
 
   const files = [];
   const warnings = [];
@@ -759,7 +892,7 @@ export async function parseFileSystemEntries(dirHandle) {
   async function readDir(handle, basePath = '') {
     const entries = await handle.entries();
     for await (const [name, entry] of entries) {
-      if (skipPatterns.some(p => name.includes(p))) {
+      if (skipPatterns.some((p) => name.includes(p))) {
         continue;
       }
 
@@ -779,7 +912,9 @@ export async function parseFileSystemEntries(dirHandle) {
           const file = await entry.getFile();
           // Limit to 1MB per file
           if (file.size > 1024 * 1024) {
-            warnings.push(`${path}: file too large (${file.size} bytes), skipped`);
+            warnings.push(
+              `${path}: file too large (${file.size} bytes), skipped`
+            );
             continue;
           }
           const content = await file.text();

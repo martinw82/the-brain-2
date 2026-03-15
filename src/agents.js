@@ -1,7 +1,7 @@
 /**
  * Agent Registry (Phase 5.3)
  * File-based agent definitions with ephemeral execution
- * 
+ *
  * Architecture:
  * - Agent definitions live in /agents/*.md files
  * - Frontmatter = metadata (capabilities, permissions, etc.)
@@ -27,15 +27,15 @@ function parseFrontmatter(content) {
   if (!match) {
     return { frontmatter: {}, body: content };
   }
-  
+
   const frontmatterText = match[1];
   const body = match[2].trim();
-  
+
   // Simple YAML-like parsing (sufficient for our needs)
   const frontmatter = {};
   let currentKey = null;
   let currentList = null;
-  
+
   for (const line of frontmatterText.split('\n')) {
     const listMatch = line.match(/^  - (.+)$/);
     if (listMatch && currentKey) {
@@ -46,7 +46,7 @@ function parseFrontmatter(content) {
       currentList.push(listMatch[1]);
       continue;
     }
-    
+
     const keyMatch = line.match(/^([a-z_]+):\s*(.+)?$/);
     if (keyMatch) {
       currentKey = keyMatch[1];
@@ -61,7 +61,7 @@ function parseFrontmatter(content) {
       }
     }
   }
-  
+
   return { frontmatter, body };
 }
 
@@ -76,14 +76,14 @@ async function loadAgentFile(path) {
     // In dev, files are in /agents/ folder
     const response = await fetch(path);
     if (!response.ok) return null;
-    
+
     const content = await response.text();
     const { frontmatter, body } = parseFrontmatter(content);
-    
+
     return {
       ...frontmatter,
       prompt_prefix: body,
-      file_path: path
+      file_path: path,
     };
   } catch (e) {
     console.error(`[AgentRegistry] Failed to load ${path}:`, e);
@@ -102,13 +102,11 @@ async function loadSystemAgents() {
     '/agents/system-content.md',
     '/agents/system-strategy.md',
     '/agents/system-design.md',
-    '/agents/system-research.md'
+    '/agents/system-research.md',
   ];
-  
-  const agents = await Promise.all(
-    systemAgentFiles.map(loadAgentFile)
-  );
-  
+
+  const agents = await Promise.all(systemAgentFiles.map(loadAgentFile));
+
   return agents.filter(Boolean);
 }
 
@@ -132,22 +130,22 @@ async function loadProjectAgents(projectId) {
  */
 export async function getAgents(projectId = null) {
   const now = Date.now();
-  
+
   // Use cache if fresh
-  if (agentCache && (now - cacheTimestamp) < CACHE_TTL) {
+  if (agentCache && now - cacheTimestamp < CACHE_TTL) {
     return agentCache;
   }
-  
+
   // Load system agents
   const systemAgents = await loadSystemAgents();
-  
+
   // Load project agents if project specified
   const projectAgents = projectId ? await loadProjectAgents(projectId) : [];
-  
+
   // Combine
   agentCache = [...systemAgents, ...projectAgents];
   cacheTimestamp = now;
-  
+
   return agentCache;
 }
 
@@ -159,7 +157,7 @@ export async function getAgents(projectId = null) {
  */
 export async function findByCapability(capability, projectId = null) {
   const agents = await getAgents(projectId);
-  return agents.filter(a => a.capabilities?.includes(capability));
+  return agents.filter((a) => a.capabilities?.includes(capability));
 }
 
 /**
@@ -170,7 +168,7 @@ export async function findByCapability(capability, projectId = null) {
  */
 export async function getAgent(agentId, projectId = null) {
   const agents = await getAgents(projectId);
-  return agents.find(a => a.id === agentId) || null;
+  return agents.find((a) => a.id === agentId) || null;
 }
 
 /**
@@ -188,7 +186,7 @@ export async function getAgentStats(agentId) {
       completed_tasks: 0,
       avg_cost: 0,
       avg_duration_minutes: 0,
-      success_rate: 0
+      success_rate: 0,
     };
   } catch (e) {
     return {
@@ -196,7 +194,7 @@ export async function getAgentStats(agentId) {
       completed_tasks: 0,
       avg_cost: 0,
       avg_duration_minutes: 0,
-      success_rate: 0
+      success_rate: 0,
     };
   }
 }
@@ -209,40 +207,40 @@ export async function getAgentStats(agentId) {
  */
 export async function selectAgent(capability, options = {}) {
   const { projectId, preferLowCost = false } = options;
-  
+
   // Find candidates
   const candidates = await findByCapability(capability, projectId);
-  
+
   if (candidates.length === 0) {
     return null;
   }
-  
+
   if (candidates.length === 1) {
     return candidates[0];
   }
-  
+
   // Score candidates
   const scored = await Promise.all(
     candidates.map(async (agent) => {
       const stats = await getAgentStats(agent.id);
-      
+
       // Simple scoring: success_rate * 0.6 + cost_efficiency * 0.4
       const successScore = stats.success_rate || 0.5;
-      const costScore = stats.avg_cost 
-        ? Math.max(0, 1 - (stats.avg_cost / 0.1)) // Lower cost = higher score
+      const costScore = stats.avg_cost
+        ? Math.max(0, 1 - stats.avg_cost / 0.1) // Lower cost = higher score
         : 0.5;
-      
+
       const score = preferLowCost
-        ? (successScore * 0.4 + costScore * 0.6)
-        : (successScore * 0.6 + costScore * 0.4);
-      
+        ? successScore * 0.4 + costScore * 0.6
+        : successScore * 0.6 + costScore * 0.4;
+
       return { agent, score, stats };
     })
   );
-  
+
   // Sort by score
   scored.sort((a, b) => b.score - a.score);
-  
+
   return scored[0].agent;
 }
 
@@ -263,12 +261,12 @@ export function clearAgentCache() {
 export async function cloneAgent(baseAgentId, modifications = {}) {
   const base = await getAgent(baseAgentId);
   if (!base) throw new Error(`Agent not found: ${baseAgentId}`);
-  
+
   // Generate verbose ID
   const timestamp = new Date().toISOString().split('T')[0];
   const baseName = base.id.replace(/-v\d+$/, '');
   const newVersion = (base.version || 1) + 1;
-  
+
   const newAgent = {
     ...base,
     ...modifications,
@@ -277,9 +275,9 @@ export async function cloneAgent(baseAgentId, modifications = {}) {
     previous_version: base.id,
     created_by: 'user',
     created_at: timestamp,
-    is_system: false
+    is_system: false,
   };
-  
+
   return newAgent;
 }
 
@@ -290,43 +288,38 @@ export async function cloneAgent(baseAgentId, modifications = {}) {
  * @returns {string} - Full prompt
  */
 export function buildAgentPrompt(agent, context = {}) {
-  const parts = [
-    agent.prompt_prefix || '',
-    '',
-    '---',
-    ''
-  ];
-  
+  const parts = [agent.prompt_prefix || '', '', '---', ''];
+
   if (context.project) {
     parts.push(`PROJECT: ${context.project.name}`);
     parts.push(`PHASE: ${context.project.phase}`);
     parts.push('');
   }
-  
+
   if (context.task) {
     parts.push(`TASK: ${context.task.title}`);
     parts.push(`PRIORITY: ${context.task.priority}`);
     parts.push('');
   }
-  
+
   if (context.summaries) {
     parts.push('PROJECT CONTEXT:');
     parts.push(context.summaries);
     parts.push('');
   }
-  
+
   parts.push('YOUR TASK:');
   parts.push(context.task?.description || 'Complete the assigned work.');
   parts.push('');
-  
+
   if (agent.sop) {
     parts.push('STANDARD OPERATING PROCEDURE:');
-    parts.push(...agent.sop.map(step => `- ${step}`));
+    parts.push(...agent.sop.map((step) => `- ${step}`));
     parts.push('');
   }
-  
+
   parts.push('Begin.');
-  
+
   return parts.join('\n');
 }
 
@@ -338,5 +331,5 @@ export default {
   selectAgent,
   clearAgentCache,
   cloneAgent,
-  buildAgentPrompt
+  buildAgentPrompt,
 };

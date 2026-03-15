@@ -1,7 +1,7 @@
 /**
  * File Summarization Utilities (Phase 5.2)
  * Hierarchical Context Summarization - Open Viking Pattern
- * 
+ *
  * L0 Abstract: ~100 tokens - Vector search, quick filtering
  * L1 Overview: ~2,000 tokens - Navigation, context routing
  * L2 Detail: Unlimited - Original file content
@@ -42,14 +42,14 @@ export async function checkSummaryStatus(projectId, filePath, currentContent) {
   try {
     const result = await fileSummaries.get(projectId, filePath);
     const existing = result?.summary;
-    
+
     if (!existing) {
       return { needsUpdate: true, existingSummary: null };
     }
-    
+
     const currentHash = contentHash(currentContent);
     const needsUpdate = existing.content_hash !== currentHash;
-    
+
     return { needsUpdate, existingSummary: existing };
   } catch (e) {
     return { needsUpdate: true, existingSummary: null };
@@ -59,7 +59,7 @@ export async function checkSummaryStatus(projectId, filePath, currentContent) {
 /**
  * Store generated summaries
  * @param {string} projectId - Project ID
- * @param {string} filePath - File path  
+ * @param {string} filePath - File path
  * @param {string} content - Original content (for hash)
  * @param {object} summaries - { l0_abstract, l1_overview }
  * @returns {Promise}
@@ -67,12 +67,12 @@ export async function checkSummaryStatus(projectId, filePath, currentContent) {
 export async function storeSummaries(projectId, filePath, content, summaries) {
   const hash = contentHash(content);
   const tokenCount = content.length / 4; // Rough estimate
-  
+
   return fileSummaries.store(projectId, filePath, {
     l0_abstract: summaries.l0_abstract,
     l1_overview: summaries.l1_overview,
     content_hash: hash,
-    token_count: Math.round(tokenCount)
+    token_count: Math.round(tokenCount),
   });
 }
 
@@ -85,15 +85,17 @@ export async function getProjectOverview(projectId) {
   try {
     const result = await fileSummaries.list(projectId);
     const summaries = result?.summaries || [];
-    
+
     if (summaries.length === 0) {
       return 'No summaries available for this project yet.';
     }
-    
-    return summaries.map(s => {
-      const abstract = s.l0_abstract || 'No abstract available';
-      return `**${s.file_path}** (${s.token_count || '?'} tokens)\n${abstract}`;
-    }).join('\n\n');
+
+    return summaries
+      .map((s) => {
+        const abstract = s.l0_abstract || 'No abstract available';
+        return `**${s.file_path}** (${s.token_count || '?'} tokens)\n${abstract}`;
+      })
+      .join('\n\n');
   } catch (e) {
     return 'Error loading project overview.';
   }
@@ -109,27 +111,33 @@ export async function buildSummaryContext(projectId, query = '') {
   try {
     const result = await fileSummaries.list(projectId);
     const summaries = result?.summaries || [];
-    
+
     if (summaries.length === 0) {
       return '';
     }
-    
+
     // If query provided, filter to relevant files (simple keyword match)
     let relevant = summaries;
     if (query) {
       const terms = query.toLowerCase().split(/\s+/);
-      relevant = summaries.filter(s => {
-        const text = `${s.file_path} ${s.l0_abstract || ''} ${s.l1_overview || ''}`.toLowerCase();
-        return terms.some(t => text.includes(t));
+      relevant = summaries.filter((s) => {
+        const text =
+          `${s.file_path} ${s.l0_abstract || ''} ${s.l1_overview || ''}`.toLowerCase();
+        return terms.some((t) => text.includes(t));
       });
     }
-    
+
     // Build context from L1 overviews
-    const context = relevant.slice(0, 5).map(s => {
-      const overview = s.l1_overview ? s.l1_overview.slice(0, 500) + '...' : (s.l0_abstract || 'No summary');
-      return `--- ${s.file_path} ---\n${overview}`;
-    }).join('\n\n');
-    
+    const context = relevant
+      .slice(0, 5)
+      .map((s) => {
+        const overview = s.l1_overview
+          ? s.l1_overview.slice(0, 500) + '...'
+          : s.l0_abstract || 'No summary';
+        return `--- ${s.file_path} ---\n${overview}`;
+      })
+      .join('\n\n');
+
     return `PROJECT CONTEXT (based on ${relevant.length} file summaries):\n\n${context}`;
   } catch (e) {
     return '';
@@ -142,5 +150,5 @@ export default {
   checkSummaryStatus,
   storeSummaries,
   getProjectOverview,
-  buildSummaryContext
+  buildSummaryContext,
 };

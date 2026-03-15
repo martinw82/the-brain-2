@@ -3,7 +3,7 @@
  * Handles offline/online transitions and syncs changes back to DB on reconnect
  */
 
-import { cache } from "./cache.js";
+import { cache } from './cache.js';
 
 const NETWORK_CHECK_INTERVAL = 5000; // 5 seconds when offline
 const NETWORK_PING_CACHE_TIME = 3000; // 3 seconds
@@ -43,9 +43,9 @@ export const sync = {
 
     // Perform actual ping to verify connectivity
     try {
-      const response = await fetch("/api/auth?action=me", {
-        method: "HEAD",
-        cache: "no-store",
+      const response = await fetch('/api/auth?action=me', {
+        method: 'HEAD',
+        cache: 'no-store',
       });
       lastPingResult = response.ok || response.status === 401; // 401 means auth issue, not network
       lastPingTime = now;
@@ -70,8 +70,8 @@ export const sync = {
    */
   startMonitoring() {
     // Listen to browser online/offline events
-    window.addEventListener("online", () => this._onOnline());
-    window.addEventListener("offline", () => this._onOffline());
+    window.addEventListener('online', () => this._onOnline());
+    window.addEventListener('offline', () => this._onOffline());
 
     // Periodic check when offline
     if (monitoringInterval) clearInterval(monitoringInterval);
@@ -91,8 +91,8 @@ export const sync = {
       clearInterval(monitoringInterval);
       monitoringInterval = null;
     }
-    window.removeEventListener("online", () => this._onOnline());
-    window.removeEventListener("offline", () => this._onOffline());
+    window.removeEventListener('online', () => this._onOnline());
+    window.removeEventListener('offline', () => this._onOffline());
   },
 
   /**
@@ -100,8 +100,8 @@ export const sync = {
    */
   async _onOnline() {
     cache.setOnline(true);
-    console.log("[Sync] Reconnected to network, starting sync...");
-    if (onStatusChangeCallback) onStatusChangeCallback("online");
+    console.log('[Sync] Reconnected to network, starting sync...');
+    if (onStatusChangeCallback) onStatusChangeCallback('online');
     await this.fullSync();
   },
 
@@ -110,8 +110,8 @@ export const sync = {
    */
   _onOffline() {
     cache.setOnline(false);
-    console.log("[Sync] Lost network connection, offline mode active");
-    if (onStatusChangeCallback) onStatusChangeCallback("offline");
+    console.log('[Sync] Lost network connection, offline mode active');
+    if (onStatusChangeCallback) onStatusChangeCallback('offline');
   },
 
   // ────────────────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ export const sync = {
 
     const writeQueue = cache.getWriteQueue();
     if (writeQueue.length === 0) {
-      console.log("[Sync] No pending writes");
+      console.log('[Sync] No pending writes');
       if (onSyncCompleteCallback) onSyncCompleteCallback(0);
       return;
     }
@@ -143,7 +143,9 @@ export const sync = {
     // Process each resource's queued writes
     for (const resource of affectedResources) {
       const queuedWrites = writeQueue.filter((w) => w.resource === resource);
-      console.log(`[Sync] Syncing ${queuedWrites.length} writes to ${resource}...`);
+      console.log(
+        `[Sync] Syncing ${queuedWrites.length} writes to ${resource}...`
+      );
 
       for (const queuedWrite of queuedWrites) {
         try {
@@ -155,15 +157,17 @@ export const sync = {
           // Update retry count
           const retries = (queuedWrite.retries || 0) + 1;
           if (retries < MAX_RETRIES) {
-            cache.updateWriteStatus(queuedWrite.id, "pending", retries);
+            cache.updateWriteStatus(queuedWrite.id, 'pending', retries);
           } else {
-            cache.updateWriteStatus(queuedWrite.id, "failed", retries);
+            cache.updateWriteStatus(queuedWrite.id, 'failed', retries);
           }
         }
       }
     }
 
-    console.log(`[Sync] Completed: ${syncedCount} synced, ${failedCount} failed`);
+    console.log(
+      `[Sync] Completed: ${syncedCount} synced, ${failedCount} failed`
+    );
     if (onSyncCompleteCallback) onSyncCompleteCallback(syncedCount);
   },
 
@@ -183,9 +187,9 @@ export const sync = {
     while (retryCount < MAX_RETRIES) {
       try {
         // Execute API call
-        const response = await fetch("/api/projects", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
+        const response = await fetch('/api/projects', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action, ...params }),
         });
 
@@ -219,7 +223,7 @@ export const sync = {
     }
 
     // Max retries exceeded
-    throw lastError || new Error("Max retries exceeded");
+    throw lastError || new Error('Max retries exceeded');
   },
 
   /**
@@ -236,35 +240,43 @@ export const sync = {
     const serverVersion = conflictData.serverVersion; // Server entity
 
     if (!serverVersion) {
-      console.warn("[Sync] Conflict detected but no server version provided");
+      console.warn('[Sync] Conflict detected but no server version provided');
       return;
     }
 
     // Compare timestamps (using updated_at)
     const localTime = new Date(localVersion.updated_at || 0).getTime();
     const serverTime = new Date(serverVersion.updated_at || 0).getTime();
-    let resolution = "server"; // default
+    let resolution = 'server'; // default
 
     if (localTime > serverTime) {
-      resolution = "local";
+      resolution = 'local';
       console.log(
         `[Sync] Conflict: local is newer (${localTime} > ${serverTime}), keeping local`
       );
     } else if (serverTime > localTime) {
-      resolution = "server";
+      resolution = 'server';
       console.log(
         `[Sync] Conflict: server is newer (${serverTime} > ${localTime}), keeping server`
       );
     } else {
-      resolution = "local"; // equal = local wins as tiebreaker
-      console.log("[Sync] Conflict: timestamps equal, keeping local (tiebreaker)");
+      resolution = 'local'; // equal = local wins as tiebreaker
+      console.log(
+        '[Sync] Conflict: timestamps equal, keeping local (tiebreaker)'
+      );
     }
 
     // Record conflict for debugging
-    cache.recordConflict(resource, localVersion.id, localVersion, serverVersion, resolution);
+    cache.recordConflict(
+      resource,
+      localVersion.id,
+      localVersion,
+      serverVersion,
+      resolution
+    );
 
     // Update local cache with resolved version
-    if (resolution === "server") {
+    if (resolution === 'server') {
       // Update cache with server version
       cache.setEntity(resource, serverVersion);
     }
@@ -278,7 +290,7 @@ export const sync = {
   async manualSync() {
     const isOnline = await this.isOnline();
     if (!isOnline) {
-      console.log("[Sync] Cannot sync while offline");
+      console.log('[Sync] Cannot sync while offline');
       return;
     }
     await this.fullSync();
