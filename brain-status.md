@@ -37,10 +37,10 @@ The Brain evolves into an **adaptive intelligence system** that:
 
 | Layer | Technology | Notes |
 |-------|-----------|-------|
-| Frontend | React 18 + Vite 5 | Single JSX component (~1,525 lines) |
+| Frontend | React 18 + Vite 5 | Single JSX component (~5,829 lines) |
 | Styling | Inline styles, dark monospace UI | JetBrains Mono / Fira Code |
 | API | Vercel serverless functions | `api/ai.js`, `api/auth.js`, `api/data.js`, `api/projects.js` |
-| Database | TiDB Cloud Serverless (MySQL) | Free tier, EU-central-1, 21 tables |
+| Database | TiDB Cloud Serverless (MySQL) | Free tier, EU-central-1, 32 tables |
 | Auth | JWT + bcrypt | Register/login/sessions |
 | AI | Multi-provider proxy | Anthropic, Moonshot, DeepSeek, Mistral, OpenAI |
 | Migrations | `scripts/migrate.js` | Versioned schema migrations |
@@ -48,7 +48,7 @@ The Brain evolves into an **adaptive intelligence system** that:
 
 ---
 
-## 3. Database Schema v1.0 (21 tables)
+## 3. Database Schema (32 tables)
 
 ### Core (original)
 - **users** — email, password_hash, name, goal, monthly_target, currency, timezone, `settings` JSON
@@ -79,10 +79,13 @@ The Brain evolves into an **adaptive intelligence system** that:
 - **project_integrations** — GitHub PAT, repo status
 
 ### v2.0 Infrastructure (Complete)
+- **ai_usage** — AI token/cost tracking per user per day ✅
+- **user_ai_settings** — per-user AI provider and model preferences ✅
 - **tasks** — universal task queue with assignee types (human/agent/integration) ✅
 - **file_summaries** — L0/L1 hierarchical summaries, auto-generated on save ✅
-- **agents** — file-based agent definitions in `/agents/*.md` ✅
-- **workflows** — executable workflow templates and instances ✅
+- **agents** — file-based agent definitions in `/agents/*.md` (not a DB table) ✅
+- **workflow_templates** — static workflow definitions with step JSON ✅
+- **workflow_instances** — running workflow executions with progress tracking ✅
 
 ### v2.0 Planned
 - **memories** — auto-extracted patterns (Phase 7.4)
@@ -203,10 +206,10 @@ All Phase 0 bugs **FIXED** as of 2026-03-08.
    - ❌ Prompt caching
    - ✅ Token logging to `ai_usage` table
 
-2. **Phase 0.5 Critical Tests — NOT STARTED**
-   - File save/load round-trip
-   - Comment persistence
-   - Session logging
+2. **Phase 0.5 Critical Tests — ✅ COMPLETE (2026-03-15)**
+   - ✅ File save/load round-trip
+   - ✅ Comment persistence
+   - ✅ Session logging
 
 3. **Soft Delete Cleanup — NOT IMPLEMENTED**
    - No "Recently Deleted" UI yet
@@ -274,14 +277,26 @@ All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
 
 ### 🔄 IN PROGRESS / HARDENING
 1. **0.9 AI caching** — Prompt hash caching (5-min window)
-2. **Phase 0.5** — Critical path tests
 
-### ✅ COMPLETED (v2.0 Phase 5.1 + 5.4)
+### ✅ COMPLETED (v2.0 Phase 5)
 - **Phase 5.1 — URI Scheme** (2026-03-14)
   - `src/uri.js` utility with 12 functions
   - AI context builder includes URIs for projects/goals
   - Clickable URI links in AI responses
   - Cmd/Ctrl+Click navigation to projects/files
+
+- **Phase 5.2 — Hierarchical Context** (2026-03-15)
+  - `file_summaries` table with L0/L1 auto-generation (migration v24)
+  - `resource=file-summaries` CRUD endpoints
+  - Background summarization on file save (fire-and-forget)
+  - FileSummaryViewer component in Meta tab
+  - `src/summaries.js` utility library
+
+- **Phase 5.3 — Agent Registry** (2026-03-15)
+  - 5 system agents as .md files in `/agents/`
+  - AgentRegistry service (`src/agents.js`) with loadAgents, findByCapability, selectAgent, cloneAgent
+  - AgentManager component with browse, clone, edit capabilities
+  - Capability-based task assignment UI
 
 - **Phase 5.4 — Task Delegation System** (2026-03-14)
   - `tasks` table with 16 columns (assignee, status, priority, context_uri, etc.)
@@ -291,10 +306,16 @@ All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
   - Task creation modal with project/priority selection
   - Complete/delete task functionality
 
+- **Phase 5.5 — Workflow Execution Engine** (2026-03-15)
+  - `workflow_templates` + `workflow_instances` tables (migration v25)
+  - 5 system workflows (Product Launch, Content Sprint, Idea→Brief, Weekly Review, Security Audit)
+  - `src/workflows.js` execution engine (startWorkflow, executeStep, onTaskComplete)
+  - WorkflowRunner component with progress bars, pause/resume/abort
+  - Instance detail view with steps and execution log
+
 ### 📋 v2.0 NEXT UP
-1. **Phase 5.2** — Hierarchical Context (L0/L1/L2 summaries)
-2. **Phase 5.3** — Agent Registry
-3. **Phase 6.1** — Mode System
+1. **Phase 5.6** — Agent Task Execution (function calling, sandboxing, preview mode)
+2. **Phase 6.1** — Mode System (Coach/Assistant/Silent)
 
 ### 📦 v2.0 PARKING LOT
 See BRAIN_ROADMAP.md Phases 5-8 for full pipeline.
@@ -353,3 +374,13 @@ See BRAIN_ROADMAP.md Phases 5-8 for full pipeline.
 - Updated Agent Layer Evolution section
 - Added v2.0 success metrics
 - Next: Phase 5.1 (URI Scheme), 5.4 (Task Schema), 6.1 (Mode System)
+
+---
+**Edit 2026-03-15 (Stabilization Refresh):**
+- Fixed TheBrain.jsx line count: ~1,525 → ~5,829 lines
+- Updated table count: 21 → 32 tables
+- Added missing tables to schema section: ai_usage, user_ai_settings, workflow_templates, workflow_instances
+- Marked Phases 5.2, 5.3, 5.5 as complete (2026-03-15) with implementation details
+- Updated priority stack: next is 5.6 (Agent Task Execution) and 6.1 (Mode System)
+- Phase 0.5 critical tests: fixed 3 bugs in test-critical.js, marked complete
+- Clarified agents are file-based (not a DB table)

@@ -3,7 +3,7 @@
 
 **Version:** 2.0  
 **Last Updated:** 2026-03-14  
-**Status:** Phase 1 Complete, Phase 2-3 In Planning  
+**Status:** Phase 1 Complete, Phase 2 (5.1-5.5) Complete, Phase 2.6 + 3 Next  
 
 ---
 
@@ -25,9 +25,9 @@ The Brain evolves from an "AI Coach" application into a **personal operating sys
 
 ### ✅ COMPLETE — Phase 1: Personal OS Foundation
 
-**Database:** 21 tables, full persistence via TiDB  
-**API Layer:** Multi-provider AI proxy (Anthropic, Moonshot, DeepSeek, Mistral, OpenAI)  
-**Frontend:** Single-file React (TheBrain.jsx ~1,525 lines), responsive, offline-capable  
+**Database:** 32 tables, full persistence via TiDB
+**API Layer:** Multi-provider AI proxy (Anthropic, Moonshot, DeepSeek, Mistral, OpenAI)
+**Frontend:** Single-file React (TheBrain.jsx ~5,829 lines), responsive, offline-capable  
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -55,7 +55,7 @@ The Brain evolves from an "AI Coach" application into a **personal operating sys
 | Task | Status | Priority |
 |------|--------|----------|
 | AI rate limiting | ⚠️ PARTIAL | Rate limit ✅, caching ❌, token logging ✅ |
-| Critical path tests | ❌ NOT STARTED | File round-trip, comment persistence, session logging |
+| Critical path tests | ✅ COMPLETE | File round-trip, comment persistence, session logging |
 
 ---
 
@@ -79,12 +79,12 @@ brain://workflow/{id}/step/{stepNum}
 ```
 
 **Implementation:**
-- [ ] `src/uri.js` — URI parser/generator utility
-- [ ] Update AI context builder to use URIs
-- [ ] Clickable URI links in AI responses
-- [ ] URI-based navigation (Cmd+Click → open resource)
+- [x] `src/uri.js` — URI parser/generator utility (12 functions)
+- [x] Update AI context builder to use URIs
+- [x] Clickable URI links in AI responses
+- [x] URI-based navigation (Cmd+Click → open resource)
 
-**Done when:** All resources have canonical URIs, AI can reference them precisely
+**Done when:** ✅ All resources have canonical URIs, AI references them precisely (Complete 2026-03-14)
 
 ---
 
@@ -115,13 +115,13 @@ CREATE TABLE file_summaries (
 ```
 
 **Implementation:**
-- [ ] Migration for `file_summaries` table
-- [ ] AI summarization endpoint (`resource=generate-summary`)
-- [ ] Background job: queue summarization on file save
-- [ ] API: `resource=summaries` for retrieval
-- [ ] Context builder: use L0 for search, L1 for agent routing
+- [x] Migration v24 for `file_summaries` table
+- [x] AI summarization endpoint (`resource=file-summaries`)
+- [x] Background summarization on file save (fire-and-forget)
+- [x] FileSummaryViewer component in Meta tab
+- [x] `src/summaries.js` utility library
 
-**Done when:** AI responses include "Based on overview of X files..." with retrieval traces
+**Done when:** ✅ Summaries auto-generate on save, viewable in Meta tab (Complete 2026-03-15)
 
 ---
 
@@ -149,14 +149,14 @@ CREATE TABLE agents (
 );
 ```
 
-**Implementation:**
-- [ ] Migration for `agents` table
-- [ ] Seed system agents (dev, content, strategy, design, research)
-- [ ] UI: Agent management (custom agents)
-- [ ] Update AI proxy to load agent config from DB
-- [ ] Capability-based routing logic
+**Implementation:** (Architecture changed: file-based agents, not DB)
+- [x] 5 system agents as .md files in `/agents/`
+- [x] AgentRegistry service (`src/agents.js`)
+- [x] AgentManager component (browse, clone, edit)
+- [x] Capability-based task assignment UI
+- [x] Capability-based routing logic
 
-**Done when:** Users can create custom agents with specific capabilities
+**Done when:** ✅ Users can browse agents, clone to create custom agents, assign tasks by capability (Complete 2026-03-15)
 
 ---
 
@@ -209,9 +209,9 @@ CREATE TABLE tasks (
 - `GET /api/data?resource=my-tasks` — For current user
 
 **UI Components:**
-- [ ] "My Tasks" view in Command Centre
+- [x] "My Tasks" view in Command Centre
 - [ ] Task detail panel (context, assignee, status)
-- [ ] Task creation modal with AI suggestion
+- [x] Task creation modal with project/priority selection
 - [ ] "Delegate to Agent" button on any task
 
 **Assignment Logic (v1):**
@@ -229,7 +229,7 @@ function assignTask(task, userContext) {
 }
 ```
 
-**Done when:** Tasks can be created, assigned to agents/humans/integrations, tracked to completion
+**Done when:** ✅ Tasks can be created, assigned, tracked to completion (Complete 2026-03-14, detail panel + delegate button remaining)
 
 ---
 
@@ -294,12 +294,12 @@ async function onTaskComplete(task) {
 ```
 
 **UI Components:**
-- [ ] Workflow instance viewer (progress, current step, history)
-- [ ] "Start Workflow" button on projects
-- [ ] Step-by-step execution view
-- [ ] Pause/resume/abort controls
+- [x] Workflow instance viewer (progress, current step, history)
+- [x] "Start Workflow" button on projects
+- [x] Step-by-step execution view
+- [x] Pause/resume/abort controls
 
-**Done when:** Workflows execute step-by-step, create tasks, track progress, complete or fail gracefully
+**Done when:** ✅ Workflows execute step-by-step, create tasks, track progress (Complete 2026-03-15)
 
 ---
 
@@ -547,22 +547,22 @@ CREATE TABLE memories (
 
 ## Implementation Priority
 
-### Immediate (This Week)
-1. **URI Scheme** — Utility functions, context builder updates
-2. **Assistance Mode Setting** — UI selector, gated features
-3. **Task Table Schema** — Foundation for orchestration
+### ✅ Complete
+1. **URI Scheme** — `src/uri.js` with 12 functions (2026-03-14)
+2. **File Summarization** — L0/L1 auto-generation on save (2026-03-15)
+3. **Agent Registry** — File-based agents, AgentManager UI (2026-03-15)
+4. **Task Delegation** — Universal task queue, My Tasks UI (2026-03-14)
+5. **Workflow Engine** — Instance tracking, step execution, WorkflowRunner (2026-03-15)
 
-### Short-term (2-4 Weeks)
-4. **File Summarization** — L0/L1 generation, API
-5. **My Tasks UI** — Task list, creation, assignment
-6. **Agent Registry** — DB migration, capability routing
+### Immediate (Next)
+6. **Agent Task Execution** — Function calling, sandboxed actions, preview mode
+7. **Assistance Mode Setting** — UI selector, gated features (Coach/Assistant/Silent)
 
-### Medium-term (1-2 Months)
-7. **Workflow Engine** — Instance tracking, step execution
-8. **Agent Task Execution** — Function calling, sandboxed actions
-9. **Smart Mode Suggestions** — Pattern detection, UI prompts
+### Short-term
+8. **Smart Mode Suggestions** — Pattern detection, UI prompts
+9. **Task Detail Panel + Delegate to Agent** — UX polish
 
-### Long-term (3-6 Months)
+### Medium-term
 10. **Recursive Retrieval** — Intent analysis, directory exploration
 11. **Workflow Learning** — Pattern detection, auto-suggestions
 12. **Memory System** — Auto-extraction, personalization

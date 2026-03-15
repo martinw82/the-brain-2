@@ -1,6 +1,8 @@
 # THE BRAIN — Schema Reference
 
-**Purpose:** Pre-designed schema for Phase 1 and Phase 2 features. Don't build until you reach the relevant roadmap task. This is reference material, not an action plan.
+**Purpose:** Pre-designed schema for Phase 1 and Phase 2 features. This is reference material, not an action plan.
+
+**Note:** Some designs were modified during implementation (e.g., `parts` became `life_areas`, many-to-many was simplified to FK). See `scripts/migrate.js` for actual applied schema.
 
 **Companion to:** BRAIN_ROADMAP.md (build order), BRAIN_STATUS.md (project context), AGENT_BRIEF.md (operating rules)
 

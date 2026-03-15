@@ -22,7 +22,7 @@
 
 ## CURRENT STATE: Phase 1 Complete, v1.0 Shipped
 
-**21 Database tables** — Full persistence via TiDB  
+**32 Database tables** — Full persistence via TiDB  
 **Multi-provider AI** — Anthropic, Moonshot, DeepSeek, Mistral, OpenAI  
 **Responsive UI** — Desktop, tablet, mobile  
 
@@ -46,11 +46,11 @@
 
 ---
 
-## PHASE 0.5 — Critical Path Tests 🔄 IN PROGRESS
+## PHASE 0.5 — Critical Path Tests ✅ COMPLETE (2026-03-15)
 
-- [ ] Test: File save/load round-trip
-- [ ] Test: Comment persistence
-- [ ] Test: Session logging
+- [x] Test: File save/load round-trip
+- [x] Test: Comment persistence
+- [x] Test: Session logging
 - [x] DB migration versioning (schema_migrations table)
 
 ---
@@ -606,13 +606,12 @@ CREATE TABLE memories (
 
 # Immediate Next Steps
 
-When you're ready to start Phase 5, I recommend this order:
+Phase 5 (5.1-5.5) is complete. Next priorities:
 
-1. **5.1 URI Scheme** — Foundation for everything else
-2. **5.4 Task Schema** — Unlocks orchestration layer  
-3. **6.1 Mode Setting** — Gate existing features immediately
+1. **5.6 Agent Task Execution** — Agents can actually DO things (function calling, sandboxing, preview mode)
+2. **6.1 Mode System** — Coach/Assistant/Silent modes gate existing features
 
-These three can be done in parallel and set up the architecture for the rest.
+Phase 5.6 is the highest-value next step — it makes the entire orchestration layer (5.1-5.5) functional.
 
 ---
 

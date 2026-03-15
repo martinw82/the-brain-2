@@ -114,16 +114,16 @@ async function testFileRoundTrip() {
     
     // Save file
     await connection.query(
-      `INSERT INTO project_files (project_id, file_path, content, created_at, updated_at)
-       VALUES (?, ?, ?, NOW(), NOW())
+      `INSERT INTO project_files (project_id, user_id, path, content, created_at, updated_at)
+       VALUES (?, ?, ?, ?, NOW(), NOW())
        ON DUPLICATE KEY UPDATE content = VALUES(content), updated_at = NOW()`,
-      [TEST_PROJECT_ID, TEST_FILE_PATH, TEST_CONTENT]
+      [TEST_PROJECT_ID, testUserId, TEST_FILE_PATH, TEST_CONTENT]
     );
     console.log(`   Saved test file: ${TEST_FILE_PATH}`);
     
     // Simulate "reload" — query fresh from DB
     const [rows] = await connection.query(
-      'SELECT content FROM project_files WHERE project_id = ? AND file_path = ? AND deleted_at IS NULL',
+      'SELECT content FROM project_files WHERE project_id = ? AND path = ? AND deleted_at IS NULL',
       [TEST_PROJECT_ID, TEST_FILE_PATH]
     );
     
@@ -133,22 +133,22 @@ async function testFileRoundTrip() {
     
     // Test soft delete
     await connection.query(
-      'UPDATE project_files SET deleted_at = NOW() WHERE project_id = ? AND file_path = ?',
+      'UPDATE project_files SET deleted_at = NOW() WHERE project_id = ? AND path = ?',
       [TEST_PROJECT_ID, TEST_FILE_PATH]
     );
     const [deletedRows] = await connection.query(
-      'SELECT content FROM project_files WHERE project_id = ? AND file_path = ? AND deleted_at IS NULL',
+      'SELECT content FROM project_files WHERE project_id = ? AND path = ? AND deleted_at IS NULL',
       [TEST_PROJECT_ID, TEST_FILE_PATH]
     );
     assert(deletedRows.length === 0, 'Soft-deleted file is excluded from active queries');
     
     // Restore file (undo delete)
     await connection.query(
-      'UPDATE project_files SET deleted_at = NULL WHERE project_id = ? AND file_path = ?',
+      'UPDATE project_files SET deleted_at = NULL WHERE project_id = ? AND path = ?',
       [TEST_PROJECT_ID, TEST_FILE_PATH]
     );
     const [restoredRows] = await connection.query(
-      'SELECT content FROM project_files WHERE project_id = ? AND file_path = ? AND deleted_at IS NULL',
+      'SELECT content FROM project_files WHERE project_id = ? AND path = ? AND deleted_at IS NULL',
       [TEST_PROJECT_ID, TEST_FILE_PATH]
     );
     assert(restoredRows.length === 1, 'Restored file reappears in queries');
@@ -177,25 +177,24 @@ async function testCommentPersistence() {
     
     // Save comment
     await connection.query(
-      `INSERT INTO comments (id, project_id, file_path, user_id, text, author, created_at, resolved)
-       VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
-      [testComment.id, TEST_PROJECT_ID, TEST_FILE_PATH, testUserId, 
-       testComment.text, testComment.author, testComment.resolved ? 1 : 0]
+      `INSERT INTO comments (id, project_id, file_path, user_id, text, created_at, resolved)
+       VALUES (?, ?, ?, ?, ?, NOW(), ?)`,
+      [testComment.id, TEST_PROJECT_ID, TEST_FILE_PATH, testUserId,
+       testComment.text, testComment.resolved ? 1 : 0]
     );
     console.log(`   Saved test comment: ${testComment.id.substring(0, 20)}...`);
     
     // Query comments for file
     const [rows] = await connection.query(
-      `SELECT id, text, author, created_at as date, resolved 
-       FROM comments 
-       WHERE project_id = ? AND file_path = ? 
+      `SELECT id, text, created_at as date, resolved
+       FROM comments
+       WHERE project_id = ? AND file_path = ?
        ORDER BY created_at DESC`,
       [TEST_PROJECT_ID, TEST_FILE_PATH]
     );
-    
+
     assert(rows.length >= 1, 'Comment appears in query results');
     assert(rows[0].text === testComment.text, 'Comment text preserved exactly');
-    assert(rows[0].author === testComment.author, 'Comment author preserved');
     assert(rows[0].resolved === 0, 'Comment resolved status is false (0)');
     
     // Test resolve comment
@@ -217,12 +216,12 @@ async function testCommentPersistence() {
       resolved: false
     };
     await connection.query(
-      `INSERT INTO comments (id, project_id, file_path, user_id, text, author, created_at, resolved)
-       VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
+      `INSERT INTO comments (id, project_id, file_path, user_id, text, created_at, resolved)
+       VALUES (?, ?, ?, ?, ?, NOW(), ?)`,
       [comment2.id, TEST_PROJECT_ID, TEST_FILE_PATH, testUserId,
-       comment2.text, comment2.author, 0]
+       comment2.text, 0]
     );
-    
+
     const [multiRows] = await connection.query(
       'SELECT COUNT(*) as count FROM comments WHERE project_id = ? AND file_path = ?',
       [TEST_PROJECT_ID, TEST_FILE_PATH]
@@ -250,8 +249,8 @@ async function testSessionLogging() {
     // Log session
     await connection.query(
       `INSERT INTO sessions (id, user_id, project_id, started_at, ended_at, duration_s, log, created_at)
-       VALUES (?, ?, ?, ?, DATE_ADD(?, INTERVAL ? SECOND), ?, ?)`,
-      [sessionId, testUserId, TEST_PROJECT_ID, sessionStart, sessionStart, sessionDuration, sessionLog, new Date()]
+       VALUES (?, ?, ?, ?, DATE_ADD(?, INTERVAL ? SECOND), ?, ?, ?)`,
+      [sessionId, testUserId, TEST_PROJECT_ID, sessionStart, sessionStart, sessionDuration, sessionDuration, sessionLog, new Date()]
     );
     console.log(`   Logged test session: ${sessionId.substring(0, 20)}...`);
     
