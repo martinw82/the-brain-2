@@ -4,6 +4,67 @@ _Session-based progress tracking for The Brain project_
 
 ---
 
+## Session 050 — 2026-03-15
+
+**Branch:** `grok-fixes-everything`
+**Task:** Phase 7.4 — Memory Self-Iteration
+**Status:** ✅ Complete
+
+### Implementation Summary
+
+Built personal memory system for learning from execution and personalization.
+
+**New Files:**
+
+- `src/memory.js` — Client module for memory management
+- Migration v26 — `memories` table
+
+**Database Schema:**
+
+- 6 categories: profile, preferences, entities, events, cases, patterns
+- Tracks: confidence, access count, last accessed
+- Source types: workflow, task, project, session, checkin, manual
+
+**API Endpoints:**
+
+1. `resource=memories` — List and create memories
+   - GET: List with filters (category, active)
+   - POST: Create new memory
+
+2. `resource=extract-memories` — Auto-extract from sources
+   - Workflow: duration, status patterns
+   - Task: agent success/failure patterns
+   - Checkin: weekly energy/sleep patterns (5+ check-ins)
+
+3. `resource=memory-insights` — Statistics and personalized insights
+   - Category counts and avg confidence
+   - Recent patterns sorted by access count
+   - Generated insights: estimation, delegation, engagement
+
+**Client API (`src/api.js`):**
+
+- `memories.list(options)` — List memories with filters
+- `memories.create(memory)` — Create new memory
+- `memories.extract(sourceType, sourceId)` — Auto-extract
+- `memories.insights()` — Get memory insights
+
+**Memory Categories:**
+
+- profile: User identity and goals
+- preferences: UI and interaction preferences
+- entities: Projects, contacts, organizations
+- events: Timestamped occurrences
+- cases: Specific situations and outcomes
+- patterns: Recurring behaviors and trends
+
+**Usage Examples:**
+
+- "You usually underestimate dev tasks by 2x"
+- "Agent tasks are completing successfully. Keep delegating!"
+- "You have 5 sessions this week. Keep the momentum!"
+
+---
+
 ## Session 049 — 2026-03-15
 
 **Branch:** `grok-fixes-everything`

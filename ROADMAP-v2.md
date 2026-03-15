@@ -4,7 +4,7 @@
 
 **Version:** 2.0  
 **Last Updated:** 2026-03-15  
-**Status:** Phase 7.2 Complete, Next: Phase 7.4 Memory Self-Iteration
+**Status:** Phase 7.4 Complete, Next: Phase 8 Ecosystem & Scale
 
 ---
 
@@ -597,10 +597,11 @@ CREATE TABLE memories (
 9. **Auto Task Creation** — DEVLOG/TODO scanning, proposed task queue (2026-03-15)
 10. **Recursive Directory Retrieval** — Intent analysis, L0/L1 exploration, trace visualization (2026-03-15)
 11. **Workflow Learning** — Pattern detection, step duration analysis, agent success rates, suggestions (2026-03-15)
+12. **Memory Self-Iteration** — Memories table, auto-extraction, insights (2026-03-15)
 
-### Next Up (Phase 7.4)
+### Next Up (Phase 8)
 
-1. **Memory Self-Iteration** — Auto-extraction, personalization
+1. **Community Workflows** — Share and discover workflow templates
 
 ### Medium-term
 

@@ -455,7 +455,34 @@ async function runMigrations() {
                 console.log(`Migration v${m.version} already applied.`);
             }
         }
-        console.log('All migrations complete.');
+    },
+    {
+        version: 26,
+        name: 'create_memories_table',
+        sql: `CREATE TABLE IF NOT EXISTS memories (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          user_id VARCHAR(36) NOT NULL,
+          category ENUM('profile', 'preferences', 'entities', 'events', 'cases', 'patterns') NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          content TEXT NOT NULL,
+          source_type ENUM('workflow', 'task', 'project', 'session', 'checkin', 'manual') DEFAULT 'manual',
+          source_id VARCHAR(36) DEFAULT NULL,
+          confidence FLOAT DEFAULT 0.5,
+          is_active BOOLEAN DEFAULT TRUE,
+          last_accessed DATETIME DEFAULT NULL,
+          accessed_count INT DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          INDEX idx_memories_user (user_id),
+          INDEX idx_memories_category (category),
+          INDEX idx_memories_active (is_active),
+          INDEX idx_memories_accessed (last_accessed)
+        );`
+    },
+];
+
+console.log('All migrations complete.');
     } catch (e) {
         console.error('❌ Migration failed:', e.message);
     } finally {

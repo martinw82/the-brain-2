@@ -579,7 +579,7 @@ CREATE TABLE workflow_instances (
 
 ---
 
-## 7.4 Memory Self-Iteration `[DB]` `[API]` 📋
+## 7.4 Memory Self-Iteration `[DB]` `[API]` ✅ COMPLETE (2026-03-15)
 
 **Deliverable:** Learn from execution (Open Viking pattern)
 
@@ -587,28 +587,43 @@ CREATE TABLE workflow_instances (
 
 ```sql
 CREATE TABLE memories (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  user_id INT,
-  category ENUM('profile', 'preferences', 'entities', 'events', 'cases', 'patterns'),
-  content TEXT,
-  source_task_id INT,
-  confidence FLOAT,
-  created_at DATETIME
+  id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+  user_id VARCHAR(36) NOT NULL,
+  category ENUM('profile', 'preferences', 'entities', 'events', 'cases', 'patterns') NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  source_type ENUM('workflow', 'task', 'project', 'session', 'checkin', 'manual'),
+  source_id VARCHAR(36),
+  confidence FLOAT DEFAULT 0.5,
+  is_active BOOLEAN DEFAULT TRUE,
+  last_accessed DATETIME,
+  accessed_count INT DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
+**Implementation:**
+
+- [x] `[DB]` Migration v26: `memories` table
+- [x] `[API]` `resource=memories` — List and create memories
+- [x] `[API]` `resource=extract-memories` — Auto-extract from workflows/tasks/checkins
+- [x] `[API]` `resource=memory-insights` — Statistics and personalized insights
+- [x] `[API]` `src/memory.js` — Client module with MEMORY_CATEGORIES and MEMORY_SOURCES
+- [x] `[API]` `memories` client API wrapper
+
 **Auto-Extraction:**
 
-- After workflow completion → extract patterns
+- After workflow completion → extract patterns, events
 - After task completion → update skill success rates
-- After project completion → update entity relationships
+- After check-ins (5+) → weekly pattern summary
 
-**Usage:**
+**Usage Examples:**
 
 - "You usually underestimate dev tasks by 2x"
-- "You work best on strategy in the morning"
+- "Agent tasks completing successfully - keep delegating!"
+- "You have N sessions this week - keep the momentum!"
 
-**Done when:** System personalizes based on execution history
+**Done when:** ✅ System personalizes based on execution history (Complete 2026-03-15)
 
 ---
 

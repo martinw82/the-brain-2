@@ -4102,6 +4102,334 @@ Provide metadata suggestions as JSON.`;
       }
     }
 
+    // ── MEMORIES (Phase 7.4) ───────────────────────────────────────
+    if (resource === 'memories') {
+      const { method } = req;
+
+      // GET /api/data?resource=memories — List memories
+      if (method === 'GET') {
+        const category = req.query.category || null;
+        const activeOnly = req.query.active !== 'false';
+
+        try {
+          let query = 'SELECT * FROM memories WHERE user_id = ?';
+          const params = [auth.userId];
+
+          if (category) {
+            query += ' AND category = ?';
+            params.push(category);
+          }
+
+          if (activeOnly) {
+            query += ' AND is_active = TRUE';
+          }
+
+          query += ' ORDER BY accessed_count DESC, updated_at DESC LIMIT 50';
+
+          const [rows] = await db.execute(query, params);
+
+          // Update last_accessed for retrieved memories
+          if (rows.length > 0) {
+            const ids = rows.map((r) => r.id);
+            await db.execute(
+              `UPDATE memories SET last_accessed = NOW(), accessed_count = accessed_count + 1 
+               WHERE id IN (${ids.map(() => '?').join(',')})`,
+              ids
+            );
+          }
+
+          return ok(res, { memories: rows });
+        } catch (e) {
+          if (
+            e.message.includes('Table') &&
+            e.message.includes("doesn't exist")
+          ) {
+            return ok(res, {
+              memories: [],
+              message: 'Memories table not found',
+            });
+          }
+          throw e;
+        }
+      }
+
+      // POST /api/data?resource=memories — Create memory
+      if (method === 'POST') {
+        const { category, title, content, source_type, source_id, confidence } =
+          req.body || {};
+
+        if (!category || !title || !content) {
+          return err(res, 'category, title, and content are required');
+        }
+
+        try {
+          const [result] = await db.execute(
+            `INSERT INTO memories (user_id, category, title, content, source_type, source_id, confidence)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              auth.userId,
+              category,
+              title,
+              content,
+              source_type || 'manual',
+              source_id || null,
+              confidence || 0.5,
+            ]
+          );
+
+          return ok(res, {
+            success: true,
+            id: result.insertId,
+          });
+        } catch (e) {
+          throw e;
+        }
+      }
+
+      return err(res, 'Method not allowed', 405);
+    }
+
+    // ── MEMORY AUTO-EXTRACTION (Phase 7.4) ───────────────────────
+    if (resource === 'extract-memories') {
+      if (req.method !== 'POST') return err(res, 'Method not allowed', 405);
+
+      const { source_type, source_id } = req.body || {};
+      if (!source_type || !source_id) {
+        return err(res, 'source_type and source_id are required');
+      }
+
+      try {
+        const extracted = [];
+
+        // Extract from completed workflow
+        if (source_type === 'workflow') {
+          const [instances] = await db.execute(
+            `SELECT wi.*, wt.name as template_name
+             FROM workflow_instances wi
+             JOIN workflow_templates wt ON wi.workflow_template_id = wt.id
+             WHERE wi.id = ? AND wi.user_id = ?`,
+            [source_id, auth.userId]
+          );
+
+          if (instances[0]) {
+            const instance = instances[0];
+            const duration =
+              instance.completed_at && instance.started_at
+                ? Math.round(
+                    (new Date(instance.completed_at) -
+                      new Date(instance.started_at)) /
+                      60000
+                  )
+                : null;
+
+            // Extract pattern memory
+            extracted.push({
+              category: 'patterns',
+              title: `Workflow: ${instance.template_name} completed`,
+              content: `Completed workflow "${instance.template_name}" in ${duration} minutes. Status: ${instance.status}`,
+              source_type: 'workflow',
+              source_id: instance.id,
+              confidence: 0.8,
+            });
+
+            // Extract event memory
+            extracted.push({
+              category: 'events',
+              title: `Recent workflow execution`,
+              content: `Executed ${instance.template_name} workflow which ${instance.status === 'completed' ? 'completed successfully' : instance.status}`,
+              source_type: 'workflow',
+              source_id: instance.id,
+              confidence: 0.9,
+            });
+          }
+        }
+
+        // Extract from task completion
+        if (source_type === 'task') {
+          const [tasks] = await db.execute(
+            `SELECT * FROM tasks WHERE id = ? AND user_id = ?`,
+            [source_id, auth.userId]
+          );
+
+          if (tasks[0]) {
+            const task = tasks[0];
+
+            // Extract as pattern if agent task
+            if (task.assignee_type === 'agent') {
+              const success = task.status === 'complete';
+              extracted.push({
+                category: 'patterns',
+                title: `Agent task: ${task.title}`,
+                content: `${task.assignee_id} agent ${success ? 'successfully completed' : 'failed'} task "${task.title}"`,
+                source_type: 'task',
+                source_id: task.id,
+                confidence: success ? 0.8 : 0.6,
+              });
+            }
+
+            // Extract as event
+            extracted.push({
+              category: 'events',
+              title: `Task: ${task.title}`,
+              content: `Task "${task.title}" is now ${task.status}. Priority: ${task.priority}`,
+              source_type: 'task',
+              source_id: task.id,
+              confidence: 0.9,
+            });
+          }
+        }
+
+        // Extract from check-in patterns
+        if (source_type === 'checkin') {
+          const [checkins] = await db.execute(
+            `SELECT * FROM daily_checkins WHERE user_id = ? ORDER BY date DESC LIMIT 7`,
+            [auth.userId]
+          );
+
+          if (checkins.length >= 5) {
+            const avgEnergy =
+              checkins.reduce((a, c) => a + (c.energy || 0), 0) /
+              checkins.length;
+            const avgSleep =
+              checkins.reduce((a, c) => a + (c.sleep_hours || 0), 0) /
+              checkins.length;
+
+            extracted.push({
+              category: 'patterns',
+              title: 'Weekly check-in pattern',
+              content: `Average energy level: ${avgEnergy.toFixed(1)}/10, Average sleep: ${avgSleep.toFixed(1)} hours over last ${checkins.length} days`,
+              source_type: 'checkin',
+              source_id: source_id,
+              confidence: 0.7,
+            });
+          }
+        }
+
+        // Save extracted memories
+        for (const mem of extracted) {
+          await db.execute(
+            `INSERT INTO memories (user_id, category, title, content, source_type, source_id, confidence)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              auth.userId,
+              mem.category,
+              mem.title,
+              mem.content,
+              mem.source_type,
+              mem.source_id,
+              mem.confidence,
+            ]
+          );
+        }
+
+        return ok(res, {
+          success: true,
+          extracted: extracted.length,
+          memories: extracted,
+        });
+      } catch (e) {
+        if (
+          e.message.includes('Table') &&
+          e.message.includes("doesn't exist")
+        ) {
+          return ok(res, {
+            success: false,
+            extracted: 0,
+            message: 'Memories table not found',
+          });
+        }
+        throw e;
+      }
+    }
+
+    // ── MEMORY INSIGHTS (Phase 7.4) ────────────────────────────────
+    if (resource === 'memory-insights') {
+      if (req.method !== 'GET') return err(res, 'Method not allowed', 405);
+
+      try {
+        // Get memory statistics
+        const [stats] = await db.execute(
+          `SELECT 
+             category,
+             COUNT(*) as count,
+             AVG(confidence) as avg_confidence,
+             SUM(accessed_count) as total_accesses
+           FROM memories 
+           WHERE user_id = ? AND is_active = TRUE
+           GROUP BY category`,
+          [auth.userId]
+        );
+
+        // Get recent patterns
+        const [recentPatterns] = await db.execute(
+          `SELECT * FROM memories 
+           WHERE user_id = ? AND category = 'patterns' AND is_active = TRUE
+           ORDER BY accessed_count DESC, created_at DESC
+           LIMIT 5`,
+          [auth.userId]
+        );
+
+        // Get personalized insights
+        const insights = [];
+
+        // Analyze patterns for insights
+        for (const pattern of recentPatterns) {
+          if (pattern.content.includes('underestimate')) {
+            insights.push({
+              type: 'estimation',
+              message:
+                'You tend to underestimate task duration. Consider adding 20% buffer.',
+              confidence: pattern.confidence,
+            });
+          }
+          if (
+            pattern.content.includes('successfully completed') &&
+            pattern.content.includes('agent')
+          ) {
+            insights.push({
+              type: 'delegation',
+              message:
+                'Agent tasks are completing successfully. Keep delegating!',
+              confidence: pattern.confidence,
+            });
+          }
+        }
+
+        // Check engagement pattern
+        const [sessionCount] = await db.execute(
+          `SELECT COUNT(*) as count FROM sessions WHERE user_id = ? AND ended_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)`,
+          [auth.userId]
+        );
+
+        if (sessionCount[0]?.count > 0) {
+          insights.push({
+            type: 'engagement',
+            message: `You have ${sessionCount[0].count} sessions this week. Keep the momentum!`,
+            confidence: 0.9,
+          });
+        }
+
+        return ok(res, {
+          stats,
+          recent_patterns: recentPatterns,
+          insights,
+        });
+      } catch (e) {
+        if (
+          e.message.includes('Table') &&
+          e.message.includes("doesn't exist")
+        ) {
+          return ok(res, {
+            stats: [],
+            recent_patterns: [],
+            insights: [],
+            message: 'Memories table not found',
+          });
+        }
+        throw e;
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e.message, e.stack);

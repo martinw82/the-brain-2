@@ -7,7 +7,7 @@
 **Version:** 8.2 → **v2.0 Vision**  
 **Live URL:** the-brain-2.vercel.app  
 **Last Updated:** 2026-03-15 (Session 046)  
-**Status:** v1.0 Complete (Phases 0-4) | v2.0 In Progress (Phase 7.2 Complete)
+**Status:** v1.0 Complete (Phases 0-4) | v2.0 In Progress (Phase 7.4 Complete)
 
 ---
 
@@ -395,10 +395,19 @@ All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
   - `resource=apply-workflow-suggestion` API — Acknowledge suggestions
   - `workflowPatterns` client API wrapper
 
+- **Phase 7.4 — Memory Self-Iteration** (2026-03-15)
+  - Migration v26: `memories` table with 6 categories
+  - `src/memory.js` — Client module for memory management
+  - `resource=memories` API — CRUD for memories (list, create)
+  - `resource=extract-memories` API — Auto-extract from workflows/tasks/checkins
+  - `resource=memory-insights` API — Statistics and personalized insights
+  - `memories` client API wrapper
+  - Memory categories: profile, preferences, entities, events, cases, patterns
+  - Tracks: confidence, access count, last accessed timestamps
+
 ### 📋 v2.0 NEXT UP
 
-1. **Phase 7.4** — Memory Self-Iteration
-2. **Phase 8** — Ecosystem & Scale
+1. **Phase 8** — Ecosystem & Scale (Community Workflows, Integrations)
 
 ### 📦 v2.0 PARKING LOT
 
@@ -489,3 +498,12 @@ _THE BRAIN v2.0 — Orchestrator Edition (PLANNED)_
 - Phase 7.2: Workflow Learning complete — pattern detection, step duration analysis, agent success rates
 - Updated status: "Phase 7.2 Complete, Next: Phase 7.4 Memory Self-Iteration"
 - Updated priority stack: next is 7.4 Memory Self-Iteration
+
+---
+
+**Edit 2026-03-15 (v2.0 Phase 7.4 Complete):**
+
+- Phase 7.4: Memory Self-Iteration complete — memories table, auto-extraction, insights
+- Migration v26: `memories` table with 6 categories
+- API: memories CRUD, extract-memories, memory-insights
+- Updated status: "Phase 7.4 Complete, Next: Phase 8 Ecosystem & Scale"

@@ -555,6 +555,23 @@ export const workflowPatterns = {
     post(`${BASE}/api/data?resource=apply-workflow-suggestion`, suggestion),
 };
 
+// ── MEMORIES (Phase 7.4) ─────────────────────────────────────
+export const memories = {
+  list: (options = {}) => {
+    const params = new URLSearchParams({ resource: 'memories' });
+    if (options.category) params.append('category', options.category);
+    if (options.active === false) params.append('active', 'false');
+    return get(`${BASE}/api/data?${params.toString()}`);
+  },
+  create: (memory) => post(`${BASE}/api/data?resource=memories`, memory),
+  extract: (sourceType, sourceId) =>
+    post(`${BASE}/api/data?resource=extract-memories`, {
+      source_type: sourceType,
+      source_id: sourceId,
+    }),
+  insights: () => get(`${BASE}/api/data?resource=memory-insights`),
+};
+
 // ── TASKS (Phase 5.4) ────────────────────────────────────────
 export const tasks = {
   // List tasks with optional filters
