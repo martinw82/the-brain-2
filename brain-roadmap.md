@@ -1,4 +1,5 @@
 # THE BRAIN — Implementation Roadmap v2.0
+
 **Agent Orchestration Platform with Adaptive Coaching**
 
 **Companion to:** BRAIN_STATUS.md  
@@ -24,7 +25,7 @@
 
 **32 Database tables** — Full persistence via TiDB  
 **Multi-provider AI** — Anthropic, Moonshot, DeepSeek, Mistral, OpenAI  
-**Responsive UI** — Desktop, tablet, mobile  
+**Responsive UI** — Desktop, tablet, mobile
 
 **See:** BRAIN_STATUS.md Section 4 for full "What's Built" inventory
 
@@ -32,17 +33,17 @@
 
 ## PHASE 0 — Bug Fixes ✅ COMPLETE (2026-03-08)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| 0.1 File loading from DB | ✅ | Lazy loading via `openHub()` |
-| 0.2 Comments loading from DB | ✅ | `useEffect` watches `[hubId, activeFile]` |
-| 0.3 AI Coach proxy function | ✅ | Server-side, key not exposed |
-| 0.4 Rename project stale ref | ✅ | Functional updater pattern |
-| 0.5 Session timer beforeunload | ✅ | Warns on active session |
-| 0.6 Bootstrap wizard null check | ✅ | Toast error on missing project |
-| 0.7 Soft deletes on project_files | ✅ | `deleted_at` column |
-| 0.8 Debounced saves in editor | ✅ | 2-second debounce |
-| 0.9 AI rate limiting | ⚠️ PARTIAL | Rate limit ✅, caching ❌ |
+| Task                              | Status     | Notes                                     |
+| --------------------------------- | ---------- | ----------------------------------------- |
+| 0.1 File loading from DB          | ✅         | Lazy loading via `openHub()`              |
+| 0.2 Comments loading from DB      | ✅         | `useEffect` watches `[hubId, activeFile]` |
+| 0.3 AI Coach proxy function       | ✅         | Server-side, key not exposed              |
+| 0.4 Rename project stale ref      | ✅         | Functional updater pattern                |
+| 0.5 Session timer beforeunload    | ✅         | Warns on active session                   |
+| 0.6 Bootstrap wizard null check   | ✅         | Toast error on missing project            |
+| 0.7 Soft deletes on project_files | ✅         | `deleted_at` column                       |
+| 0.8 Debounced saves in editor     | ✅         | 2-second debounce                         |
+| 0.9 AI rate limiting              | ⚠️ PARTIAL | Rate limit ✅, caching ❌                 |
 
 ---
 
@@ -59,13 +60,13 @@
 
 **Core "Life > Parts > Things" infrastructure**
 
-| Task | Status | Key Deliverable |
-|------|--------|-----------------|
-| 1.0 Life Areas (Parts) | ✅ | `life_areas` table, health tracking |
-| 1.1 Generic Goal Tracking | ✅ | Configurable goals, contributions |
-| 1.2 Project Templates | ✅ | 6 system templates, custom save |
-| 1.3 Tagging & Linking | ✅ | Cross-entity tags, relationships |
-| 1.4 Settings Persistence | ✅ | `settings` JSON on users table |
+| Task                      | Status | Key Deliverable                     |
+| ------------------------- | ------ | ----------------------------------- |
+| 1.0 Life Areas (Parts)    | ✅     | `life_areas` table, health tracking |
+| 1.1 Generic Goal Tracking | ✅     | Configurable goals, contributions   |
+| 1.2 Project Templates     | ✅     | 6 system templates, custom save     |
+| 1.3 Tagging & Linking     | ✅     | Cross-entity tags, relationships    |
+| 1.4 Settings Persistence  | ✅     | `settings` JSON on users table      |
 
 ---
 
@@ -73,18 +74,18 @@
 
 _Make it usable every day without friction._
 
-| Task | Status | Key Deliverable |
-|------|--------|-----------------|
-| 2.1 Project Import | ✅ | BUIDL, JSON, folder picker |
-| 2.2 Image & Binary Handling | ✅ | Viewer, base64 upload, download |
-| 2.3 Metadata Editor Panel | ✅ | `file_metadata` table, categories |
-| 2.4 Offline Mode | ✅ | localStorage cache, sync queue |
-| 2.5 Daily Check-in System | ✅ | Sleep/energy/gut tracking |
-| 2.6 Training Log | ✅ | Weekly targets, correlation |
-| 2.7 Outreach Tracking | ✅ | Mandatory minimum enforcement |
-| 2.8 Agent System Prompt Upgrade | ✅ | 10 rules, state routing |
-| 2.9 Weekly Review Automation | ✅ | Auto-aggregated stats |
-| 2.10 Drift Detection | ✅ | 5 pattern alerts |
+| Task                            | Status | Key Deliverable                   |
+| ------------------------------- | ------ | --------------------------------- |
+| 2.1 Project Import              | ✅     | BUIDL, JSON, folder picker        |
+| 2.2 Image & Binary Handling     | ✅     | Viewer, base64 upload, download   |
+| 2.3 Metadata Editor Panel       | ✅     | `file_metadata` table, categories |
+| 2.4 Offline Mode                | ✅     | localStorage cache, sync queue    |
+| 2.5 Daily Check-in System       | ✅     | Sleep/energy/gut tracking         |
+| 2.6 Training Log                | ✅     | Weekly targets, correlation       |
+| 2.7 Outreach Tracking           | ✅     | Mandatory minimum enforcement     |
+| 2.8 Agent System Prompt Upgrade | ✅     | 10 rules, state routing           |
+| 2.9 Weekly Review Automation    | ✅     | Auto-aggregated stats             |
+| 2.10 Drift Detection            | ✅     | 5 pattern alerts                  |
 
 ---
 
@@ -92,14 +93,14 @@ _Make it usable every day without friction._
 
 _Features that multiply effectiveness._
 
-| Task | Status | Key Deliverable |
-|------|--------|-----------------|
-| 3.1 AI Metadata Suggestions | ✅ | Content-based category/tags |
-| 3.2 Mermaid Diagram Rendering | ✅ | SVG diagrams from markdown |
-| 3.3 Search Improvements | ✅ | Cmd+K, filters, highlighting |
-| 3.4 Local File System Sync | ✅ | Bi-directional desktop sync |
-| 3.5 File Validity Checker | ✅ | Structural validation, auto-fix |
-| 3.6 Script Execution | ✅ | Sandboxed JS, `/tools/` folder |
+| Task                          | Status | Key Deliverable                 |
+| ----------------------------- | ------ | ------------------------------- |
+| 3.1 AI Metadata Suggestions   | ✅     | Content-based category/tags     |
+| 3.2 Mermaid Diagram Rendering | ✅     | SVG diagrams from markdown      |
+| 3.3 Search Improvements       | ✅     | Cmd+K, filters, highlighting    |
+| 3.4 Local File System Sync    | ✅     | Bi-directional desktop sync     |
+| 3.5 File Validity Checker     | ✅     | Structural validation, auto-fix |
+| 3.6 Script Execution          | ✅     | Sandboxed JS, `/tools/` folder  |
 
 ---
 
@@ -107,12 +108,12 @@ _Features that multiply effectiveness._
 
 _Make it work everywhere, reliably._
 
-| Task | Status | Key Deliverable |
-|------|--------|-----------------|
-| 4.1 Mobile Responsive Layout | ✅ | Breakpoints, touch targets |
-| 4.2 Onboarding Flow | ✅ | 4-step wizard, guided tour |
-| 4.3 Integration Connectors | ✅ | GitHub PAT integration |
-| 4.4 Notification System | ✅ | In-app bell, trigger-based alerts |
+| Task                         | Status | Key Deliverable                   |
+| ---------------------------- | ------ | --------------------------------- |
+| 4.1 Mobile Responsive Layout | ✅     | Breakpoints, touch targets        |
+| 4.2 Onboarding Flow          | ✅     | 4-step wizard, guided tour        |
+| 4.3 Integration Connectors   | ✅     | GitHub PAT integration            |
+| 4.4 Notification System      | ✅     | In-app bell, trigger-based alerts |
 
 ---
 
@@ -125,6 +126,7 @@ _Make it work everywhere, reliably._
 **Deliverable:** Standardized `brain://` URI system for all entities
 
 **Schema:**
+
 ```
 brain://project/{id}
 brain://project/{id}/file/{path}
@@ -137,6 +139,7 @@ brain://workflow/{id}/step/{stepNum}
 ```
 
 **Tasks:**
+
 - [x] `[API]` Create `src/uri.js` — URI parser/generator utility
 - [x] `[API]` Update AI context builder to use URIs
 - [x] `[UI]` Clickable URI links in AI responses
@@ -150,13 +153,14 @@ brain://workflow/{id}/step/{stepNum}
 
 **Deliverable:** L0/L1/L2 auto-generated summaries (Open Viking pattern)
 
-| Level | Tokens | Purpose | Generation |
-|-------|--------|---------|------------|
-| L0 Abstract | ~100 | Vector search, quick filtering | AI on file save |
-| L1 Overview | ~2,000 | Navigation, context routing | AI on file save |
-| L2 Detail | Unlimited | Full content, execution | Original file |
+| Level       | Tokens    | Purpose                        | Generation      |
+| ----------- | --------- | ------------------------------ | --------------- |
+| L0 Abstract | ~100      | Vector search, quick filtering | AI on file save |
+| L1 Overview | ~2,000    | Navigation, context routing    | AI on file save |
+| L2 Detail   | Unlimited | Full content, execution        | Original file   |
 
 **Schema (Migration v24):**
+
 ```sql
 CREATE TABLE file_summaries (
   id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
@@ -174,6 +178,7 @@ CREATE TABLE file_summaries (
 ```
 
 **Implementation:**
+
 - [x] `[DB]` Migration v24 for `file_summaries` table
 - [x] `[API]` `resource=file-summaries` CRUD endpoints
 - [x] `[API]` Background summarization on file save (fire-and-forget)
@@ -189,6 +194,7 @@ CREATE TABLE file_summaries (
 **Deliverable:** File-based agent definitions (migrated from static SKILLS object)
 
 **Architecture Decision:** Agents as files, not database rows
+
 - Immutable agent definitions in `/agents/*.md`
 - Frontmatter = metadata (capabilities, permissions, etc.)
 - Body = prompt_prefix
@@ -197,6 +203,7 @@ CREATE TABLE file_summaries (
 - Stats derived from tasks table (execution history)
 
 **System Agents (`/agents/`):**
+
 - `system-dev.md` — Code, debug, deploy (🛠)
 - `system-content.md` — Write, draft, social (✍️)
 - `system-strategy.md` — Planning, revenue, prioritization (🎯)
@@ -204,6 +211,7 @@ CREATE TABLE file_summaries (
 - `system-research.md` — Market research, competitor analysis (🔬)
 
 **Agent File Format:**
+
 ```markdown
 ---
 id: system-dev-v1
@@ -211,7 +219,7 @@ version: 1
 name: Dev Agent
 capabilities: [code.write, code.review, code.debug]
 permissions: [read:all, write:code-modules]
-ignore_patterns: [legal/, "*.test.js"]
+ignore_patterns: [legal/, '*.test.js']
 model: claude-sonnet-4-6
 handoff_rules:
   on_error: escalate_to_human
@@ -223,9 +231,10 @@ You are a senior developer...
 ```
 
 **Implementation:**
+
 - [x] `[FILE]` 5 system agents as .md files in `/agents/`
 - [x] `[API]` AgentRegistry service (`src/agents.js`)
-  - `loadAgents()` — Parse all /agents/*.md files
+  - `loadAgents()` — Parse all /agents/\*.md files
   - `findByCapability()` — Query by capability
   - `selectAgent()` — Score and select best agent
   - `cloneAgent()` — Create new agent from existing
@@ -250,6 +259,7 @@ You are a senior developer...
 **Deliverable:** Universal task queue with intelligent assignment
 
 **Schema:**
+
 ```sql
 CREATE TABLE tasks (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -278,11 +288,13 @@ CREATE TABLE tasks (
 ```
 
 **API Endpoints:**
+
 - `GET/POST/PUT /api/data?resource=tasks`
 - `POST /api/data?resource=tasks&action=assign`
 - `GET /api/data?resource=my-tasks`
 
 **UI Components:**
+
 - [x] `[UI]` "My Tasks" view in Command Centre
 - [x] `[UI]` Task creation modal
 - [x] `[UI]` Task complete/delete actions
@@ -290,6 +302,7 @@ CREATE TABLE tasks (
 - [ ] `[UI]` "Delegate to Agent" button (needs Agent Registry from 5.3)
 
 **Assignment Logic (v1):**
+
 ```javascript
 // Simple rules-based routing
 if (task.type === 'code' && user.energy >= 7) → assign to dev agent
@@ -307,6 +320,7 @@ if (task.urgency === 'critical') → assign to human
 **Deliverable:** From static templates to executable instances
 
 **Schema (Migration v25):**
+
 ```sql
 CREATE TABLE workflow_templates (
   id VARCHAR(64) PRIMARY KEY,
@@ -326,6 +340,7 @@ CREATE TABLE workflow_instances (
 ```
 
 **System Workflows (`agents/system-workflows.json`):**
+
 - 🚀 Product Launch (7 steps)
 - ✍️ Content Sprint (5 steps)
 - 💡 Idea → Brief (6 steps)
@@ -333,6 +348,7 @@ CREATE TABLE workflow_instances (
 - 🔒 Security Audit (5 steps)
 
 **Implementation:**
+
 - [x] `[DB]` Migration v25 for workflow tables
 - [x] `[API]` `resource=workflows` CRUD endpoints
 - [x] `[API]` `resource=workflow-instances` lifecycle endpoints
@@ -350,6 +366,7 @@ CREATE TABLE workflow_instances (
   - History of completed workflows
 
 **Execution Model:**
+
 1. User clicks "Start Workflow"
 2. Instance created, first step executed
 3. Task created with capability-based agent assignment
@@ -360,24 +377,39 @@ CREATE TABLE workflow_instances (
 
 ---
 
-## 5.6 Agent Task Execution `[API]` `[CONFIG]` 📋
+## 5.6 Agent Task Execution `[API]` `[CONFIG]` ✅ COMPLETE (2026-03-15)
 
 **Deliverable:** Agents can DO things, not just advise
 
 **Agent Actions (function calling):**
+
 - `read_file(uri)` — Get L2 content
-- `write_file(uri, content)` — Create/update
+- `write_file(uri, content, mode)` — Create/update/preview
 - `create_task(title, desc, assignee)` — Delegate
 - `search_projects(query)` — Find context
 - `request_review(reason)` — Escalate
 - `mark_complete(summary, outputs)` — Finish
 
-**Safety:**
-- [ ] `[CONFIG]` Sandboxed file operations (respect ignore_patterns)
-- [ ] `[UI]` Preview mode: propose changes, human approves
-- [ ] `[CONFIG]` Auto mode: trusted agents execute directly
+**Implementation:**
 
-**Done when:** Agents can read, write, create sub-tasks, complete assignments
+- [x] `[API]` `api/agent-execute.js` — New endpoint for agent execution with function calling
+- [x] `[API]` Multi-provider support: Anthropic (Claude), OpenAI (GPT), Mistral
+- [x] `[API]` Tool/function definitions for all 6 actions
+- [x] `[CONFIG]` Sandboxed file operations (respect ignore_patterns per agent)
+- [x] `[UI]` Auto-run toggle in Settings: `auto_run_agents` setting
+- [x] `[UI]` Preview mode: agents propose changes without executing
+- [x] `[CONFIG]` Auto mode: trusted agents execute directly
+- [x] `[LIB]` `src/agentFunctions.js` — Client-side function definitions
+
+**Function Calling Flow:**
+
+1. Agent receives task with function definitions
+2. Agent decides to call function(s) to accomplish task
+3. Server executes function (with ignore_patterns check)
+4. Results returned to agent
+5. Agent continues until task complete or max iterations
+
+**Done when:** ✅ Agents can read, write, create sub-tasks, complete assignments with preview/auto modes
 
 ---
 
@@ -390,6 +422,7 @@ CREATE TABLE workflow_instances (
 **Deliverable:** Coach / Assistant / Silent modes
 
 **Settings Schema:**
+
 ```json
 {
   "assistance_mode": "coach",
@@ -403,17 +436,18 @@ CREATE TABLE workflow_instances (
 
 **Mode Definitions:**
 
-| Aspect | Coach | Assistant | Silent |
-|--------|-------|-----------|--------|
-| Identity | "Direct accountability partner" | "Helpful project assistant" | "System tool" |
-| Tone | Challenging, direct | Supportive, neutral | Minimal, factual |
-| Check-ins | Mandatory daily | Available, not prompted | Off |
-| Drift alerts | Interruptive popups | Dashboard badge only | Off |
-| Outreach | "NOT DONE (mandatory)" | Tracked, optional | Off |
-| Task creation | Proactive | Proactive | Manual only |
-| Agent execution | Auto-runs | Auto-runs | Preview mode |
+| Aspect          | Coach                           | Assistant                   | Silent           |
+| --------------- | ------------------------------- | --------------------------- | ---------------- |
+| Identity        | "Direct accountability partner" | "Helpful project assistant" | "System tool"    |
+| Tone            | Challenging, direct             | Supportive, neutral         | Minimal, factual |
+| Check-ins       | Mandatory daily                 | Available, not prompted     | Off              |
+| Drift alerts    | Interruptive popups             | Dashboard badge only        | Off              |
+| Outreach        | "NOT DONE (mandatory)"          | Tracked, optional           | Off              |
+| Task creation   | Proactive                       | Proactive                   | Manual only      |
+| Agent execution | Auto-runs                       | Auto-runs                   | Preview mode     |
 
 **Tasks:**
+
 - [ ] `[DB]` Add `assistance_mode` to settings JSON
 - [ ] `[UI]` Mode selector in Settings with descriptions
 - [ ] `[API]` Mode-aware system prompt builder
@@ -429,11 +463,13 @@ CREATE TABLE workflow_instances (
 **Deliverable:** System suggests mode changes based on behavior
 
 **Triggers:**
+
 - 30-day check-in streak → suggest Assistant mode
 - 3 missed check-ins → suggest back to Coach
 - 50%+ agent delegation rate → suggest Silent mode
 
 **UI:**
+
 - [ ] `[UI]` Gentle mode suggestion banners
 - [ ] `[UI]` "Try for a week" with easy revert
 
@@ -448,6 +484,7 @@ CREATE TABLE workflow_instances (
 **Deliverable:** AI explores project structure intelligently (Open Viking pattern)
 
 **Algorithm:**
+
 1. Intent analysis → extract keywords
 2. L0 vector search → find candidate directories
 3. L1 exploration within candidates
@@ -455,6 +492,7 @@ CREATE TABLE workflow_instances (
 5. Return results + trace
 
 **UI:**
+
 - [ ] `[UI]` "Retrieval trace" in AI responses
 - [ ] Shows: "Explored briefs/ → system/ → skipped marketing/"
 
@@ -467,6 +505,7 @@ CREATE TABLE workflow_instances (
 **Deliverable:** Detect patterns, suggest workflow improvements
 
 **Pattern Detection:**
+
 - After 3 similar projects → "Create workflow from this pattern?"
 - Track: planned vs actual duration
 - Track: agent success rates
@@ -481,11 +520,13 @@ CREATE TABLE workflow_instances (
 **Deliverable:** Create tasks from unstructured inputs
 
 **Sources:**
+
 - DEVLOG.md: "Started work on auth" → Task: "Complete auth"
 - Blockers: "Waiting for API key" → Task: "Follow up on API key"
 - Comments: "We should refactor this" → Task: "Refactor X"
 
 **Implementation:**
+
 - [ ] `[API]` Background job: scan DEVLOG.md daily
 - [ ] `[API]` Extract keywords: TODO|FIXME|XXX|BLOCKED
 - [ ] `[API]` AI classification: type, priority, assignee
@@ -500,6 +541,7 @@ CREATE TABLE workflow_instances (
 **Deliverable:** Learn from execution (Open Viking pattern)
 
 **Six Memory Categories:**
+
 ```sql
 CREATE TABLE memories (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -513,11 +555,13 @@ CREATE TABLE memories (
 ```
 
 **Auto-Extraction:**
+
 - After workflow completion → extract patterns
 - After task completion → update skill success rates
 - After project completion → update entity relationships
 
 **Usage:**
+
 - "You usually underestimate dev tasks by 2x"
 - "You work best on strategy in the morning"
 
@@ -536,6 +580,7 @@ CREATE TABLE memories (
 ## 8.2 Advanced Integrations `[API]` `[CONFIG]` 📋
 
 **Two-Way Sync:**
+
 - GitHub: PR creation, issue sync
 - Calendar: Block time for tasks
 - Email: Send/receive as task interactions
@@ -606,13 +651,14 @@ CREATE TABLE memories (
 
 # Immediate Next Steps
 
-Phase 5 (5.1-5.5) is complete. Next priorities:
+Phase 5 (5.1-5.6) is complete! Next priorities:
 
-1. **5.6 Agent Task Execution** — Agents can actually DO things (function calling, sandboxing, preview mode)
-2. **6.1 Mode System** — Coach/Assistant/Silent modes gate existing features
+1. **6.1 Mode System** — Coach/Assistant/Silent modes gate existing features
+2. **6.2 Smart Mode Suggestions** — System suggests mode changes based on behavior
+3. **Phase 7 Intelligence** — Recursive directory retrieval, workflow learning, auto task creation
 
-Phase 5.6 is the highest-value next step — it makes the entire orchestration layer (5.1-5.5) functional.
+Phase 5.6 complete: Agents can now read/write files, create tasks, search projects, and complete assignments with preview/auto modes.
 
 ---
 
-*THE BRAIN v2.0 — From Coach to Orchestrator*
+_THE BRAIN v2.0 — From Coach to Orchestrator_

@@ -687,16 +687,18 @@ export const workflowInstances = {
 
 // ── AGENT EXECUTION (Phase 5.6) ──────────────────────────────
 export const agentExecution = {
-  execute: (taskId) =>
-    post(`${BASE}/api/agents?action=execute`, { task_id: taskId }),
+  execute: (options) => post(`${BASE}/api/agent-execute`, options),
 
-  confirm: (taskId) =>
-    post(`${BASE}/api/agents?action=execute&confirmed=true`, {
-      task_id: taskId,
-      confirmed: true,
+  executeTask: (taskId) =>
+    post(`${BASE}/api/agent-execute`, { task_id: taskId }),
+
+  executeWithMessage: (agentId, message, projectId, context) =>
+    post(`${BASE}/api/agent-execute`, {
+      agent_id: agentId,
+      message,
+      project_id: projectId,
+      context,
     }),
-
-  status: (taskId) => get(`${BASE}/api/agents?action=status&task_id=${taskId}`),
 };
 
 // ── IMPORT PARSERS ────────────────────────────────────────────

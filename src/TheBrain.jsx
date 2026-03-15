@@ -5663,6 +5663,7 @@ export default function TheBrain({
     font: 'JetBrains Mono',
     fontSize: 11,
     assistance_mode: 'coach',
+    auto_run_agents: false, // Phase 5.6: Preview mode vs auto-execute
   });
 
   // ── UNDO/REDO STATE ─────────────────────────────────────────
@@ -9809,6 +9810,50 @@ export default function TheBrain({
               </select>
               <div style={{ fontSize: 9, color: C.muted, padding: '4px 0' }}>
                 {MODE_INFO[settingsForm.assistance_mode || 'coach'].description}
+              </div>
+            </div>
+
+            {/* Agent Auto-Run Toggle (Phase 5.6) */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 12px',
+                background: settingsForm.auto_run_agents ? `${C.green}12` : `${C.bg}`,
+                border: `1px solid ${settingsForm.auto_run_agents ? C.green : C.border}`,
+                borderRadius: 6,
+              }}
+            >
+              <input
+                type="checkbox"
+                id="autoRunAgents"
+                checked={!!settingsForm.auto_run_agents}
+                onChange={(e) =>
+                  setSettingsForm((s) => ({
+                    ...s,
+                    auto_run_agents: e.target.checked,
+                  }))
+                }
+                style={{ width: 16, height: 16, cursor: 'pointer' }}
+              />
+              <div style={{ flex: 1 }}>
+                <label
+                  htmlFor="autoRunAgents"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'block',
+                  }}
+                >
+                  🤖 Auto-Run Agents
+                </label>
+                <div style={{ fontSize: 9, color: C.muted, marginTop: 2 }}>
+                  {settingsForm.auto_run_agents
+                    ? 'Agents execute actions immediately (write files, create tasks)'
+                    : 'Preview mode: agents propose changes, you approve'}
+                </div>
               </div>
             </div>
 
