@@ -614,6 +614,7 @@ export default async function handler(req, res) {
 
     // ── DAILY CHECKINS (Phase 2.5) ────────────────────────────
     if (resource === 'daily-checkins') {
+      try {
       const { date, days } = req.query;
 
       if (req.method === 'GET') {
@@ -678,10 +679,17 @@ export default async function handler(req, res) {
         );
         return ok(res, { success: true });
       }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) {
+          return ok(res, { checkin: null, checkins: [] });
+        }
+        throw e;
+      }
     }
 
     // ── TRAINING LOGS (Phase 2.6) ────────────────────────────
     if (resource === 'training-logs') {
+      try {
       const { date, days, weeks } = req.query;
 
       if (req.method === 'GET') {
@@ -795,10 +803,17 @@ export default async function handler(req, res) {
         );
         return ok(res, { success: true });
       }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) {
+          return ok(res, { logs: [], stats: { total_sessions: 0, total_minutes: 0, avg_duration: 0, avg_energy_after: null, weeks: {} } });
+        }
+        throw e;
+      }
     }
 
     // ── OUTREACH LOG (Phase 2.7) ────────────────────────────
     if (resource === 'outreach-log') {
+      try {
       const { date, days } = req.query;
 
       if (req.method === 'GET') {
@@ -856,6 +871,12 @@ export default async function handler(req, res) {
           [resourceId, auth.userId]
         );
         return ok(res, { success: true });
+      }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) {
+          return ok(res, { logs: [], daily_counts: {}, count: 0, total: 0 });
+        }
+        throw e;
       }
     }
 
@@ -1272,6 +1293,7 @@ Provide metadata suggestions as JSON.`;
 
     // ── DRIFT CHECK (Phase 2.10) ──────────────────────────────
     if (resource === 'drift-check') {
+      try {
       if (req.method === 'GET') {
         const today = new Date().toISOString().split('T')[0];
         const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -1427,10 +1449,17 @@ Provide metadata suggestions as JSON.`;
           }
         });
       }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) {
+          return ok(res, { flags: [], checked_at: new Date().toISOString(), summary: { checkins: 0, trainingSessions: 0, outreachDays: 0, sessions: 0, projects: 0 } });
+        }
+        throw e;
+      }
     }
 
     // ── NOTIFICATIONS (Phase 4.4) ─────────────────────────────
     if (resource === 'notifications') {
+      try {
       // GET: list notifications with unread count
       if (req.method === 'GET') {
         const { unread_only, limit } = req.query;
@@ -1498,10 +1527,17 @@ Provide metadata suggestions as JSON.`;
         await db.execute('DELETE FROM notifications WHERE id = ? AND user_id = ?', [resourceId, auth.userId]);
         return ok(res, { success: true });
       }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) {
+          return ok(res, { notifications: [], unread_count: 0 });
+        }
+        throw e;
+      }
     }
     
     // ── NOTIFICATION TRIGGERS (Phase 4.4) ─────────────────────
     if (resource === 'notification-check') {
+      try {
       if (req.method === 'GET') {
         const today = new Date().toISOString().split('T')[0];
         const now = new Date().toISOString();
@@ -1658,6 +1694,12 @@ Provide metadata suggestions as JSON.`;
             suppressed_count: notificationsCreated.length - filteredNotifications.length
           }
         });
+      }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) {
+          return ok(res, { checked_at: new Date().toISOString(), notifications_created: [], checks: {}, meta: {} });
+        }
+        throw e;
       }
     }
 
@@ -1921,6 +1963,7 @@ Provide metadata suggestions as JSON.`;
 
     // ── TASKS (Phase 5.4) ──────────────────────────────────────
     if (resource === 'tasks') {
+      try {
       // GET /api/data?resource=tasks — List tasks
       if (req.method === 'GET') {
         const { status, assignee_type, project_id: pid, my_tasks } = req.query;
@@ -2057,6 +2100,12 @@ Provide metadata suggestions as JSON.`;
         
         await db.execute('DELETE FROM tasks WHERE id = ?', [resourceId]);
         return ok(res, { success: true });
+      }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) {
+          return ok(res, { tasks: [] });
+        }
+        throw e;
       }
     }
 
