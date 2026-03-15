@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token, drift as driftApi, aiMetadata as aiMetadataApi, scripts as scriptsApi, integrations as integrationsApi, notifications as notificationsApi, userAISettings, tasks as tasksApi, fileSummaries } from "./api.js";
+import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token, drift as driftApi, aiMetadata as aiMetadataApi, scripts as scriptsApi, integrations as integrationsApi, notifications as notificationsApi, userAISettings, tasks as tasksApi, fileSummaries, agentExecution } from "./api.js";
 import { cache } from "./cache.js";
 import { sync } from "./sync.js";
 import { desktopSync } from "./desktop-sync.js";
@@ -15,6 +15,7 @@ import AgentManager from "./components/AgentManager.jsx";
 import FileSummaryViewer from "./components/FileSummaryViewer.jsx";
 import WorkflowRunner from "./components/WorkflowRunner.jsx";
 import { seedSystemWorkflows } from "./workflows.js";
+import { getMode, getBehavior, shouldShow, MODE_INFO } from "./modeHelper.js";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -2399,7 +2400,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   const [loadingMetadata,setLoadingMetadata] = useState(false);
   const [aiSuggestions,setAiSuggestions] = useState(null); // Phase 3.1: AI metadata suggestions
   const [loadingAiSuggestions,setLoadingAiSuggestions] = useState(false);
-  const [settingsForm,setSettingsForm]   = useState({font:"JetBrains Mono",fontSize:11});
+  const [settingsForm,setSettingsForm]   = useState({font:"JetBrains Mono",fontSize:11,assistance_mode:"coach"});
   
   // ── UNDO/REDO STATE ─────────────────────────────────────────
   const fileHistory = useUndoRedo(50); // Track last 50 file edits
@@ -2536,6 +2537,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
   // Drift detection state (Phase 2.10)
   const [driftFlags, setDriftFlags] = useState([]);
+  const [driftExpanded, setDriftExpanded] = useState(false);
   const [driftDismissed, setDriftDismissed] = useState(() => {
     const saved = localStorage.getItem('driftDismissed');
     return saved ? JSON.parse(saved) : [];
@@ -2832,8 +2834,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   }, [user?.id]);
 
   // ── DAILY CHECKIN — prompt on first visit of day (Phase 2.5) ──
+  const currentMode = getMode(userSettings);
   useEffect(() => {
     if (!user) return;
+    const checkinBehavior = getBehavior('daily_checkin', currentMode);
+    if (checkinBehavior === 'off') return; // silent mode — skip entirely
 
     const today = new Date().toISOString().split('T')[0];
     const lastSavedDate = checkinLastDate;
@@ -2853,23 +2858,23 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             setTodayCheckin(data.checkin);
             setCheckinLastDate(today);
             localStorage.setItem('lastCheckinDate', today);
-          } else {
-            // No checkin yet — show modal
+          } else if (checkinBehavior === 'mandatory') {
+            // Coach mode — show modal automatically
             setShowCheckinModal(true);
           }
+          // Assistant mode ('available') — don't auto-show, user clicks to open
         } catch (e) {
           console.error('Checkin load error:', e);
-          // Show modal as fallback
-          setShowCheckinModal(true);
+          if (checkinBehavior === 'mandatory') setShowCheckinModal(true);
         }
       };
       dailyCheckinsApi();
     }
     // Load weekly training count + today's outreach + drift check + tasks + seed workflows
     if (user) { 
-      loadWeeklyTraining(); 
-      loadTodayOutreach(); 
-      loadDriftCheck(); 
+      loadWeeklyTraining();
+      if (getBehavior('outreach_enforcement', getMode(userSettings)) !== 'off') loadTodayOutreach();
+      if (getBehavior('drift_alerts', getMode(userSettings)) !== 'off') loadDriftCheck(); 
       loadTasks();
       // Phase 5.5: Seed system workflows on first run
       seedSystemWorkflows().catch(() => {});
@@ -2879,17 +2884,19 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   // ── NOTIFICATIONS — load on mount and check triggers periodically (Phase 4.4) ──
   useEffect(() => {
     if (!user) return;
-    
+    const notifBehavior = getBehavior('notifications', getMode(userSettings));
+    if (notifBehavior === 'none') return; // silent mode — no notifications
+
     // Initial load
     loadNotifications();
-    
+
     // Check triggers on mount
-    checkNotificationTriggers();
-    
+    if (notifBehavior === 'all') checkNotificationTriggers();
+
     // Set up periodic checks (every 5 minutes)
     const interval = setInterval(() => {
       loadNotifications();
-      checkNotificationTriggers();
+      if (notifBehavior === 'all') checkNotificationTriggers();
     }, 5 * 60 * 1000);
     
     return () => clearInterval(interval);
@@ -3566,6 +3573,23 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     finally{setTasksLoading(false);}
   };
   
+  // Phase 5.6: Poll executing agent tasks
+  useEffect(() => {
+    const executingTasks = tasks.filter(t => t.assignee_type === 'agent' && t.status === 'in_progress');
+    if (executingTasks.length === 0) return;
+    const interval = setInterval(async () => {
+      for (const t of executingTasks) {
+        try {
+          const result = await agentExecution.status(t.id);
+          if (result.status === 'complete' || result.status === 'blocked') {
+            setTasks(prev => prev.map(p => p.id === t.id ? { ...p, status: result.status, result_summary: result.result_summary } : p));
+          }
+        } catch { /* ignore polling errors */ }
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [tasks]);
+
   const createTask=async(taskData)=>{
     try{
       const result=await tasksApi.create(taskData);
@@ -3713,7 +3737,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
   ]);
 
   // ── TAB DEFINITIONS ────────────────────────────────────────
-  const BRAIN_TABS=[{id:"command",label:"⚡ Command"},{id:"projects",label:"🗂 Projects"},{id:"bootstrap",label:"🚀 Bootstrap"},{id:"staging",label:`🌀 Staging${inReview>0?` (${inReview})`:""}`},{id:"skills",label:"🤖 Skills"},{id:"workflows",label:"⚙️ Workflows"},{id:"integrations",label:"🔌 Connect"},{id:"ideas",label:"💡 Ideas"},{id:"tags",label:`🏷 Tags${userTags.length>0?` (${userTags.length})`:""}`},{id:"ai",label:"💬 AI Coach"},{id:"review",label:"📋 Review"},{id:"export",label:"📤 Export"}];
+  const BRAIN_TABS_ALL=[{id:"command",label:"⚡ Command"},{id:"projects",label:"🗂 Projects"},{id:"bootstrap",label:"🚀 Bootstrap"},{id:"staging",label:`🌀 Staging${inReview>0?` (${inReview})`:""}`},{id:"skills",label:"🤖 Skills"},{id:"workflows",label:"⚙️ Workflows"},{id:"integrations",label:"🔌 Connect"},{id:"ideas",label:"💡 Ideas"},{id:"tags",label:`🏷 Tags${userTags.length>0?` (${userTags.length})`:""}`},{id:"ai",label:"💬 AI Coach"},{id:"review",label:"📋 Review"},{id:"export",label:"📤 Export"}];
+  const BRAIN_TABS=getBehavior('ai_coach_tab',currentMode)==='hidden'?BRAIN_TABS_ALL.filter(t=>t.id!=='ai'):BRAIN_TABS_ALL;
   const HUB_TABS=[{id:"editor",label:"📝 Editor"},{id:"overview",label:"📊 Overview"},{id:"folders",label:"📁 Folders"},{id:"review",label:`🔄 Review${hub?staging.filter(s=>s.project===hubId&&s.status==="in-review").length>0?` (${staging.filter(s=>s.project===hubId&&s.status==="in-review").length})`:"":""}`},{id:"devlog",label:"📓 Dev Log"},{id:"gantt",label:"📅 Timeline"},{id:"comments",label:"💬 Comments"},{id:"links",label:`🔗 Links${hubLinks.length>0?` (${hubLinks.length})`:""}`},{id:"meta",label:"🔧 Meta"}];
 
   // ── KEYBOARD SHORTCUTS LISTENER ───────────────────────────
@@ -3947,6 +3972,13 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   </div>
                 </div>
               )}
+              {/* Assistant mode: Check In button when no checkin yet */}
+              {!todayCheckin && getBehavior('daily_checkin', currentMode) === 'available' && (
+                <div style={{textAlign:"center",cursor:"pointer"}} onClick={()=>setShowCheckinModal(true)} title="Daily check-in">
+                  <div style={{fontSize:14}}>📋</div>
+                  <div style={{fontSize:8,color:C.blue,textTransform:"uppercase"}}>Check In</div>
+                </div>
+              )}
               {/* Training count (Phase 2.6) */}
               <div style={{textAlign:"center",cursor:"pointer"}} onClick={()=>setShowTrainingModal(true)} title="Log training">
                 <div style={{fontSize:14,fontWeight:700,color:weeklyTraining.count>=3?C.green:weeklyTraining.count>=1?C.amber:C.dim}}>
@@ -3956,7 +3988,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   {weeklyTraining.count}/3
                 </div>
               </div>
-              {/* Outreach indicator (Phase 2.7) */}
+              {/* Outreach indicator (Phase 2.7) — mode-aware */}
+              {shouldShow('outreach_enforcement',currentMode)&&(
               <div style={{textAlign:"center",cursor:"pointer"}} onClick={()=>setShowOutreachModal(true)} title="Log outreach">
                 <div style={{fontSize:14,fontWeight:700,color:todayOutreach.length>0?C.purple:C.dim}}>
                   📣
@@ -3965,8 +3998,9 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   {todayOutreach.length>0?`${todayOutreach.length} today`:"none"}
                 </div>
               </div>
-              {/* Notification Bell (Phase 4.4) */}
-              <div ref={notificationRef} style={{position:"relative"}}>
+              )}
+              {/* Notification Bell (Phase 4.4) — mode-aware */}
+              {shouldShow('notifications',currentMode)&&<div ref={notificationRef} style={{position:"relative"}}>
                 <div 
                   style={{textAlign:"center",cursor:"pointer"}} 
                   onClick={()=>setShowNotifications(v=>!v)}
@@ -4105,7 +4139,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                     </div>
                   </div>
                 )}
-              </div>
+              </div>}
               {[{v:projects.length,l:"Projects"},{v:`${activeGoal?.currency==='USD'?'$':activeGoal?.currency==='EUR'?'€':'£'}${totalIncome}`,l:activeGoal?.title||"Goal"},{v:`${Math.round(totalIncome/(activeGoal?.target_amount||3000)*100)}%`,l:"Status"},atRisk>0?{v:atRisk,l:"⚠ At Risk",c:C.amber}:null].filter(Boolean).map(s=>(
                 <div key={s.l} style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:s.c||C.blue2}}>{s.v}</div><div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>{s.l}</div></div>
               ))}
@@ -4519,6 +4553,19 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
               Preview: THE BRAIN v6 · Wired Edition · Bootstrap → Thailand
             </div>
             
+            {/* Assistance Mode */}
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              <label style={{fontSize:10,color:C.muted,fontWeight:600}}>Assistance Mode</label>
+              <select value={settingsForm.assistance_mode||"coach"} onChange={e=>setSettingsForm(s=>({...s,assistance_mode:e.target.value}))} style={{background:C.bg,color:C.text,border:`1px solid ${C.border}`,borderRadius:4,padding:"6px 8px",fontSize:11}}>
+                {Object.entries(MODE_INFO).map(([key,info])=>(
+                  <option key={key} value={key}>{info.icon} {info.label}</option>
+                ))}
+              </select>
+              <div style={{fontSize:9,color:C.muted,padding:"4px 0"}}>
+                {MODE_INFO[settingsForm.assistance_mode||"coach"].description}
+              </div>
+            </div>
+
             {/* AI Provider Settings */}
             <AIProviderSettings />
             
@@ -5347,8 +5394,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 </div>
               )}
 
-              {/* Drift Alerts (Phase 2.10) */}
-              {driftFlags.length>0&&(
+              {/* Drift Alerts (Phase 2.10) — mode-aware */}
+              {driftFlags.length>0&&getBehavior('drift_alerts',currentMode)==='alert'&&(
                 <div style={{background:"rgba(245,158,11,0.05)",border:"1px solid #f59e0b30",borderRadius:6,padding:"10px 14px",marginBottom:10}}>
                   <div style={{fontSize:9,color:C.amber,letterSpacing:"0.12em",marginBottom:6}}>⚠️ DRIFT DETECTED</div>
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -5365,6 +5412,19 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+              {/* Assistant mode: compact drift badge */}
+              {driftFlags.length>0&&getBehavior('drift_alerts',currentMode)==='badge'&&(
+                <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(245,158,11,0.08)",border:"1px solid #f59e0b20",borderRadius:12,padding:"4px 10px",marginBottom:10,cursor:"pointer"}} onClick={()=>setDriftExpanded(prev=>!prev)}>
+                  <span style={{fontSize:10,color:C.amber}}>⚠️ {driftFlags.length} drift alert{driftFlags.length>1?"s":""}</span>
+                </div>
+              )}
+              {driftFlags.length>0&&getBehavior('drift_alerts',currentMode)==='badge'&&driftExpanded&&(
+                <div style={{background:"rgba(245,158,11,0.03)",border:"1px solid #f59e0b15",borderRadius:6,padding:"8px 12px",marginBottom:10}}>
+                  {driftFlags.map((flag,i)=>(
+                    <div key={i} style={{fontSize:9,color:C.muted,padding:"2px 0"}}>{flag.message}</div>
+                  ))}
                 </div>
               )}
               {/* Training Log card (Phase 2.6) */}
@@ -5393,8 +5453,8 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                 </div>
               </div>
 
-              {/* Outreach card (Phase 2.7) */}
-              <div style={S.card(todayOutreach.length>0, C.purple)}>
+              {/* Outreach card (Phase 2.7) — mode-aware */}
+              {shouldShow('outreach_enforcement',currentMode)&&<div style={S.card(todayOutreach.length>0, C.purple)}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                   <span style={{fontSize:10,color:C.purple,letterSpacing:"0.11em",textTransform:"uppercase"}}>📣 Outreach</span>
                   <button style={{...S.btn("ghost"),fontSize:9,borderColor:C.purple+"50",color:C.purple}} onClick={()=>setShowOutreachModal(true)}>+ Log</button>
@@ -5420,11 +5480,13 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                         ))}
                       </div>
                     ):(
-                      <div style={{fontSize:9,color:C.red}}>⚠ No outreach yet today</div>
+                      getBehavior('outreach_enforcement',currentMode)==='modal'
+                        ? <div style={{fontSize:9,color:C.red}}>⚠ No outreach yet today</div>
+                        : <div style={{fontSize:9,color:C.dim}}>No outreach logged today</div>
                     )}
                   </div>
                 </div>
-              </div>
+              </div>}
 
               {/* Tasks card (Phase 5.4) */}
               <div style={S.card(tasks.filter(t=>t.status!=='complete').length>0, C.amber)}>
@@ -5715,9 +5777,11 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
             <div>
               <div style={S.card(false)}>
                 <span style={S.label()}>💬 AI Coach</span>
+                {getBehavior('ai_coach_tab',currentMode)==='full'&&(
                 <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
                   {["What should I work on today?","Where am I looping?","Thailand income path?","Triage staging","Rank by revenue potential","Which project is dying?"].map(p=><button key={p} style={S.btn("ghost")} onClick={()=>askAI(p)}>{p}</button>)}
                 </div>
+                )}
                 <div style={{display:"flex",gap:6}}>
                   <input style={S.input} value={aiIn} placeholder="Ask anything..." onChange={e=>setAiIn(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&aiIn.trim()){askAI(aiIn);setAiIn("");}}}/>
                   <button style={S.btn("primary")} onClick={()=>{if(aiIn.trim()){askAI(aiIn);setAiIn("");}}} disabled={aiLoad}>Ask</button>

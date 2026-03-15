@@ -656,6 +656,18 @@ export const workflowInstances = {
     del(`${BASE}/api/data?resource=workflow-instances&id=${instanceId}`),
 };
 
+// ── AGENT EXECUTION (Phase 5.6) ──────────────────────────────
+export const agentExecution = {
+  execute: (taskId) =>
+    post(`${BASE}/api/agents?action=execute`, { task_id: taskId }),
+
+  confirm: (taskId) =>
+    post(`${BASE}/api/agents?action=execute&confirmed=true`, { task_id: taskId, confirmed: true }),
+
+  status: (taskId) =>
+    get(`${BASE}/api/agents?action=status&task_id=${taskId}`),
+};
+
 // ── IMPORT PARSERS ────────────────────────────────────────────
 export function parseBuildlFormat(text) {
   // Parse BUIDL export format: MANIFEST_START...MANIFEST_END, FILES_START...FILES_END
