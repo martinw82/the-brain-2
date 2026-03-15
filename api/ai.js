@@ -257,7 +257,7 @@ async function buildSystemPrompt(userId, db) {
     [driftOutreachRows],
     [driftSessionRows],
   ] = await Promise.all([
-    db.execute('SELECT name, email, monthly_target, currency, goal FROM users WHERE id = ?', [userId]),
+    db.execute('SELECT name, email, monthly_target, currency, goal, settings FROM users WHERE id = ?', [userId]),
     db.execute('SELECT id, title, target_amount, current_amount, currency, status FROM goals WHERE user_id = ? AND status = ? LIMIT 1', [userId, 'active']),
     db.execute('SELECT SUM(amount) as total FROM goal_contributions WHERE goal_id IN (SELECT id FROM goals WHERE user_id = ? AND status = ?)', [userId, 'active']),
     db.execute('SELECT * FROM daily_checkins WHERE user_id = ? AND date = ?', [userId, today]),
@@ -278,8 +278,24 @@ async function buildSystemPrompt(userId, db) {
   const training = trainingRows[0] || { count: 0, minutes: 0 };
   const outreachToday = Number(outreachRows[0]?.today_count || 0);
 
-  const identityBlock = agentConfig.identity;
-  const rulesBlock = agentConfig.rules.map(r => `${r.id}. **${r.rule}**: ${r.detail}`).join('\n');
+  // Mode-aware prompt (Phase 6.1)
+  const userSettingsParsed = (() => { try { return JSON.parse(user.settings || '{}'); } catch { return {}; } })();
+  const assistanceMode = userSettingsParsed.assistance_mode || 'coach';
+
+  let identityBlock, rulesBlock;
+  if (assistanceMode === 'silent') {
+    identityBlock = 'You are a concise project management assistant. Answer questions directly with minimal commentary.';
+    rulesBlock = 'Respond factually. No coaching. No motivational language. Keep answers short.';
+  } else if (assistanceMode === 'assistant') {
+    identityBlock = agentConfig.identity.replace(/drill sergeant|military|tough love/gi, 'helpful partner');
+    rulesBlock = agentConfig.rules
+      .filter(r => !['outreach_mandatory', 'training_mandatory'].includes(r.id))
+      .map(r => `${r.id}. **${r.rule}**: ${r.detail}`)
+      .join('\n');
+  } else {
+    identityBlock = agentConfig.identity;
+    rulesBlock = agentConfig.rules.map(r => `${r.id}. **${r.rule}**: ${r.detail}`).join('\n');
+  }
 
   let stateBlock = 'No check-in today.';
   let routingMode = 'Steady';
@@ -355,6 +371,20 @@ Use URIs when:
 
 The user can click these URIs to navigate directly to the resource.`;
 
+  if (assistanceMode === 'silent') {
+    return `${identityBlock}
+
+## Operator
+Name: ${user.name || 'Builder'}
+
+## Projects
+${projectLines.join('\n')}
+
+${goal ? `## Goal\n${goalBlock}` : ''}
+
+${uriInstructions}`;
+  }
+
   return `${identityBlock}
 
 ## Operator
@@ -365,9 +395,7 @@ ${rulesBlock}
 
 ## State
 ${stateBlock}
-
-## Drift
-${driftBlock}
+${assistanceMode === 'assistant' ? '' : `\n## Drift\n${driftBlock}`}
 
 ## Goal
 ${goalBlock}

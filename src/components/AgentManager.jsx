@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { getAgents, getAgentStats, cloneAgent, clearAgentCache } from '../agents.js';
+import { agentExecution, tasks as tasksApi } from '../api.js';
 import { fileURI } from '../uri.js';
 
 // Colors matching TheBrain.jsx
@@ -121,6 +122,9 @@ export default function AgentManager({ projectId, projectFiles, onSaveAgent }) {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [stats, setStats] = useState({});
+  const [agentTasks, setAgentTasks] = useState([]);
+  const [executing, setExecuting] = useState(null); // task ID being executed
+  const [previewData, setPreviewData] = useState(null); // {taskId, prompt, agent}
 
   useEffect(() => {
     loadAgents();
@@ -146,10 +150,51 @@ export default function AgentManager({ projectId, projectFiles, onSaveAgent }) {
     }
   };
 
-  const handleSelectAgent = (agent) => {
+  const handleSelectAgent = async (agent) => {
     setSelectedAgent(agent);
     setEditing(false);
     setEditForm(null);
+    setPreviewData(null);
+    // Load tasks assigned to this agent
+    try {
+      const result = await tasksApi.list({ assignee_id: agent.id });
+      setAgentTasks(result.tasks || []);
+    } catch { setAgentTasks([]); }
+  };
+
+  const handleExecute = async (taskId) => {
+    setExecuting(taskId);
+    setPreviewData(null);
+    try {
+      const result = await agentExecution.execute(taskId);
+      if (result.status === 'preview') {
+        setPreviewData({ taskId, prompt: result.prompt, agent: result.agent });
+        setExecuting(null);
+      } else if (result.status === 'complete') {
+        // Refresh tasks
+        setAgentTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'complete', result_summary: result.result_summary } : t));
+        setExecuting(null);
+      } else {
+        setAgentTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: result.status || 'blocked' } : t));
+        setExecuting(null);
+      }
+    } catch (e) {
+      console.error('[AgentExec] Error:', e);
+      setExecuting(null);
+    }
+  };
+
+  const handleConfirmExec = async (taskId) => {
+    setExecuting(taskId);
+    try {
+      const result = await agentExecution.confirm(taskId);
+      setAgentTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: result.status || 'complete', result_summary: result.result_summary } : t));
+      setPreviewData(null);
+    } catch (e) {
+      console.error('[AgentExec] Confirm error:', e);
+    } finally {
+      setExecuting(null);
+    }
   };
 
   const handleClone = async (agent) => {
@@ -388,6 +433,69 @@ export default function AgentManager({ projectId, projectFiles, onSaveAgent }) {
                 </div>
               </div>
             </div>
+
+            {/* Agent Tasks (Phase 5.6) */}
+            <div style={S.card(agentTasks.some(t => t.status === 'pending'))}>
+              <span style={S.label(C.amber)}>Assigned Tasks</span>
+              {agentTasks.length === 0 && (
+                <div style={{ fontSize: 10, color: C.muted }}>No tasks assigned to this agent</div>
+              )}
+              {agentTasks.map(task => (
+                <div key={task.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+                  <span style={S.badge(
+                    task.status === 'complete' ? C.green : task.status === 'blocked' ? C.red : task.status === 'in_progress' ? C.amber : C.dim
+                  )}>
+                    {task.status}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 10, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.title}</div>
+                  </div>
+                  {task.status === 'pending' && (
+                    <button
+                      style={S.btn("primary")}
+                      disabled={executing === task.id}
+                      onClick={() => handleExecute(task.id)}
+                    >
+                      {executing === task.id ? '⏳' : '▶ Execute'}
+                    </button>
+                  )}
+                  {task.status === 'complete' && task.result_summary && (
+                    <span style={{ fontSize: 9, color: C.green }}>✓</span>
+                  )}
+                  {task.status === 'blocked' && (
+                    <span style={{ fontSize: 9, color: C.red }}>✗</span>
+                  )}
+                </div>
+              ))}
+              {/* Completed task result viewer */}
+              {agentTasks.filter(t => t.status === 'complete' && t.result_summary).map(task => (
+                <details key={`result-${task.id}`} style={{ marginTop: 8 }}>
+                  <summary style={{ fontSize: 9, color: C.green, cursor: "pointer" }}>Result: {task.title}</summary>
+                  <pre style={{ fontSize: 9, color: C.text, background: C.bg, padding: 10, borderRadius: 5, overflow: "auto", maxHeight: 200, whiteSpace: "pre-wrap", lineHeight: 1.5, marginTop: 6 }}>
+                    {task.result_summary}
+                  </pre>
+                </details>
+              ))}
+            </div>
+
+            {/* Preview mode (assistant) */}
+            {previewData && (
+              <div style={{ ...S.card(true), borderColor: C.amber }}>
+                <span style={S.label(C.amber)}>Preview: Agent Prompt</span>
+                <div style={{ fontSize: 9, color: C.muted, marginBottom: 8 }}>
+                  Model: {previewData.agent?.model} | Temp: {previewData.agent?.temperature}
+                </div>
+                <pre style={{ fontSize: 9, color: C.text, background: C.bg, padding: 10, borderRadius: 5, overflow: "auto", maxHeight: 250, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                  {previewData.prompt}
+                </pre>
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <button style={S.btn("primary", C.green)} disabled={!!executing} onClick={() => handleConfirmExec(previewData.taskId)}>
+                    {executing ? '⏳ Executing...' : '✓ Confirm & Execute'}
+                  </button>
+                  <button style={S.btn("ghost")} onClick={() => setPreviewData(null)}>Cancel</button>
+                </div>
+              </div>
+            )}
 
             {/* Capabilities */}
             <div style={S.card(false)}>

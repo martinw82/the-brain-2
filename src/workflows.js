@@ -3,7 +3,7 @@
  * Orchestrates multi-step workflows by creating tasks
  */
 
-import { workflowInstances, tasks, workflows as workflowsApi } from './api.js';
+import { workflowInstances, tasks, workflows as workflowsApi, agentExecution } from './api.js';
 import { selectAgent, buildAgentPrompt } from './agents.js';
 
 /**
@@ -87,10 +87,17 @@ export async function executeStep(instanceId, stepIndex) {
     if (taskResult.success) {
       console.log(`[Workflow] Step ${stepIndex + 1} task created: ${taskResult.id}`);
       
-      // If assigned to agent and auto_assign, trigger execution
+      // If assigned to agent and auto_assign, trigger execution (Phase 5.6)
       if (assigneeType === 'agent' && step.auto_assign) {
-        // This would trigger agent execution (Phase 5.6)
-        console.log(`[Workflow] Auto-triggering agent ${assigneeId} for step ${stepIndex + 1}`);
+        try {
+          const execResult = await agentExecution.execute(taskResult.id);
+          if (execResult.status === 'complete') {
+            await onTaskComplete(taskResult.id);
+          }
+          // 'preview' (assistant mode) or 'blocked' → UI handles via polling
+        } catch (execErr) {
+          console.error(`[Workflow] Agent execution failed for step ${stepIndex + 1}:`, execErr);
+        }
       }
     }
   } catch (e) {
@@ -140,9 +147,9 @@ export async function onTaskComplete(taskId) {
       completed_at: new Date().toISOString()
     });
     
-    // Advance to next step
-    const nextStepIndex = currentStepIndex + 1;
-    if (nextStepIndex < steps.length) {
+    // Advance to next step (via helper for future branching/conditions)
+    const nextStepIndex = getNextStep(instance, steps, currentStepIndex);
+    if (nextStepIndex !== null && nextStepIndex < steps.length) {
       await executeStep(instanceId, nextStepIndex);
     } else {
       console.log(`[Workflow] Instance ${instanceId} completed`);
@@ -150,6 +157,21 @@ export async function onTaskComplete(taskId) {
   } catch (e) {
     console.error('[Workflow] On task complete error:', e);
   }
+}
+
+/**
+ * Determine next step index after completing a step.
+ * Currently sequential; designed as the extension point for
+ * future condition evaluation, parallel step groups, and branching.
+ * @param {object} instance - Workflow instance
+ * @param {Array} steps - Step definitions array
+ * @param {number} completedStepIndex - Index of the just-completed step
+ * @returns {number|null} - Next step index, or null if workflow is done
+ */
+export function getNextStep(instance, steps, completedStepIndex) {
+  // Future: evaluate step.condition, step.parallel, step.wait_for here
+  const next = completedStepIndex + 1;
+  return next < steps.length ? next : null;
 }
 
 /**
