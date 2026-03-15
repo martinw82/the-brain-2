@@ -4,6 +4,49 @@
 
 ---
 
+## Session 046 — 2026-03-15
+**Branch:** `main`
+**Task:** Phase 5.3 — Agent Registry UI (Complete)
+**Status:** ✅ Complete
+
+### Implementation Summary
+Completed Agent Registry UI with agent management and capability-based task assignment.
+
+**AgentManager Component (`src/components/AgentManager.jsx`):**
+- Two-panel layout: Agent list | Agent details
+- Lists system agents (read-only) and custom agents (user-created)
+- Shows agent stats (tasks, success rate, avg cost, avg time)
+- Displays capabilities, permissions, prompt prefix
+- **Clone feature:** Creates new agent from system agent with verbose naming
+  - Format: `{basename}-v{version}-clone-{date}`
+  - Editable: name, icon, description, capabilities, permissions, model, prompt
+  - Saves to project files as `/agents/{agent-id}.md`
+
+**Capability-Based Task Assignment:**
+- Updated Task Creation Modal with assignee selection
+- Toggle: "👤 Me (Human)" vs "🤖 Agent"
+- When Agent selected:
+  - Loads available agents for selected project
+  - Shows agent list with icon, name, capabilities
+  - System agents marked with purple badge
+  - Click to select, green checkmark shows selection
+- Task created with `assignee_type: 'agent'` and `assignee_id: '{agent-id}'`
+
+**Integration:**
+- AgentManager added to Skills tab (replaces old hardcoded SKILLS view)
+- Task modal loads agents dynamically when project selected
+- Clone saves to project files via `saveFile()` API
+
+**UI Features:**
+- Responsive agent cards with hover effects
+- Capability selection by category (Code, Content, Strategy, Design, Research)
+- Permission toggles
+- Model selection dropdown
+- Full prompt editor (textarea)
+- Stats display with color-coded badges
+
+---
+
 ## Session 045 — 2026-03-15
 **Branch:** `main`
 **Task:** Phase 5.3 — Agent Registry (File-based Architecture)

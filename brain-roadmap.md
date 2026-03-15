@@ -230,10 +230,18 @@ You are a senior developer...
   - `selectAgent()` — Score and select best agent
   - `cloneAgent()` — Create new agent from existing
   - `buildAgentPrompt()` — Construct full prompt with context
-- [ ] `[UI]` Agent management (clone, customize, save)
-- [ ] `[UI]` Capability-based routing in task assignment
+- [x] `[UI]` AgentManager component (`src/components/AgentManager.jsx`)
+  - Browse system + custom agents
+  - View agent details (capabilities, permissions, stats)
+  - Clone agent to create custom version
+  - Edit capabilities, permissions, prompt
+  - Save to project files
+- [x] `[UI]` Capability-based task assignment
+  - Task modal shows "Me (Human)" vs "Agent" toggle
+  - Lists available agents with capabilities
+  - Assigns task to selected agent
 
-**Done when:** ✅ System agents defined as files, queryable by capability, ready for task assignment
+**Done when:** ✅ Users can browse agents, clone to create custom agents, assign tasks by capability
 
 ---
 
