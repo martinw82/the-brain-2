@@ -448,9 +448,14 @@ async function runMigrations() {
         for (const m of migrations) {
             if (!appliedVersions.has(m.version)) {
                 console.log(`Applying migration v${m.version}: ${m.name}...`);
-                await connection.query(m.sql);
-                await connection.query('INSERT INTO schema_migrations (version, name) VALUES (?, ?)', [m.version, m.name]);
-                console.log('✅ Success');
+                try {
+                    await connection.query(m.sql);
+                    await connection.query('INSERT INTO schema_migrations (version, name) VALUES (?, ?)', [m.version, m.name]);
+                    console.log('✅ Success');
+                } catch (error) {
+                    console.error(`❌ Migration v${m.version} failed:`, error.message);
+                    throw error;
+                }
             } else {
                 console.log(`Migration v${m.version} already applied.`);
             }
