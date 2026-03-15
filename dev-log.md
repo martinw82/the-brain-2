@@ -4,6 +4,77 @@
 
 ---
 
+## Session 047 — 2026-03-15
+**Branch:** `main`
+**Task:** Phase 5.5 — Workflow Execution Engine
+**Status:** ✅ Complete
+
+### Implementation Summary
+Built complete workflow execution system with templates, instances, and step-by-step execution.
+
+**Database (Migration v25):**
+- `workflow_templates` table — Static workflow definitions
+- `workflow_instances` table — Running workflow executions
+- JSON fields for steps, triggers, step_results
+- Indexes for fast queries by status, project, user
+
+**System Workflows (`agents/system-workflows.json`):**
+```
+🚀 Product Launch      — 7 steps: build-check → security → assets → copy → deploy → announce → monitor
+✍️ Content Sprint      — 5 steps: pick-angle → draft → assets → review → schedule
+💡 Idea → Brief        — 6 steps: capture → validate → research → mvp-scope → dev-brief → wireframes
+📊 Weekly Review       — 6 steps: health-check → review-staging → ai-review → devlogs → set-focus → build-post
+🔒 Security Audit      — 5 steps: dependencies → env-vars → input-validation → auth-review → report
+```
+
+**API Endpoints (`api/data.js`):**
+- `GET/POST/DELETE /api/data?resource=workflows` — Template management
+- `GET/POST/PUT/DELETE /api/data?resource=workflow-instances` — Instance lifecycle
+- Instance controls: pause, resume, abort, complete-step
+
+**Execution Engine (`src/workflows.js`):**
+- `startWorkflow(templateId, projectId)` — Create instance, trigger first step
+- `executeStep(instanceId, stepIndex)` — Create task, assign to agent by capability
+- `onTaskComplete(taskId)` — Advance workflow, auto-execute next step
+- `getProgress(instance)` — Calculate % complete
+- `seedSystemWorkflows()` — Load system workflows on first run
+
+**UI Component (`src/components/WorkflowRunner.jsx`):**
+- Browse workflow templates with step counts
+- Start workflow modal with template selection
+- Running instances list with progress bars
+- Pause ⏸ / Resume ▶ / Abort ✕ controls
+- Instance detail view:
+  - Visual step progress (completed ✓ / current / pending)
+  - Capability requirements for each step
+  - Execution log with timestamps
+  - Step-by-step status tracking
+
+**Execution Flow:**
+```
+User clicks "Start Product Launch"
+    ↓
+Instance created (status: running)
+    ↓
+Step 1: "Final Build Check" → Task created
+    ↓
+Assigned to agent with capability "code.review"
+    ↓
+Agent completes task
+    ↓
+Workflow advances to Step 2 automatically
+    ↓
+Repeat until all steps complete
+```
+
+**Integration:**
+- Workflows tab now shows WorkflowRunner (replaces old static view)
+- Seeds system workflows on app initialization
+- Creates tasks that integrate with existing task system
+- Agent assignment uses capability-based routing from Phase 5.3
+
+---
+
 ## Session 046 — 2026-03-15
 **Branch:** `main`
 **Task:** Phase 5.3 — Agent Registry UI (Complete)

@@ -302,38 +302,61 @@ if (task.urgency === 'critical') → assign to human
 
 ---
 
-## 5.5 Workflow Execution Engine `[DB]` `[API]` `[UI]` 📋
+## 5.5 Workflow Execution Engine `[DB]` `[API]` `[UI]` ✅ COMPLETE (2026-03-15)
 
 **Deliverable:** From static templates to executable instances
 
-**Schema:**
+**Schema (Migration v25):**
 ```sql
+CREATE TABLE workflow_templates (
+  id VARCHAR(64) PRIMARY KEY,
+  user_id VARCHAR(36),
+  name, description, icon,
+  steps JSON, triggers JSON,
+  is_system, is_active
+);
+
 CREATE TABLE workflow_instances (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  workflow_template_id VARCHAR(64),
-  project_id VARCHAR(64),
-  user_id INT,
-  status ENUM('running', 'paused', 'completed', 'failed'),
-  current_step_index INT DEFAULT 0,
-  step_results JSON,
-  execution_log TEXT,
-  started_at DATETIME,
-  completed_at DATETIME
+  id VARCHAR(36) PRIMARY KEY,
+  workflow_template_id, project_id, user_id,
+  status ENUM('pending', 'running', 'paused', 'completed', 'failed', 'aborted'),
+  current_step_index, step_results JSON, execution_log TEXT,
+  started_at, completed_at
 );
 ```
 
+**System Workflows (`agents/system-workflows.json`):**
+- 🚀 Product Launch (7 steps)
+- ✍️ Content Sprint (5 steps)
+- 💡 Idea → Brief (6 steps)
+- 📊 Weekly Review (6 steps)
+- 🔒 Security Audit (5 steps)
+
+**Implementation:**
+- [x] `[DB]` Migration v25 for workflow tables
+- [x] `[API]` `resource=workflows` CRUD endpoints
+- [x] `[API]` `resource=workflow-instances` lifecycle endpoints
+- [x] `[LIB]` `src/workflows.js` execution engine
+  - `startWorkflow()` — Create instance, execute first step
+  - `executeStep()` — Create task for step, assign to agent
+  - `onTaskComplete()` — Advance workflow, trigger next step
+  - `getProgress()` — Calculate completion percentage
+- [x] `[UI]` WorkflowRunner component
+  - List templates with step count
+  - Start workflow modal
+  - Running instances with progress bars
+  - Pause/resume/abort controls
+  - Instance detail view with steps and execution log
+  - History of completed workflows
+
 **Execution Model:**
-1. Create task for current step
-2. If agent: trigger AI execution
-3. Wait for completion (async)
-4. On complete: auto-advance or branch
+1. User clicks "Start Workflow"
+2. Instance created, first step executed
+3. Task created with capability-based agent assignment
+4. Agent completes task → workflow advances
+5. Auto-execute next step until complete
 
-**UI Components:**
-- [ ] `[UI]` Workflow instance viewer (progress, history)
-- [ ] `[UI]` "Start Workflow" button on projects
-- [ ] `[UI]` Pause/resume/abort controls
-
-**Done when:** Workflows execute step-by-step, create tasks, track progress
+**Done when:** ✅ Workflows execute step-by-step, create tasks, track progress
 
 ---
 
