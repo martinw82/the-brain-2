@@ -5103,6 +5103,59 @@ Provide metadata suggestions as JSON.`;
       }
     }
 
+
+    // ── AGENT STATS (Phase 5.3) ───────────────────────────────────
+    if (resource === 'agent-stats') {
+      if (req.method !== 'GET') return err(res, 'Method not allowed', 405);
+
+      const agentId = req.query.agent_id;
+
+      try {
+        // Get agent stats from tasks table
+        let query = `
+          SELECT 
+            assignee_id as agent_id,
+            COUNT(*) as total_tasks,
+            SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) as completed_tasks,
+            AVG(result_duration_minutes) as avg_duration_minutes,
+            AVG(result_cost) as avg_cost
+          FROM tasks 
+          WHERE assignee_type = 'agent' AND user_id = ?
+        `;
+        const params = [auth.userId];
+
+        if (agentId) {
+          query += ' AND assignee_id = ?';
+          params.push(agentId);
+        }
+
+        query += ' GROUP BY assignee_id';
+
+        const [rows] = await db.execute(query, params);
+
+        // Calculate success rate
+        const stats = rows.map(row => ({
+          agent_id: row.agent_id,
+          total_tasks: parseInt(row.total_tasks) || 0,
+          completed_tasks: parseInt(row.completed_tasks) || 0,
+          avg_duration_minutes: Math.round(row.avg_duration_minutes) || 0,
+          avg_cost: parseFloat(row.avg_cost) || 0,
+          success_rate: row.total_tasks > 0 
+            ? Math.round((row.completed_tasks / row.total_tasks) * 100) 
+            : 0
+        }));
+
+        return ok(res, { stats });
+      } catch (e) {
+        if (
+          e.message.includes('Table') &&
+          e.message.includes("doesn't exist")
+        ) {
+          return ok(res, { stats: [] });
+        }
+        throw e;
+      }
+    }
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e.message, e.stack);

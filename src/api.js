@@ -781,6 +781,12 @@ export const agentExecution = {
     }),
 };
 
+// ── AGENT STATS (Phase 5.3) ───────────────────────────────────
+export const agents = {
+  getStats: (agentId) => get(`${BASE}/api/data?resource=agent-stats${agentId ? "\&agent_id=" + agentId : ""}`),
+  getAllStats: () => get(`${BASE}/api/data?resource=agent-stats`),
+};
+
 // ── IMPORT PARSERS ────────────────────────────────────────────
 export function parseBuildlFormat(text) {
   // Parse BUIDL export format: MANIFEST_START...MANIFEST_END, FILES_START...FILES_END

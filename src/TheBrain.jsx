@@ -18,7 +18,7 @@ import { seedSystemWorkflows } from "./workflows.js";
 import { getMode, getBehavior, shouldShow, MODE_INFO } from "./modeHelper.js";
 
 // ============================================================
-// THE BRAIN v6 — Wired Edition
+// THE BRAIN v2.0 — Orchestrator Edition
 // Full persistence via TiDB/MySQL + Netlify Functions
 // ============================================================
 
@@ -3702,7 +3702,7 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
 
   // ── CONTEXT + BRIEFINGS + AI ───────────────────────────────
   const buildCtx=(projId=null)=>JSON.stringify({
-    agent_context:"THE BRAIN v6 — Wired Edition",generated:new Date().toISOString(),
+    agent_context:"THE BRAIN v2.0 — Orchestrator Edition",generated:new Date().toISOString(),
     operator:{name:user?.name||"Builder",email:user?.email,goal:user?.goal||"Bootstrap → Thailand",monthly_target:user?.monthly_target||THAILAND_TARGET},
     today_focus:focusId,
     projects:(projId?projects.filter(p=>p.id===projId):projects).map(p=>({id:p.id,name:p.name,phase:p.phase,status:p.status,priority:p.priority,revenue_ready:p.revenueReady,health:p.health,momentum:p.momentum,next_action:p.nextAction,blockers:p.blockers,tags:p.tags,income_target:p.incomeTarget,skills:p.skills,staging_pending:staging.filter(s=>s.project===p.id&&s.status==="in-review").length})),

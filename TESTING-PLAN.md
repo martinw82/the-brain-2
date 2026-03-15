@@ -461,3 +461,74 @@ Testing is complete when:
 ---
 
 *Plan created: 2026-03-15*
+
+---
+
+# ISSUES FIXED
+
+## Issue 1: memory.js - Wrong imports
+**Date:** 2026-03-15  
+**File:** `src/memory.js`  
+**Severity:** HIGH  
+**Description:** Was importing non-existent `get` and `post` functions from `./api.js`  
+**Fix:** Rewrote to use the `memories` export from api.js  
+**Status:** ✅ FIXED
+
+## Issue 2: Version confusion  
+**Date:** 2026-03-15  
+**Files:** `package.json`, `src/TheBrain.jsx`  
+**Severity:** LOW  
+**Description:** package.json said v6.0.0, docs said v2.0  
+**Fix:** Updated package.json to v2.0.0, updated TheBrain.jsx header to "Orchestrator Edition"  
+**Status:** ✅ FIXED
+
+## Issue 3: Agent stats return zeros
+**Date:** 2026-03-15  
+**Files:** `src/agents.js`, `src/api.js`, `api/data.js`  
+**Severity:** MEDIUM  
+**Description:** getAgentStats() always returned zeros - no backend aggregation  
+**Fix:** 
+- Added `/api/data?resource=agent-stats` endpoint in api/data.js
+- Added `agents` API export in src/api.js with getStats() and getAllStats()
+- Updated src/agents.js to use the new API  
+**Status:** ✅ FIXED
+
+## Issue 4: Rate limiting in-memory only
+**Date:** 2026-03-15  
+**Files:** `api/data.js`, `api/projects.js`, `api/ai.js`  
+**Severity:** MEDIUM  
+**Description:** Rate limiting uses in-memory Map - resets on serverless cold starts  
+**Fix:** No fix applied - documented as known limitation  
+**Status:** 📝 KNOWN LIMITATION (not critical for typical usage)
+
+## Issue 5: TODO comment in projects.js
+**Date:** 2026-03-15  
+**File:** `api/projects.js` line 496  
+**Severity:** LOW  
+**Description:** "TODO: Implement hard-delete cleanup for files older than 30 days"  
+**Fix:** No fix - low priority feature  
+**Status:** 📝 DEFERRED
+
+---
+
+# VERIFICATION
+
+Run these commands to verify fixes:
+
+```bash
+# Verify version fix
+grep '"version"' package.json
+# Should show: "version": "2.0.0"
+
+# Verify memory.js imports  
+head -10 src/memory.js
+# Should import: import { memories } from './api.js';
+
+# Verify agents.js uses API
+grep "agents.getStats" src/agents.js
+# Should show: const result = await agents.getStats(agentId);
+
+# Verify agent-stats endpoint exists
+grep "agent-stats" api/data.js
+# Should show: if (resource === 'agent-stats')
+```
