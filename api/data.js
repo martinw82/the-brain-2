@@ -2062,8 +2062,8 @@ Provide metadata suggestions as JSON.`;
 
     return err(res, 'Not found', 404);
   } catch (e) {
-    console.error('Data error:', e);
-    return err(res, 'Server error', 500);
+    console.error('Data error:', e.message, e.stack);
+    return err(res, `Server error: ${e.message}`, 500);
   } finally {
     if (db) await db.end();
   }
