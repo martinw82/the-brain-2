@@ -438,15 +438,24 @@ All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
 
 ### 📋 v2.0 FULLY SHIPPED ✅
 
-All phases complete! The Brain v2.0 is ready.
-
-### 📦 v2.0 PARKING LOT
-
-See BRAIN_ROADMAP.md Phases 5-8 for full pipeline.
+All phases complete! See `brain-roadmap.md` for the detailed implementation status.
 
 ---
 
-## 10. Architecture Principles
+## Documentation
+
+| File                  | Purpose                                     |
+| --------------------- | ------------------------------------------- |
+| `README.md`           | Quick reference — setup, features, commands |
+| `brain-roadmap.md`    | Detailed step-by-step roadmap               |
+| `ARCHITECTURE-v2.md`  | Architecture overview                       |
+| `schema-reference.md` | Database schema reference                   |
+| `agent-brief.md`      | Operating rules for AI agents               |
+| `dev-log.md`          | Session-by-session development log          |
+
+---
+
+## Architecture Principles
 
 ### v1.0 Principles (Proven)
 
@@ -486,8 +495,9 @@ See BRAIN_ROADMAP.md Phases 5-8 for full pipeline.
 
 ---
 
-_THE BRAIN v1.0 — Wired Edition (COMPLETE)_  
-_THE BRAIN v2.0 — Orchestrator Edition (PLANNED)_
+_THE BRAIN v2.0 — Orchestrator Edition (COMPLETE)_
+
+**v2.0 FULLY SHIPPED** ✅
 
 **\*\***\***\*\***APPEND AND ANNOTATE ALL EDITS**\*\***\*\*\***\*\***
 

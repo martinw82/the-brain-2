@@ -1,4 +1,6 @@
-# THE BRAIN — Roadmap v2.0
+# THE BRAIN — Roadmap Summary v2.0
+
+> **Note:** This is a high-level roadmap summary. For detailed implementation tasks, see `brain-roadmap.md`. For the master status document, see `brain-status.md`.
 
 **Agent Orchestration Platform with Adaptive Coaching**
 

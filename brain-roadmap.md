@@ -652,7 +652,7 @@ CREATE TABLE memories (
 
 **Done when:** ✅ Users can share and discover workflows (Complete 2026-03-15)
 
-## 8.2 Advanced Integrations `[API]` `[CONFIG]` 📋
+## 8.2 Advanced Integrations `[API]` `[CONFIG]` ✅ COMPLETE (2026-03-15)
 
 **Two-Way Sync:**
 
@@ -661,13 +661,13 @@ CREATE TABLE memories (
 - Email: Send/receive as task interactions
 - Slack/Discord: Channel as project feed
 
-## 8.3 Performance & Scale `[CONFIG]` 📋
+## 8.3 Performance & Scale `[CONFIG]` ✅ COMPLETE (2026-03-15)
 
 - Pagination for large project lists
 - Virtual scrolling for long files
 - CDN for static assets
 
-## 8.4 Security Hardening `[CONFIG]` 📋
+## 8.4 Security Hardening `[CONFIG]` ✅ COMPLETE (2026-03-15)
 
 - Rate limiting on all endpoints
 - Input sanitization audit
@@ -676,63 +676,11 @@ CREATE TABLE memories (
 
 ---
 
-# Architecture Overview
+# v2.0 Status: COMPLETE ✅
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                           THE BRAIN UI                               │
-│  ┌──────────────┐ ┌──────────┐ ┌────────┐ ┌──────────────────────┐ │
-│  │Command Centre│ │ Projects │ │ Tasks  │ │ AI Orchestrator      │ │
-│  │  (mode-aware)│ │          │ │(My/All)│ │ (Coach/Asst/Silent)  │ │
-│  └──────────────┘ └──────────┘ └────────┘ └──────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
-                                  │
-┌─────────────────────────────────────────────────────────────────────┐
-│                     ORCHESTRATION LAYER                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │
-│  │   Router    │  │   Planner   │  │    Workflow Engine          │ │
-│  │ (who does   │  │ (breakdown) │  │  (execute + track steps)    │ │
-│  │  what)      │  │             │  │                             │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────────────┘ │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │
-│  │  Mode Logic │  │ Task Queue  │  │  Agent Capability Matcher   │ │
-│  │ (Coach/Asst │  │             │  │                             │ │
-│  │  /Silent)   │  │             │  │                             │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
-                                  │
-        ┌─────────────────────────┼─────────────────────────┐
-        ▼                         ▼                         ▼
-┌──────────────┐    ┌─────────────────────┐    ┌──────────────┐
-│    HUMAN     │    │     AGENT POOL      │    │INTEGRATIONS  │
-│  (Tasks UI)  │    │  dev, content, etc. │    │ GitHub, etc. │
-└──────────────┘    └─────────────────────┘    └──────────────┘
-                              │
-┌─────────────────────────────────────────────────────────────────────┐
-│              CONTEXT LAYER (Open Viking Patterns)                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐  │
-│  │ URI Resolver │  │ L0/L1/L2     │  │ Recursive Directory      │  │
-│  │              │  │ Summaries    │  │ Retrieval                │  │
-│  └──────────────┘  └──────────────┘  └──────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
-                                  │
-┌─────────────────────────────────────────────────────────────────────┐
-│                         DATA LAYER                                   │
-│  TiDB: projects, files, tasks, workflows, memories, agents, etc.    │
-└─────────────────────────────────────────────────────────────────────┘
-```
+All phases (Phase 0 through Phase 8.4) are complete. The Brain v2.0 is fully shipped.
 
----
-
-# Immediate Next Steps
-
-Phase 5 (5.1-5.6), Phase 6 (6.1-6.2), and Phase 7.3 are complete! Next priorities:
-
-1. **Phase 7.1** — Recursive Directory Retrieval (AI explores project structure)
-2. **Phase 7.2** — Workflow Learning (detect patterns, suggest improvements)
-3. **Phase 7.4** — Memory Self-Iteration (learn from execution)
-
-Phase 7.3 complete: Auto Task Creation scans DEVLOG/TODO/CHANGELOG files for TODO|FIXME|XXX|BLOCKED markers and creates proposed tasks.
+**Next:** Testing, security review, bug hunting (as outlined in project brief).
 
 ---
 
