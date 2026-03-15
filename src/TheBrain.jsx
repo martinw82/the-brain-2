@@ -24,6 +24,7 @@ import {
   tasks as tasksApi,
   fileSummaries,
   agentExecution,
+  modeSuggestions as modeSuggestionsApi,
 } from './api.js';
 import { cache } from './cache.js';
 import { sync } from './sync.js';
@@ -5861,6 +5862,10 @@ export default function TheBrain({
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Mode suggestions state (Phase 6.2)
+  const [modeSuggestions, setModeSuggestions] = useState([]);
+  const [modeSuggestionsLoading, setModeSuggestionsLoading] = useState(false);
+
   const showToast = (msg) => setToast({ msg });
 
   // ── TAG HELPERS ───────────────────────────────────────────
@@ -6410,7 +6415,7 @@ export default function TheBrain({
       };
       dailyCheckinsApi();
     }
-    // Load weekly training count + today's outreach + drift check + tasks + seed workflows
+    // Load weekly training count + today's outreach + drift check + tasks + mode suggestions + seed workflows
     if (user) {
       loadWeeklyTraining();
       if (getBehavior('outreach_enforcement', getMode(userSettings)) !== 'off')
@@ -6418,6 +6423,8 @@ export default function TheBrain({
       if (getBehavior('drift_alerts', getMode(userSettings)) !== 'off')
         loadDriftCheck();
       loadTasks();
+      // Phase 6.2: Load smart mode suggestions
+      loadModeSuggestions();
       // Phase 5.5: Seed system workflows on first run
       seedSystemWorkflows().catch(() => {});
     }
@@ -7383,6 +7390,38 @@ export default function TheBrain({
     setDriftDismissed(updated);
     localStorage.setItem('driftDismissed', JSON.stringify(updated));
     setDriftFlags((prev) => prev.filter((f) => f.type !== type));
+  };
+
+  // ── MODE SUGGESTIONS (Phase 6.2) ──────────────────────────────
+  const loadModeSuggestions = async () => {
+    setModeSuggestionsLoading(true);
+    try {
+      const data = await modeSuggestionsApi.get();
+      if (data && data.suggestions) {
+        setModeSuggestions(data.suggestions);
+      }
+    } catch (e) {
+      console.error('Mode suggestions error:', e);
+    } finally {
+      setModeSuggestionsLoading(false);
+    }
+  };
+
+  const dismissModeSuggestion = async (type) => {
+    try {
+      await modeSuggestionsApi.dismiss(type);
+      setModeSuggestions((prev) => prev.filter((s) => s.type !== type));
+    } catch (e) {
+      console.error('Dismiss mode suggestion error:', e);
+    }
+  };
+
+  const switchToMode = async (mode) => {
+    const updatedSettings = { ...userSettings, assistance_mode: mode };
+    await settingsApi.put(updatedSettings);
+    setUserSettings(updatedSettings);
+    setModeSuggestions((prev) => prev.filter((s) => s.suggested_mode !== mode));
+    setToast({ msg: `Switched to ${mode} mode` });
   };
 
   // ── NOTIFICATIONS (Phase 4.4) ─────────────────────────────────
@@ -11771,6 +11810,9 @@ export default function TheBrain({
                 openHub={openHub}
                 S={S}
                 C={C}
+                modeSuggestions={modeSuggestions}
+                dismissModeSuggestion={dismissModeSuggestion}
+                switchToMode={switchToMode}
               />
             )}
 

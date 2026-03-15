@@ -535,6 +535,15 @@ export const notifications = {
   checkTriggers: () => get(`${BASE}/api/data?resource=notification-check`),
 };
 
+// ── MODE SUGGESTIONS (Phase 6.2) ────────────────────────────
+export const modeSuggestions = {
+  get: () => get(`${BASE}/api/data?resource=mode-suggestions`),
+  dismiss: (suggestionType) =>
+    post(`${BASE}/api/data?resource=dismiss-mode-suggestion`, {
+      suggestion_type: suggestionType,
+    }),
+};
+
 // ── TASKS (Phase 5.4) ────────────────────────────────────────
 export const tasks = {
   // List tasks with optional filters

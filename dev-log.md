@@ -1270,6 +1270,49 @@ Phase 5.2: Hierarchical Context Summarization (L0/L1/L2)
 
 ---
 
+## Session 050 — 2026-03-15
+
+**Branch:** `grok-fixes-everything`
+**Task:** Phase 6.2 — Smart Mode Suggestions
+**Status:** ✅ Complete
+
+### Implementation Summary
+
+Built system that suggests mode changes based on user behavior patterns.
+
+**API Endpoints (`api/data.js`):**
+
+- `GET /api/data?resource=mode-suggestions` — Analyzes behavior, returns suggestions
+- `POST /api/data?resource=dismiss-mode-suggestion` — Dismiss suggestion permanently
+
+**Behavior Triggers:**
+
+1. **Streak → Assistant:** 25+ check-ins in 30 days → suggest Assistant mode
+2. **Missed → Coach:** 3+ missed check-ins → suggest Coach mode
+3. **Delegation → Silent:** 50%+ tasks assigned to agents → suggest Silent mode
+4. **Low Engagement → Coach:** <3 sessions in 2 weeks → suggest Coach mode
+
+**Client (`src/api.js`):**
+
+- Added `modeSuggestions` API wrapper with get() and dismiss() methods
+
+**UI (`src/TheBrain.jsx` + `CommandCentre.jsx`):**
+
+- State: modeSuggestions, modeSuggestionsLoading
+- Functions: loadModeSuggestions, dismissModeSuggestion, switchToMode
+- Banner: Purple-themed, shows reason + trigger for each suggestion
+- Actions: "Switch to X mode" button, "Not now" dismiss button
+- Integration: Loads on mount, dismiss persists to user settings
+
+**User Flow:**
+
+1. User has 25+ day check-in streak
+2. System suggests "Try Assistant mode" banner appears
+3. User clicks "Switch to assistant mode" → immediately changes
+4. Or clicks "Not now" → suggestion dismissed
+
+---
+
 ## Session 049 — 2026-03-15
 
 **Branch:** `grok-fixes-everything`

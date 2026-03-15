@@ -49,7 +49,10 @@ const CommandCentre = ({
   setMainTab,
   openHub,
   S,
-  C
+  C,
+  modeSuggestions,
+  dismissModeSuggestion,
+  switchToMode,
 }) => {
   return (
     <div>
@@ -272,6 +275,82 @@ const CommandCentre = ({
             ))}
           </div>
         )}
+
+      {/* Smart Mode Suggestions (Phase 6.2) */}
+      {modeSuggestions && modeSuggestions.length > 0 && (
+        <div
+          style={{
+            background: 'rgba(139,92,246,0.05)',
+            border: '1px solid #8b5cf630',
+            borderRadius: 6,
+            padding: '12px 14px',
+            marginBottom: 10,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 9,
+              color: '#8b5cf6',
+              letterSpacing: '0.12em',
+              marginBottom: 8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            💡 MODE SUGGESTION
+          </div>
+          {modeSuggestions.map((suggestion, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                padding: '8px 0',
+                borderTop: i > 0 ? '1px solid #8b5cf620' : 'none',
+              }}
+            >
+              <div style={{ fontSize: 11, color: C.text }}>
+                {suggestion.reason}
+              </div>
+              <div style={{ fontSize: 9, color: C.muted }}>
+                Trigger: {suggestion.trigger}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button
+                  style={{
+                    background: '#8b5cf6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    padding: '6px 12px',
+                    fontSize: 10,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => switchToMode(suggestion.suggested_mode)}
+                >
+                  Switch to {suggestion.suggested_mode} mode
+                </button>
+                <button
+                  style={{
+                    background: 'transparent',
+                    color: C.muted,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 4,
+                    padding: '6px 12px',
+                    fontSize: 10,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => dismissModeSuggestion(suggestion.type)}
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Training Log card (Phase 2.6) */}
       <div style={S.card(weeklyTraining.count >= 3, C.green)}>

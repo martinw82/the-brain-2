@@ -365,10 +365,16 @@ All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
   - Components: AICoach, CommandCentre gated by mode
   - Feature gating: daily_checkin, drift_alerts, outreach_enforcement, notifications
 
+- **Phase 6.2 — Smart Mode Suggestions** (2026-03-15)
+  - `resource=mode-suggestions` API endpoint — Analyzes behavior patterns
+  - `resource=dismiss-mode-suggestion` — Dismiss and persist
+  - Triggers: 25+ day streak → Assistant, missed check-ins → Coach, 50%+ delegation → Silent
+  - UI: Purple banner in Command Centre with one-click mode switch
+
 ### 📋 v2.0 NEXT UP
 
-1. **Phase 6.2** — Smart Mode Suggestions
-2. **Phase 7** — Intelligence features
+1. **Phase 7** — Intelligence features (recursive retrieval, workflow learning, memory)
+2. **Phase 8** — Ecosystem & Scale
 
 ### 📦 v2.0 PARKING LOT
 

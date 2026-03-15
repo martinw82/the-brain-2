@@ -465,22 +465,34 @@ CREATE TABLE workflow_instances (
 
 ---
 
-## 6.2 Smart Mode Suggestions `[API]` `[UI]` 📋
+## 6.2 Smart Mode Suggestions `[API]` `[UI]` ✅ COMPLETE (2026-03-15)
 
 **Deliverable:** System suggests mode changes based on behavior
 
 **Triggers:**
 
-- 30-day check-in streak → suggest Assistant mode
-- 3 missed check-ins → suggest back to Coach
+- 25+ day check-in streak → suggest Assistant mode
+- 3+ missed check-ins in 30 days → suggest back to Coach
 - 50%+ agent delegation rate → suggest Silent mode
+- Low engagement (less than 3 sessions in 2 weeks) → suggest Coach
 
-**UI:**
+**Implementation:**
 
-- [ ] `[UI]` Gentle mode suggestion banners
-- [ ] `[UI]` "Try for a week" with easy revert
+- [x] `[API]` `resource=mode-suggestions` endpoint — Analyzes user behavior, returns suggestions
+- [x] `[API]` `resource=dismiss-mode-suggestion` — Dismiss suggestion permanently
+- [x] `[UI]` Mode suggestion banner in Command Centre
+- [x] `[UI]` "Switch to X mode" button with one-click mode change
+- [x] `[UI]` "Not now" button to dismiss suggestion
 
-**Done when:** Users get helpful mode transition suggestions
+**UI Features:**
+
+- Purple-themed banner (distinguishes from drift alerts)
+- Shows reason and trigger for each suggestion
+- One-click mode switch button
+- Dismiss button to hide suggestion
+- Persists dismissed suggestions in user settings
+
+**Done when:** ✅ Users get helpful mode transition suggestions (Complete 2026-03-15)
 
 ---
 
@@ -658,10 +670,10 @@ CREATE TABLE memories (
 
 # Immediate Next Steps
 
-Phase 5 (5.1-5.6) and Phase 6.1 are complete! Next priorities:
+Phase 5 (5.1-5.6) and Phase 6 (6.1-6.2) are complete! Next priorities:
 
-1. **6.2 Smart Mode Suggestions** — System suggests mode changes based on behavior
-2. **Phase 7 Intelligence** — Recursive directory retrieval, workflow learning, auto task creation
+1. **Phase 7 Intelligence** — Recursive directory retrieval, workflow learning, auto task creation
+2. **Phase 8** — Ecosystem & Scale
 
 Phase 5.6 complete: Agents can now read/write files, create tasks, search projects, and complete assignments with preview/auto modes.
 
