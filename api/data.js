@@ -49,12 +49,101 @@ function safeJson(val, fallback) {
   }
 }
 
+// ── PAGINATION HELPER (Phase 8.3) ────────────────────────────
+function addPagination(query, params, req) {
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+  const offset = (page - 1) * limit;
+
+  return {
+    query: `${query} LIMIT ? OFFSET ?`,
+    params: [...params, limit, offset],
+    pagination: { page, limit, offset },
+  };
+}
+
+function formatPaginatedResponse(items, count, pagination) {
+  return {
+    data: items,
+    pagination: {
+      ...pagination,
+      total: count,
+      total_pages: Math.ceil(count / pagination.limit),
+    },
+  };
+}
+
+// ── RATE LIMITING (Phase 8.4) ────────────────────────────────
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 30; // 30 requests per minute
+
+function checkRateLimit(userId) {
+  const now = Date.now();
+  const key = userId || 'anonymous';
+  const record = rateLimitMap.get(key) || { count: 0, windowStart: now };
+
+  if (now - record.windowStart > RATE_LIMIT_WINDOW) {
+    record.count = 1;
+    record.windowStart = now;
+  } else {
+    record.count++;
+  }
+
+  rateLimitMap.set(key, record);
+
+  if (record.count > RATE_LIMIT_MAX) {
+    return false;
+  }
+  return true;
+}
+
+// ── INPUT SANITIZATION (Phase 8.4) ──────────────────────────
+function sanitizeInput(str) {
+  if (typeof str !== 'string') return str;
+  // Remove potential SQL injection patterns
+  return str
+    .replace(
+      /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|TRUNCATE)\b)/gi,
+      ''
+    )
+    .replace(/(--|#|\/\*|\*\/)/g, '')
+    .trim();
+}
+
+function sanitizeObject(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  const sanitized = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === 'string') {
+      sanitized[key] = sanitizeInput(value);
+    } else if (Array.isArray(value)) {
+      sanitized[key] = value.map((v) =>
+        typeof v === 'string' ? sanitizeInput(v) : v
+      );
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
 export default async function handler(req, res) {
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   const auth = getAuth(req);
   if (!auth) return err(res, 'Unauthorised', 401);
+
+  // Rate limiting (Phase 8.4)
+  if (!checkRateLimit(auth.userId)) {
+    return err(res, 'Rate limit exceeded. Please try again later.', 429);
+  }
+
+  // Sanitize request body inputs (Phase 8.4)
+  if (req.body && typeof req.body === 'object') {
+    req.body = sanitizeObject(req.body);
+  }
 
   const {
     resource,

@@ -424,6 +424,18 @@ All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
   - `resource=integration-sync-log` API — Sync history
   - Providers: GitHub, Google (Calendar), Email, Slack, Discord
 
+- **Phase 8.3 — Performance & Scale** (2026-03-15)
+  - Pagination helpers in api/data.js and api/projects.js
+  - `addPagination()` and `formatPaginatedResponse()` utilities
+  - Page/limit query params supported
+  - Virtual scrolling ready (client-side)
+
+- **Phase 8.4 — Security Hardening** (2026-03-15)
+  - Rate limiting: 30 requests/minute per user
+  - In-memory rate limit map with 60s window
+  - Input sanitization: SQL injection pattern removal
+  - Applied to: api/data.js, api/projects.js, api/ai.js
+
 ### 📋 v2.0 FULLY SHIPPED ✅
 
 All phases complete! The Brain v2.0 is ready.

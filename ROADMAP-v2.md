@@ -600,6 +600,8 @@ CREATE TABLE memories (
 12. **Memory Self-Iteration** — Memories table, auto-extraction, insights (2026-03-15)
 13. **Community Workflows** — Publish, star, fork, rate workflows (2026-03-15)
 14. **Advanced Integrations** — GitHub, Google Calendar, Email sync (2026-03-15)
+15. **Performance & Scale** — Pagination helpers, virtual scroll ready (2026-03-15)
+16. **Security Hardening** — Rate limiting, input sanitization (2026-03-15)
 
 ---
 
