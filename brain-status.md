@@ -7,7 +7,7 @@
 **Version:** 8.2 → **v2.0 Vision**  
 **Live URL:** the-brain-2.vercel.app  
 **Last Updated:** 2026-03-15 (Session 046)  
-**Status:** v1.0 Complete (Phases 0-4) | v2.0 In Progress (Phase 7.1 Complete)
+**Status:** v1.0 Complete (Phases 0-4) | v2.0 In Progress (Phase 7.2 Complete)
 
 ---
 
@@ -387,11 +387,18 @@ All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
   - Retrieval trace: visualizes what was explored/skipped in AI responses
   - Integrated into `agentFunctions.js` as `explore_project` function
 
+- **Phase 7.2 — Workflow Learning** (2026-03-15)
+  - `src/workflowLearning.js` — Client-side module for pattern analysis
+  - `resource=workflow-patterns` API — Server-side analysis (needs 3+ completed workflows)
+  - Pattern detection: step duration, agent success rates, bottlenecks
+  - Suggestions: estimate adjustments, agent reliability, bottleneck fixes
+  - `resource=apply-workflow-suggestion` API — Acknowledge suggestions
+  - `workflowPatterns` client API wrapper
+
 ### 📋 v2.0 NEXT UP
 
-1. **Phase 7.2** — Workflow Learning
-2. **Phase 7.4** — Memory Self-Iteration
-3. **Phase 8** — Ecosystem & Scale
+1. **Phase 7.4** — Memory Self-Iteration
+2. **Phase 8** — Ecosystem & Scale
 
 ### 📦 v2.0 PARKING LOT
 
@@ -479,5 +486,6 @@ _THE BRAIN v2.0 — Orchestrator Edition (PLANNED)_
 - Phase 6.2: Smart Mode Suggestions complete — behavior-based prompts, purple banner
 - Phase 7.3: Auto Task Creation complete — DEVLOG/TODO scanning, proposed tasks
 - Phase 7.1: Recursive Directory Retrieval complete — intent analysis, L0/L1 exploration, trace
-- Updated status: "Phase 7.1 Complete, Next: Phase 7.2 Workflow Learning"
-- Updated priority stack: next is 7.2 Workflow Learning
+- Phase 7.2: Workflow Learning complete — pattern detection, step duration analysis, agent success rates
+- Updated status: "Phase 7.2 Complete, Next: Phase 7.4 Memory Self-Iteration"
+- Updated priority stack: next is 7.4 Memory Self-Iteration

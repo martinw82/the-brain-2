@@ -544,6 +544,17 @@ export const modeSuggestions = {
     }),
 };
 
+// ── WORKFLOW PATTERNS (Phase 7.2) ───────────────────────────
+export const workflowPatterns = {
+  get: (projectId = null) => {
+    const params = new URLSearchParams({ resource: 'workflow-patterns' });
+    if (projectId) params.append('project_id', projectId);
+    return get(`${BASE}/api/data?${params.toString()}`);
+  },
+  applySuggestion: (suggestion) =>
+    post(`${BASE}/api/data?resource=apply-workflow-suggestion`, suggestion),
+};
+
 // ── TASKS (Phase 5.4) ────────────────────────────────────────
 export const tasks = {
   // List tasks with optional filters

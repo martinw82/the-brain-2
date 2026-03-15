@@ -4,7 +4,7 @@
 
 **Version:** 2.0  
 **Last Updated:** 2026-03-15  
-**Status:** Phase 7.1 Complete, Next: Phase 7.2 Workflow Learning
+**Status:** Phase 7.2 Complete, Next: Phase 7.4 Memory Self-Iteration
 
 ---
 
@@ -596,15 +596,15 @@ CREATE TABLE memories (
 8. **Smart Mode Suggestions** — Behavior-based mode change suggestions (2026-03-15)
 9. **Auto Task Creation** — DEVLOG/TODO scanning, proposed task queue (2026-03-15)
 10. **Recursive Directory Retrieval** — Intent analysis, L0/L1 exploration, trace visualization (2026-03-15)
+11. **Workflow Learning** — Pattern detection, step duration analysis, agent success rates, suggestions (2026-03-15)
 
-### Next Up (Phase 7.2)
+### Next Up (Phase 7.4)
 
-1. **Workflow Learning** — Pattern detection, auto-suggestions
+1. **Memory Self-Iteration** — Auto-extraction, personalization
 
 ### Medium-term
 
-2. **Workflow Learning** — Pattern detection, auto-suggestions
-3. **Memory System** — Auto-extraction, personalization
+1. **Memory Self-Iteration** — Auto-extraction, personalization
 
 ---
 

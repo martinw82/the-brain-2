@@ -3857,6 +3857,251 @@ Provide metadata suggestions as JSON.`;
       }
     }
 
+    // ── WORKFLOW PATTERNS (Phase 7.2) ───────────────────────────────
+    if (resource === 'workflow-patterns') {
+      if (req.method !== 'GET') return err(res, 'Method not allowed', 405);
+
+      const projectId = req.query.project_id || null;
+
+      try {
+        const patterns = [];
+        const suggestions = [];
+
+        // Get completed workflow instances
+        let instanceQuery = `SELECT wi.*, wt.name as template_name, wt.steps as template_steps
+          FROM workflow_instances wi
+          JOIN workflow_templates wt ON wi.workflow_template_id = wt.id
+          WHERE wi.user_id = ? AND wi.status = 'completed'`;
+        const queryParams = [auth.userId];
+
+        if (projectId) {
+          instanceQuery += ' AND wi.project_id = ?';
+          queryParams.push(projectId);
+        }
+
+        instanceQuery += ' ORDER BY wi.completed_at DESC LIMIT 20';
+
+        const [instances] = await db.execute(instanceQuery, queryParams);
+
+        if (instances.length < 3) {
+          return ok(res, {
+            patterns: [],
+            suggestions: [],
+            message: 'Need at least 3 completed workflows for analysis',
+            sample_count: instances.length,
+          });
+        }
+
+        // Get tasks for these workflows
+        const instanceIds = instances.map((i) => i.id);
+        const [tasks] = await db.execute(
+          `SELECT * FROM tasks WHERE workflow_instance_id IN (${instanceIds.map(() => '?').join(',')})`,
+          instanceIds
+        );
+
+        // Analyze step durations
+        const stepDurations = {};
+        for (const instance of instances) {
+          const stepResults =
+            typeof instance.step_results === 'string'
+              ? JSON.parse(instance.step_results)
+              : instance.step_results || {};
+          const steps =
+            typeof instance.template_steps === 'string'
+              ? JSON.parse(instance.template_steps)
+              : instance.template_steps || [];
+
+          for (const step of steps) {
+            const result = stepResults[step.id];
+            if (result?.completed_at && result?.started_at) {
+              const duration =
+                new Date(result.completed_at) - new Date(result.started_at);
+              if (!stepDurations[step.id]) {
+                stepDurations[step.id] = [];
+              }
+              stepDurations[step.id].push({
+                duration,
+                label: step.label,
+                estimated: step.estimated_minutes * 60 * 1000,
+              });
+            }
+          }
+        }
+
+        for (const [stepId, times] of Object.entries(stepDurations)) {
+          if (times.length >= 3) {
+            const avgActual =
+              times.reduce((a, b) => a + b.duration, 0) / times.length;
+            const avgEstimated =
+              times.reduce((a, b) => a + (b.estimated || 0), 0) / times.length;
+            const ratio = avgEstimated > 0 ? avgActual / avgEstimated : null;
+
+            if (ratio !== null) {
+              patterns.push({
+                type: 'step_duration',
+                step_id: stepId,
+                label: times[0].label,
+                avg_actual_minutes: Math.round(avgActual / 60000),
+                avg_estimated_minutes: Math.round(avgEstimated / 60000),
+                ratio: Math.round(ratio * 100) / 100,
+                sample_count: times.length,
+              });
+
+              // Generate suggestions for duration issues
+              if (ratio > 1.5) {
+                suggestions.push({
+                  type: 'estimate_adjustment',
+                  priority: 'high',
+                  title: 'Adjust time estimate',
+                  message: `Step "${times[0].label}" takes ${ratio.toFixed(1)}x longer than estimated (${Math.round(avgActual / 60000)}min avg vs ${Math.round(avgEstimated / 60000)}min planned).`,
+                  action: 'adjust_estimate',
+                  step_id: stepId,
+                  suggested_minutes: Math.round((avgActual / 60000) * 1.2),
+                });
+              }
+            }
+          }
+        }
+
+        // Analyze agent success rates
+        const agentStats = {};
+        for (const task of tasks) {
+          if (task.assignee_type === 'agent' && task.assignee_id) {
+            const key = task.assignee_id;
+            if (!agentStats[key]) {
+              agentStats[key] = { success: 0, total: 0 };
+            }
+            agentStats[key].total++;
+            if (task.status === 'complete') {
+              agentStats[key].success++;
+            }
+          }
+        }
+
+        for (const [agentId, stats] of Object.entries(agentStats)) {
+          if (stats.total >= 3) {
+            const successRate = stats.success / stats.total;
+            patterns.push({
+              type: 'agent_success',
+              agent_id: agentId,
+              success_rate: Math.round(successRate * 100) / 100,
+              total_tasks: stats.total,
+            });
+
+            if (successRate < 0.5) {
+              suggestions.push({
+                type: 'agent_reliability',
+                priority: 'medium',
+                title: 'Agent success rate low',
+                message: `${agentId} completes only ${Math.round(successRate * 100)}% of tasks. Consider reviewing its SOP.`,
+                action: 'review_agent',
+                agent_id: agentId,
+              });
+            }
+          }
+        }
+
+        // Detect bottlenecks (blocked steps)
+        const blockedSteps = {};
+        for (const task of tasks) {
+          if (task.workflow_step_id) {
+            if (!blockedSteps[task.workflow_step_id]) {
+              blockedSteps[task.workflow_step_id] = { blocked: 0, total: 0 };
+            }
+            blockedSteps[task.workflow_step_id].total++;
+            if (task.status === 'blocked') {
+              blockedSteps[task.workflow_step_id].blocked++;
+            }
+          }
+        }
+
+        for (const [stepId, stats] of Object.entries(blockedSteps)) {
+          if (stats.total >= 2) {
+            const blockRate = stats.blocked / stats.total;
+            if (blockRate >= 0.3) {
+              patterns.push({
+                type: 'bottleneck',
+                step_id: stepId,
+                block_rate: Math.round(blockRate * 100) / 100,
+                blocked_count: stats.blocked,
+                total_count: stats.total,
+              });
+
+              suggestions.push({
+                type: 'bottleneck_fix',
+                priority: 'high',
+                title: 'Step frequently blocked',
+                message: `"${stepId}" is blocked ${Math.round(blockRate * 100)}% of the time. Consider adding prerequisites.`,
+                action: 'add_checkpoint',
+                step_id: stepId,
+              });
+            }
+          }
+        }
+
+        // Workflow health summary
+        if (instances.length >= 5) {
+          const avgDuration =
+            instances.reduce((a, i) => {
+              if (i.completed_at && i.started_at) {
+                return a + (new Date(i.completed_at) - new Date(i.started_at));
+              }
+              return a;
+            }, 0) /
+            instances.length /
+            60000;
+
+          suggestions.push({
+            type: 'workflow_health',
+            priority: 'low',
+            title: 'Average workflow duration',
+            message: `Completed workflows average ${Math.round(avgDuration)} minutes from start to finish.`,
+          });
+        }
+
+        return ok(res, {
+          patterns,
+          suggestions,
+          sample_count: instances.length,
+        });
+      } catch (e) {
+        console.error('[WorkflowPatterns] Error:', e.message);
+        if (
+          e.message.includes('Table') &&
+          e.message.includes("doesn't exist")
+        ) {
+          return ok(res, {
+            patterns: [],
+            suggestions: [],
+            message: 'Workflow tables not found',
+          });
+        }
+        throw e;
+      }
+    }
+
+    // ── APPLY WORKFLOW SUGGESTION (Phase 7.2) ──────────────────────
+    if (resource === 'apply-workflow-suggestion') {
+      if (req.method !== 'POST') return err(res, 'Method not allowed', 405);
+
+      const { suggestion_type, step_id, suggested_minutes, template_id } =
+        req.body || {};
+
+      if (!suggestion_type) return err(res, 'suggestion_type required');
+
+      try {
+        // For now, just acknowledge the action
+        // Future: actually update the workflow template
+        return ok(res, {
+          success: true,
+          applied: suggestion_type,
+          message: `Suggestion "${suggestion_type}" acknowledged. Template update coming soon.`,
+        });
+      } catch (e) {
+        throw e;
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e.message, e.stack);
