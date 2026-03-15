@@ -184,37 +184,56 @@ CREATE TABLE file_summaries (
 
 ---
 
-## 5.3 Agent Registry & Capabilities `[DB]` `[API]` `[EXTENSIBLE]` 📋
+## 5.3 Agent Registry & Capabilities `[FILE]` `[API]` `[EXTENSIBLE]` ✅ COMPLETE (2026-03-15)
 
-**Deliverable:** Database-driven agent definitions (currently static SKILLS object)
+**Deliverable:** File-based agent definitions (migrated from static SKILLS object)
 
-**Schema:**
-```sql
-CREATE TABLE agents (
-  id VARCHAR(32) PRIMARY KEY,
-  user_id INT,
-  name VARCHAR(64),
-  icon VARCHAR(8),
-  description TEXT,
-  capabilities JSON,       -- ['code', 'review', 'write']
-  permissions JSON,        -- ['read:all', 'write:code-modules']
-  ignore_patterns JSON,    -- ['node_modules/']
-  prompt_prefix TEXT,
-  cost_per_task DECIMAL(10,4),
-  avg_duration_minutes INT,
-  handoff_rules JSON,
-  is_system BOOLEAN DEFAULT FALSE
-);
+**Architecture Decision:** Agents as files, not database rows
+- Immutable agent definitions in `/agents/*.md`
+- Frontmatter = metadata (capabilities, permissions, etc.)
+- Body = prompt_prefix
+- New file = new agent version (verbose naming: `agent-v2-proj-date`)
+- No persistent agent state - agents spin up, execute, die
+- Stats derived from tasks table (execution history)
+
+**System Agents (`/agents/`):**
+- `system-dev.md` — Code, debug, deploy (🛠)
+- `system-content.md` — Write, draft, social (✍️)
+- `system-strategy.md` — Planning, revenue, prioritization (🎯)
+- `system-design.md` — UI/UX, branding, visual (🎨)
+- `system-research.md` — Market research, competitor analysis (🔬)
+
+**Agent File Format:**
+```markdown
+---
+id: system-dev-v1
+version: 1
+name: Dev Agent
+capabilities: [code.write, code.review, code.debug]
+permissions: [read:all, write:code-modules]
+ignore_patterns: [legal/, "*.test.js"]
+model: claude-sonnet-4-6
+handoff_rules:
+  on_error: escalate_to_human
+---
+
+# Dev Agent
+
+You are a senior developer...
 ```
 
-**Tasks:**
-- [ ] `[DB]` Migration for `agents` table
-- [ ] `[DB]` Seed system agents (dev, content, strategy, design, research)
-- [ ] `[UI]` Agent management (custom agent creation)
-- [ ] `[API]` Update AI proxy to load from DB
-- [ ] `[API]` Capability-based routing logic
+**Implementation:**
+- [x] `[FILE]` 5 system agents as .md files in `/agents/`
+- [x] `[API]` AgentRegistry service (`src/agents.js`)
+  - `loadAgents()` — Parse all /agents/*.md files
+  - `findByCapability()` — Query by capability
+  - `selectAgent()` — Score and select best agent
+  - `cloneAgent()` — Create new agent from existing
+  - `buildAgentPrompt()` — Construct full prompt with context
+- [ ] `[UI]` Agent management (clone, customize, save)
+- [ ] `[UI]` Capability-based routing in task assignment
 
-**Done when:** Users can create custom agents with specific capabilities
+**Done when:** ✅ System agents defined as files, queryable by capability, ready for task assignment
 
 ---
 

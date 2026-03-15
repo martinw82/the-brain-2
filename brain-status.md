@@ -78,12 +78,12 @@ The Brain evolves into an **adaptive intelligence system** that:
 - **notifications** — in-app notification system
 - **project_integrations** — GitHub PAT, repo status
 
-### v2.0 Tables (Partial)
+### v2.0 Infrastructure (Partial)
 - **tasks** — universal task queue with assignee types (human/agent/integration) ✅
 - **file_summaries** — L0/L1 hierarchical summaries, auto-generated on save ✅
+- **agents** — file-based agent definitions in `/agents/*.md` ✅
 
-### v2.0 Planned Tables
-- **agents** — database-driven agent registry (Phase 5.3)
+### v2.0 Planned
 - **workflow_instances** — executable workflow tracking (Phase 5.5)
 - **memories** — auto-extracted patterns (Phase 7.4)
 

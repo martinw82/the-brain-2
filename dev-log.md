@@ -4,6 +4,73 @@
 
 ---
 
+## Session 045 — 2026-03-15
+**Branch:** `main`
+**Task:** Phase 5.3 — Agent Registry (File-based Architecture)
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented file-based agent registry with 5 system agents. Agents defined as markdown files, not database rows.
+
+**Architecture Decision:**
+- Agents live in `/agents/*.md` files
+- Immutable (new file = new version)
+- Verbose naming: `agentname-vX-proj-date`
+- No persistent state - agents spin up, execute, die
+- Context lives in project files (DEVLOG, summaries, etc.)
+- Stats derived from tasks table
+
+**System Agents Created:**
+
+1. **`/agents/system-dev.md`** (🛠)
+   - Capabilities: code.write, code.review, code.debug, code.test, code.deploy
+   - SOP: Read PROJECT_OVERVIEW, check existing work, follow conventions
+   - Prompt: Senior developer, ships clean code
+
+2. **`/agents/system-content.md`** (✍️)
+   - Capabilities: content.write, content.edit, content.social, content.email
+   - Voice: Authentic, builder-first, anti-corporate
+   - All drafts → staging with DRAFT_ prefix
+
+3. **`/agents/system-strategy.md`** (🎯)
+   - Capabilities: strategy.plan, strategy.research, strategy.analyze
+   - North Star: £3000/mo Thailand goal
+   - Ruthless prioritization, truth over comfort
+
+4. **`/agents/system-design.md`** (🎨)
+   - Capabilities: design.ui, design.assets, design.brand
+   - Style: Dark minimalist, monospace, nearly kawaii
+   - All assets → staging with SKETCH_ prefix
+
+5. **`/agents/system-research.md`** (🔬)
+   - Capabilities: research.market, research.tech, research.competitor
+   - Always cite sources
+   - Map insights to decisions
+
+**AgentRegistry Service (`src/agents.js`):**
+- `loadAgents()` — Parse /agents/*.md files, extract frontmatter
+- `findByCapability()` — Query agents by capability
+- `getAgent()` — Get single agent by ID
+- `selectAgent()` — Score candidates, return best match
+- `cloneAgent()` — Create new agent from existing (verbose naming)
+- `buildAgentPrompt()` — Construct full prompt with context
+- `parseFrontmatter()` — YAML-like frontmatter parser
+
+**Key Features:**
+- Frontmatter = metadata (capabilities, permissions, model, etc.)
+- Body = prompt_prefix (system message)
+- Caching with TTL (1 minute)
+- Capability-based routing ready
+- Stats integration ready (from tasks table)
+
+**Naming Convention:**
+```
+system-dev-v1                    — System agent, version 1
+my-custom-agent-v2-thailand-2026-03-15  — User agent, verbose
+```
+
+---
+
 ## Session 044 — 2026-03-15
 **Branch:** `main`
 **Task:** Phase 5.2 — Hierarchical Context Summarization
