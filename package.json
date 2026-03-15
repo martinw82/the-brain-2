@@ -4,9 +4,10 @@
   "version": "6.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node ./node_modules/.bin/vite",
-    "build": "node ./node_modules/.bin/vite build",
-    "preview": "node ./node_modules/.bin/vite preview",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "postinstall": "npm ls vite",
     "db:setup": "node scripts/db-setup.js",
     "db:migrate": "node scripts/migrate.js",
     "db:backup": "node scripts/backup.js",
@@ -27,6 +28,8 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
     "drizzle-kit": "^0.20.11",
-    "vite": "5.4.2"
+    "esbuild": "^0.21.0",
+    "rollup": "^4.22.0",
+    "vite": "^5.4.2"
   }
 }
