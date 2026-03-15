@@ -5,8 +5,8 @@
 
 **Version:** 8.2 → **v2.0 Vision**  
 **Live URL:** the-brain-2.vercel.app  
-**Last Updated:** 2026-03-14  
-**Status:** v1.0 Complete (Phases 0-4) | v2.0 In Progress (Phase 5.1 Complete)
+**Last Updated:** 2026-03-15  
+**Status:** v1.0 Complete (Phases 0-4) | v2.0 In Progress (Phases 5.1, 5.4 Complete)
 
 ---
 
@@ -78,10 +78,12 @@ The Brain evolves into an **adaptive intelligence system** that:
 - **notifications** — in-app notification system
 - **project_integrations** — GitHub PAT, repo status
 
+### v2.0 Tables (Partial)
+- **tasks** — universal task queue with assignee types (human/agent/integration) ✅
+
 ### v2.0 Planned Tables
 - **file_summaries** — L0/L1/L2 hierarchical context (Phase 5.2)
 - **agents** — database-driven agent registry (Phase 5.3)
-- **tasks** — universal task queue (Phase 5.4)
 - **workflow_instances** — executable workflow tracking (Phase 5.5)
 - **memories** — auto-extracted patterns (Phase 7.4)
 

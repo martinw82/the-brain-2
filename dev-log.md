@@ -4,6 +4,64 @@
 
 ---
 
+## Session 043 — 2026-03-15
+**Branch:** `main`
+**Task:** Phase 5.1 (URI Scheme) + Phase 5.4 (Task Delegation) + Bug Fixes
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented URI scheme for resource addressing and task delegation system with full CRUD operations.
+
+**Phase 5.1 — URI Scheme (`src/uri.js`):**
+- 12 exported functions for URI parsing/generation
+- `parseURI()`, `generateURI()`, `fileURI()`, `taskURI()`, `goalURI()`, etc.
+- `extractURIs()` — extracts all brain:// URIs from text
+- `renderURIs()` — replace URIs with rendered links
+- `uriToNavigation()` — convert URI to app navigation action
+- Regex pattern: `/brain://[^\s\)\]\>\"\']+/g`
+
+**Phase 5.4 — Task Delegation (`scripts/migrate.js` v23):**
+- Migration v23: Created `tasks` table
+  - `id`, `user_id`, `project_id`, `title`, `description`
+  - `assignee_type` ENUM('human', 'agent', 'integration')
+  - `assignee_id`, `status`, `priority`, `context_uri`
+  - `created_at`, `started_at`, `completed_at`
+  - `result_summary`, `output_uris`, `parent_task_id`
+
+**API Changes (`api/data.js`):**
+- `resource=tasks` endpoints:
+  - GET: List tasks with filters (status, assignee_type, my_tasks)
+  - POST: Create task with assignee
+  - PUT: Update task, start, complete, block, assign actions
+  - DELETE: Remove task
+- Graceful handling for missing tables (returns empty arrays)
+
+**Client API (`src/api.js`):**
+- Added `tasks` wrapper with list(), myTasks(), byProject(), create(), update(), start(), complete(), block(), assign(), delete()
+
+**UI Changes (`src/TheBrain.jsx`):**
+- "My Tasks" card in Command Centre with create/complete/delete
+- Task creation modal with title, description, priority, project selection
+- Priority-based color coding (critical=red, high=amber, medium=blue, low=dim)
+- Project badge shown for each task
+- Tasks auto-load on mount
+
+**Bug Fixes:**
+- Fixed `renderAIResponse` returning mixed types (React crash)
+- Fixed undefined `tab` variable (should be `view`)
+- Fixed build script for cross-platform (`npx vite build`)
+- Fixed `isOnline` check with HEAD request support in auth API
+- Fixed API endpoints to handle missing tables gracefully
+- Added automatic migration during build process
+
+**Build System:**
+- Upgraded Vite 5 → 6 for Node 24 compatibility
+- Upgraded mysql2 3.11.3 → 3.14.0 for Node 24 compatibility
+- Added explicit rollup 4.27.0 dependency
+- Build script now runs: `node scripts/migrate.js && npx vite build`
+
+---
+
 ## Session 042 — 2026-03-12
 **Branch:** `session-042-phase-4`
 **Task:** Phase 4.4 — Notification / Reminder System

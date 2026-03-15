@@ -253,10 +253,11 @@ CREATE TABLE tasks (
 - `GET /api/data?resource=my-tasks`
 
 **UI Components:**
-- [ ] `[UI]` "My Tasks" view in Command Centre
+- [x] `[UI]` "My Tasks" view in Command Centre
+- [x] `[UI]` Task creation modal
+- [x] `[UI]` Task complete/delete actions
 - [ ] `[UI]` Task detail panel (context, assignee, status)
-- [ ] `[UI]` Task creation modal with AI suggestion
-- [ ] `[UI]` "Delegate to Agent" button
+- [ ] `[UI]` "Delegate to Agent" button (needs Agent Registry from 5.3)
 
 **Assignment Logic (v1):**
 ```javascript
