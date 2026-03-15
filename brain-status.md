@@ -80,9 +80,9 @@ The Brain evolves into an **adaptive intelligence system** that:
 
 ### v2.0 Tables (Partial)
 - **tasks** — universal task queue with assignee types (human/agent/integration) ✅
+- **file_summaries** — L0/L1 hierarchical summaries, auto-generated on save ✅
 
 ### v2.0 Planned Tables
-- **file_summaries** — L0/L1/L2 hierarchical context (Phase 5.2)
 - **agents** — database-driven agent registry (Phase 5.3)
 - **workflow_instances** — executable workflow tracking (Phase 5.5)
 - **memories** — auto-extracted patterns (Phase 7.4)

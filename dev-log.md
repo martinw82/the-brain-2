@@ -4,6 +4,53 @@
 
 ---
 
+## Session 044 — 2026-03-15
+**Branch:** `main`
+**Task:** Phase 5.2 — Hierarchical Context Summarization
+**Status:** ✅ Complete
+
+### Implementation Summary
+Implemented L0/L1/L2 hierarchical summarization system following Open Viking pattern. Summaries auto-generate when files are saved.
+
+**Phase 5.2 — File Summaries (`scripts/migrate.js` v24):**
+- Migration v24: Created `file_summaries` table
+  - `id`, `project_id`, `file_path`, `l0_abstract`, `l1_overview`
+  - `content_hash` for change detection
+  - `token_count`, `generated_at`, `updated_at`, `generated_by`
+  - Unique constraint on `(project_id, file_path)`
+
+**API Changes (`api/data.js`):**
+- `resource=file-summaries` endpoints:
+  - GET: Retrieve single or list summaries
+  - POST: Store/update with upsert logic
+  - DELETE: Remove summary
+- Graceful handling for missing table
+
+**Client Library (`src/summaries.js`):**
+- `L0_PROMPT` — Prompt for ~100 token abstract
+- `L1_PROMPT` — Prompt for ~2000 token overview  
+- `checkSummaryStatus()` — Check if update needed (hash comparison)
+- `storeSummaries()` — Store generated summaries
+- `buildSummaryContext()` — Build AI context from summaries
+
+**UI Component (`src/components/FileSummaryViewer.jsx`):**
+- Displays coverage percentage badge (green/amber/dim)
+- Lists all summarized files with L0 abstracts
+- Click to expand L1 overview
+- Shows token counts and generation status
+- Refresh button to reload
+
+**Integration (`src/TheBrain.jsx`):**
+- `generateSummaryAsync()` — Background generation on file save
+- Triggers for markdown, code, JSON files >100 chars
+- Fire-and-forget (doesn't block save)
+- Added to Meta tab in project hub
+
+**Hash Utility (`src/uri.js`):**
+- `contentHash()` — Fast hash for change detection
+
+---
+
 ## Session 043 — 2026-03-15
 **Branch:** `main`
 **Task:** Phase 5.1 (URI Scheme) + Phase 5.4 (Task Delegation) + Bug Fixes

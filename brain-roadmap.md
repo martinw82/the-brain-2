@@ -146,7 +146,7 @@ brain://workflow/{id}/step/{stepNum}
 
 ---
 
-## 5.2 Hierarchical Context Summarization `[DB]` `[API]` `[EXTENSIBLE]` 📋
+## 5.2 Hierarchical Context Summarization `[DB]` `[API]` `[EXTENSIBLE]` ✅ COMPLETE (2026-03-15)
 
 **Deliverable:** L0/L1/L2 auto-generated summaries (Open Viking pattern)
 
@@ -156,28 +156,31 @@ brain://workflow/{id}/step/{stepNum}
 | L1 Overview | ~2,000 | Navigation, context routing | AI on file save |
 | L2 Detail | Unlimited | Full content, execution | Original file |
 
-**Schema:**
+**Schema (Migration v24):**
 ```sql
 CREATE TABLE file_summaries (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  project_id VARCHAR(64),
-  file_path VARCHAR(512),
+  id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+  project_id VARCHAR(64) NOT NULL,
+  file_path VARCHAR(512) NOT NULL,
   l0_abstract TEXT,
   l1_overview TEXT,
-  content_hash VARCHAR(64),
+  content_hash VARCHAR(64) NOT NULL,
+  token_count INT,
   generated_at DATETIME,
-  INDEX (project_id, file_path)
+  updated_at DATETIME,
+  generated_by VARCHAR(64),
+  UNIQUE KEY (project_id, file_path)
 );
 ```
 
-**Tasks:**
-- [ ] `[DB]` Migration for `file_summaries` table
-- [ ] `[API]` `resource=generate-summary` endpoint
-- [ ] `[API]` Queue summarization on file save (background)
-- [ ] `[API]` `resource=summaries` for retrieval
-- [ ] `[API]` Update context builder to use L0/L1
+**Implementation:**
+- [x] `[DB]` Migration v24 for `file_summaries` table
+- [x] `[API]` `resource=file-summaries` CRUD endpoints
+- [x] `[API]` Background summarization on file save (fire-and-forget)
+- [x] `[UI]` FileSummaryViewer component in Meta tab
+- [x] `[LIB]` `src/summaries.js` utilities (check, store, build context)
 
-**Done when:** AI responses include "Based on overview of X files..." with retrieval traces
+**Done when:** ✅ Summaries auto-generate on save, viewable in Meta tab, used for AI context
 
 ---
 
