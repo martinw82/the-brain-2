@@ -1,4 +1,7 @@
 # THE BRAIN — Architecture Overview v2.0
+
+> **Note:** This is an architecture overview. For the master status document, see `brain-status.md`. For detailed implementation tasks, see `brain-roadmap.md`.
+
 **Agent Orchestration Platform with Adaptive Coaching**
 
 ---
@@ -59,7 +62,7 @@ The system has three behavioral profiles:
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Key Principle:** Mode affects the *coaching layer* only. The orchestration engine (task delegation, workflows, agent execution) works identically in all modes.
+**Key Principle:** Mode affects the _coaching layer_ only. The orchestration engine (task delegation, workflows, agent execution) works identically in all modes.
 
 ---
 
@@ -70,7 +73,7 @@ The system has three behavioral profiles:
 ```
 v1.0: User asks question → AI gives advice → User executes manually
 
-v2.0: User states goal → AI breaks down → AI assigns tasks → 
+v2.0: User states goal → AI breaks down → AI assigns tasks →
       Agents execute → System tracks → Reports completion
 ```
 
@@ -108,13 +111,13 @@ v2.0: User states goal → AI breaks down → AI assigns tasks →
 
 **Components:**
 
-| Component | Responsibility | Example |
-|-----------|----------------|---------|
-| **Planner** | Break goals into tasks | "Create landing page" → [design mockup, write copy, implement] |
-| **Router** | Decide who does what | Design mockup → Design Agent (auto) or Human (preview) |
-| **Task Queue** | Track status, assignments | Pending → In Progress → Review → Complete |
-| **Workflow Engine** | Execute multi-step processes | Product Launch: 7 steps, track progress |
-| **Agent Pool** | Execute assigned work | Dev Agent, Content Agent, etc. |
+| Component           | Responsibility               | Example                                                        |
+| ------------------- | ---------------------------- | -------------------------------------------------------------- |
+| **Planner**         | Break goals into tasks       | "Create landing page" → [design mockup, write copy, implement] |
+| **Router**          | Decide who does what         | Design mockup → Design Agent (auto) or Human (preview)         |
+| **Task Queue**      | Track status, assignments    | Pending → In Progress → Review → Complete                      |
+| **Workflow Engine** | Execute multi-step processes | Product Launch: 7 steps, track progress                        |
+| **Agent Pool**      | Execute assigned work        | Dev Agent, Content Agent, etc.                                 |
 
 ---
 
@@ -133,7 +136,7 @@ L0 Abstract (~100 tokens)
 L1 Overview (~2,000 tokens)
 ├── Navigation, routing decisions
 ├── Structure and key points
-└── "Express middleware that validates JWT tokens. 
+└── "Express middleware that validates JWT tokens.
      Checks Authorization header, verifies signature,
      attaches user to request. Used in protected routes."
 
@@ -191,6 +194,7 @@ User asks: "How does auth work in this project?"
 ```
 
 **Benefits:**
+
 - **Cost:** Use L0/L1 for 90% of queries, L2 only when needed
 - **Quality:** Better context understanding via structured exploration
 - **Trust:** Users see what AI considered, can verify
@@ -212,6 +216,7 @@ brain://workflow/product-launch/step-3    → Workflow step
 ```
 
 **Usage:**
+
 - AI references resources precisely: "See brain://project/my-app/file/auth.js#L15"
 - Task context links: Task assigned with `context_uri: "brain://..."`
 - Cross-references: Links between projects, goals, tasks
@@ -228,13 +233,13 @@ brain://workflow/product-launch/step-3    → Workflow step
 2. AI (Coach Mode):
    "You haven't shipped in 3 days. Let's break this down properly.
    First — check in. How's your energy?"
-   
+
 3. [Forces check-in before proceeding]
 
 4. AI (Planner):
    "Breaking 'build auth' into tasks:"
    - Design auth flow → Design Agent
-   - Implement JWT middleware → Dev Agent  
+   - Implement JWT middleware → Dev Agent
    - Write login page → Dev Agent
    - Create tests → Dev Agent
 
@@ -242,7 +247,7 @@ brain://workflow/product-launch/step-3    → Workflow step
    "Energy is 8/10 → Power mode. I can auto-run these.
    Preview:"
    [Shows task list with assignees]
-   
+
 6. User: "Go"
 
 7. [Tasks created, assigned to agents, execution begins]
@@ -261,7 +266,7 @@ brain://workflow/product-launch/step-3    → Workflow step
    - Implement JWT middleware → Dev Agent
    - Write login page → Dev Agent
    - Create tests → Dev Agent
-   
+
    "Auto-assign? (You can review first)"
 
 3. User: "Review"
@@ -331,15 +336,15 @@ brain://workflow/product-launch/step-3    → Workflow step
 
 ### Key Technical Decisions
 
-| Decision | Rationale |
-|----------|-----------|
-| Single-file frontend | Simplicity, fast iteration, fits in context window |
+| Decision             | Rationale                                            |
+| -------------------- | ---------------------------------------------------- |
+| Single-file frontend | Simplicity, fast iteration, fits in context window   |
 | Serverless functions | Scale to zero, no server management, edge deployment |
-| TiDB Serverless | MySQL-compatible, free tier, global distribution |
-| Multi-provider AI | Avoid vendor lock-in, cost optimization |
-| JWT auth | Stateless, works with serverless |
-| Optimistic updates | Feels instant, revert on error |
-| Soft deletes | Never lose user data |
+| TiDB Serverless      | MySQL-compatible, free tier, global distribution     |
+| Multi-provider AI    | Avoid vendor lock-in, cost optimization              |
+| JWT auth             | Stateless, works with serverless                     |
+| Optimistic updates   | Feels instant, revert on error                       |
+| Soft deletes         | Never lose user data                                 |
 
 ---
 
@@ -382,36 +387,38 @@ memories (user_id, category, content, confidence, source_task_id)
 
 ### External Services
 
-| Service | Integration | Status |
-|---------|-------------|--------|
-| **GitHub** | Repo status, commits, PAT auth | ✅ v1.0 Complete |
-| **Vercel/Netlify** | Deployment status | 📋 v2.0 Planned |
-| **Calendar** | Block time for tasks | 📋 v2.0 Planned |
-| **Email** | Send/receive as tasks | 📋 v2.0 Planned |
-| **Slack/Discord** | Channel as project feed | 📋 v2.0 Planned |
-| **Farcaster/Twitter** | Social integrations | 📋 v2.0 Future |
+| Service               | Integration                    | Status           |
+| --------------------- | ------------------------------ | ---------------- |
+| **GitHub**            | Repo status, commits, PAT auth | ✅ v1.0 Complete |
+| **Vercel/Netlify**    | Deployment status              | 📋 v2.0 Planned  |
+| **Calendar**          | Block time for tasks           | 📋 v2.0 Planned  |
+| **Email**             | Send/receive as tasks          | 📋 v2.0 Planned  |
+| **Slack/Discord**     | Channel as project feed        | 📋 v2.0 Planned  |
+| **Farcaster/Twitter** | Social integrations            | 📋 v2.0 Future   |
 
 ### AI Providers
 
-| Provider | Status | Use Case |
-|----------|--------|----------|
-| **Anthropic (Claude)** | ✅ | Primary, best reasoning |
-| **Moonshot (Kimi)** | ✅ | Cost-effective |
-| **DeepSeek** | ✅ | Low cost, fast |
-| **Mistral** | ✅ | EU provider |
-| **OpenAI (GPT)** | ✅ | Broad capabilities |
+| Provider               | Status | Use Case                |
+| ---------------------- | ------ | ----------------------- |
+| **Anthropic (Claude)** | ✅     | Primary, best reasoning |
+| **Moonshot (Kimi)**    | ✅     | Cost-effective          |
+| **DeepSeek**           | ✅     | Low cost, fast          |
+| **Mistral**            | ✅     | EU provider             |
+| **OpenAI (GPT)**       | ✅     | Broad capabilities      |
 
 ---
 
 ## Security Considerations
 
 ### Current (v1.0)
+
 - JWT tokens with expiration
 - API keys server-side only
 - Rate limiting on AI proxy (10/min)
 - Soft deletes on user content
 
 ### Planned (v2.0)
+
 - Rate limiting on all endpoints
 - Input sanitization audit
 - SQL injection prevention review
@@ -422,14 +429,14 @@ memories (user_id, category, content, confidence, source_task_id)
 
 ## Performance Targets
 
-| Metric | Target | v1.0 Status | v2.0 Target |
-|--------|--------|-------------|-------------|
-| Initial load | < 2s | ✅ | ✅ |
-| Search response | < 500ms | ✅ | ✅ |
-| AI response | < 5s | ✅ | ✅ |
-| Task creation | < 100ms | N/A | 🎯 |
-| Workflow step | < 100ms | N/A | 🎯 |
-| Context retrieval | < 200ms | N/A | 🎯 |
+| Metric            | Target  | v1.0 Status | v2.0 Target |
+| ----------------- | ------- | ----------- | ----------- |
+| Initial load      | < 2s    | ✅          | ✅          |
+| Search response   | < 500ms | ✅          | ✅          |
+| AI response       | < 5s    | ✅          | ✅          |
+| Task creation     | < 100ms | N/A         | 🎯          |
+| Workflow step     | < 100ms | N/A         | 🎯          |
+| Context retrieval | < 200ms | N/A         | 🎯          |
 
 ---
 
@@ -448,12 +455,14 @@ memories (user_id, category, content, confidence, source_task_id)
 ## Success Metrics
 
 ### v1.0 (Achieved)
+
 - ✅ Daily active usage
 - ✅ All features survive reload
 - ✅ Mobile responsive
 - ✅ Multi-provider AI stable
 
 ### v2.0 (Targets)
+
 - 🎯 Tasks created per week > 10 per user
 - 🎯 Agent task completion > 60%
 - 🎯 Workflow instances > 5 per project
@@ -463,4 +472,4 @@ memories (user_id, category, content, confidence, source_task_id)
 
 ---
 
-*THE BRAIN v2.0 Architecture — March 2026*
+_THE BRAIN v2.0 Architecture — March 2026_
