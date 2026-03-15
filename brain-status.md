@@ -7,7 +7,7 @@
 **Version:** 8.2 → **v2.0 Vision**  
 **Live URL:** the-brain-2.vercel.app  
 **Last Updated:** 2026-03-15 (Session 046)  
-**Status:** v1.0 Complete (Phases 0-4) | v2.0 In Progress (Phases 5.1, 5.4 Complete)
+**Status:** v1.0 Complete (Phases 0-4) | v2.0 In Progress (Phase 7.1 Complete)
 
 ---
 
@@ -378,12 +378,20 @@ All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
   - Priority: BLOCKED=critical, FIXME=high, TODO/checkbox=medium
   - UI: Green "Proposed Tasks" banner in Command Centre with Create Task button
 
+- **Phase 7.1 — Recursive Directory Retrieval** (2026-03-15)
+  - `src/retrieval.js` — Full recursive retrieval implementation
+  - Intent analysis: extracts keywords, intent type, domain from queries
+  - L0 vector search: ranks directories by relevance using abstracts
+  - L1 exploration: retrieves overviews within candidate directories
+  - Recursive descent: explores subdirectories up to max depth (3)
+  - Retrieval trace: visualizes what was explored/skipped in AI responses
+  - Integrated into `agentFunctions.js` as `explore_project` function
+
 ### 📋 v2.0 NEXT UP
 
-1. **Phase 7.1** — Recursive Directory Retrieval
-2. **Phase 7.2** — Workflow Learning
-3. **Phase 7.4** — Memory Self-Iteration
-4. **Phase 8** — Ecosystem & Scale
+1. **Phase 7.2** — Workflow Learning
+2. **Phase 7.4** — Memory Self-Iteration
+3. **Phase 8** — Ecosystem & Scale
 
 ### 📦 v2.0 PARKING LOT
 
@@ -461,3 +469,15 @@ _THE BRAIN v2.0 — Orchestrator Edition (PLANNED)_
 - Updated priority stack: next is 5.6 (Agent Task Execution) and 6.1 (Mode System)
 - Phase 0.5 critical tests: fixed 3 bugs in test-critical.js, marked complete
 - Clarified agents are file-based (not a DB table)
+
+---
+
+**Edit 2026-03-15 (v2.0 Phase 5-6 Complete):**
+
+- Phase 5.6: Agent Task Execution complete (Session 048) — Function calling, 6 functions, preview/auto modes
+- Phase 6.1: Mode System complete — assistance_mode setting, UI selector, feature gating
+- Phase 6.2: Smart Mode Suggestions complete — behavior-based prompts, purple banner
+- Phase 7.3: Auto Task Creation complete — DEVLOG/TODO scanning, proposed tasks
+- Phase 7.1: Recursive Directory Retrieval complete — intent analysis, L0/L1 exploration, trace
+- Updated status: "Phase 7.1 Complete, Next: Phase 7.2 Workflow Learning"
+- Updated priority stack: next is 7.2 Workflow Learning

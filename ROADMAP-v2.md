@@ -4,7 +4,7 @@
 
 **Version:** 2.0  
 **Last Updated:** 2026-03-15  
-**Status:** Phase 5 Complete (5.1-5.6), Next: Phase 6.1 Mode System
+**Status:** Phase 7.1 Complete, Next: Phase 7.2 Workflow Learning
 
 ---
 
@@ -591,23 +591,20 @@ CREATE TABLE memories (
 3. **Agent Registry** — File-based agents, AgentManager UI (2026-03-15)
 4. **Task Delegation** — Universal task queue, My Tasks UI (2026-03-14)
 5. **Workflow Engine** — Instance tracking, step execution, WorkflowRunner (2026-03-15)
+6. **Agent Task Execution** — Function calling, sandboxed actions, preview mode (2026-03-15)
+7. **Assistance Mode Setting** — UI selector, gated features (Coach/Assistant/Silent) (2026-03-15)
+8. **Smart Mode Suggestions** — Behavior-based mode change suggestions (2026-03-15)
+9. **Auto Task Creation** — DEVLOG/TODO scanning, proposed task queue (2026-03-15)
+10. **Recursive Directory Retrieval** — Intent analysis, L0/L1 exploration, trace visualization (2026-03-15)
 
-### Immediate (Next) ✅ COMPLETE
+### Next Up (Phase 7.2)
 
-6. **Agent Task Execution** — Function calling, sandboxed actions, preview mode ✅ COMPLETE (2026-03-15)
-7. **Assistance Mode Setting** — UI selector, gated features (Coach/Assistant/Silent) ✅ COMPLETE (2026-03-15)
-8. **Smart Mode Suggestions** — Behavior-based mode change suggestions ✅ COMPLETE (2026-03-15)
-
-### Short-term
-
-8. **Smart Mode Suggestions** — Pattern detection, UI prompts
-9. **Task Detail Panel + Delegate to Agent** — UX polish
+1. **Workflow Learning** — Pattern detection, auto-suggestions
 
 ### Medium-term
 
-10. **Recursive Retrieval** — Intent analysis, directory exploration
-11. **Workflow Learning** — Pattern detection, auto-suggestions
-12. **Memory System** — Auto-extraction, personalization
+2. **Workflow Learning** — Pattern detection, auto-suggestions
+3. **Memory System** — Auto-extraction, personalization
 
 ---
 
