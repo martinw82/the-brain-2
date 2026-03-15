@@ -564,6 +564,29 @@ export const tasks = {
     del(`${BASE}/api/data?resource=tasks&id=${id}`),
 };
 
+// ── FILE SUMMARIES (Phase 5.2) ───────────────────────────────
+export const fileSummaries = {
+  // Get summary for a specific file
+  get: (projectId, filePath) =>
+    get(`${BASE}/api/data?resource=file-summaries&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`),
+  
+  // Get all summaries for a project
+  list: (projectId) =>
+    get(`${BASE}/api/data?resource=file-summaries&project_id=${projectId}`),
+  
+  // Store/update a summary
+  store: (projectId, filePath, summary) =>
+    post(`${BASE}/api/data?resource=file-summaries`, {
+      project_id: projectId,
+      file_path: filePath,
+      ...summary
+    }),
+  
+  // Delete a summary
+  delete: (projectId, filePath) =>
+    del(`${BASE}/api/data?resource=file-summaries&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`),
+};
+
 // ── IMPORT PARSERS ────────────────────────────────────────────
 export function parseBuildlFormat(text) {
   // Parse BUIDL export format: MANIFEST_START...MANIFEST_END, FILES_START...FILES_END

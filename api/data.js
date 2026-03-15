@@ -2109,6 +2109,82 @@ Provide metadata suggestions as JSON.`;
       }
     }
 
+    // ── FILE SUMMARIES (Phase 5.2) ────────────────────────────
+    if (resource === 'file-summaries') {
+      try {
+        // GET: Retrieve summaries for a project
+        if (req.method === 'GET') {
+          const { project_id: pid, file_path: fp } = req.query;
+          if (!pid) return err(res, 'project_id required');
+          
+          // Single file summary
+          if (fp) {
+            const [rows] = await db.execute(
+              'SELECT * FROM file_summaries WHERE project_id = ? AND file_path = ?',
+              [pid, fp]
+            );
+            return ok(res, { summary: rows[0] || null });
+          }
+          
+          // All summaries for project
+          const [rows] = await db.execute(
+            'SELECT file_path, l0_abstract, l1_overview, content_hash, generated_at, token_count FROM file_summaries WHERE project_id = ? ORDER BY updated_at DESC',
+            [pid]
+          );
+          return ok(res, { summaries: rows });
+        }
+        
+        // POST: Store/update a summary
+        if (req.method === 'POST') {
+          const { project_id: pid, file_path: fp, l0_abstract, l1_overview, content_hash, token_count } = req.body || {};
+          if (!pid || !fp || !content_hash) return err(res, 'project_id, file_path, content_hash required');
+          
+          const id = crypto.randomUUID();
+          const now = new Date().toISOString();
+          
+          // Upsert: try insert, update on duplicate
+          try {
+            await db.execute(
+              `INSERT INTO file_summaries 
+               (id, project_id, file_path, l0_abstract, l1_overview, content_hash, token_count, generated_at, generated_by)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [id, pid, fp, l0_abstract || null, l1_overview || null, content_hash, token_count || null, now, 'ai']
+            );
+            return ok(res, { success: true, id, created: true }, 201);
+          } catch (e) {
+            if (e.code === 'ER_DUP_ENTRY') {
+              // Update existing
+              await db.execute(
+                `UPDATE file_summaries 
+                 SET l0_abstract = ?, l1_overview = ?, content_hash = ?, token_count = ?, generated_at = ?, generated_by = ?
+                 WHERE project_id = ? AND file_path = ?`,
+                [l0_abstract || null, l1_overview || null, content_hash, token_count || null, now, 'ai', pid, fp]
+              );
+              return ok(res, { success: true, updated: true });
+            }
+            throw e;
+          }
+        }
+        
+        // DELETE: Remove a summary
+        if (req.method === 'DELETE') {
+          const { project_id: pid, file_path: fp } = req.query;
+          if (!pid || !fp) return err(res, 'project_id and file_path required');
+          
+          await db.execute(
+            'DELETE FROM file_summaries WHERE project_id = ? AND file_path = ?',
+            [pid, fp]
+          );
+          return ok(res, { success: true });
+        }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) {
+          return ok(res, { summary: null, summaries: [] });
+        }
+        throw e;
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e.message, e.stack);

@@ -363,6 +363,27 @@ const migrations = [
           INDEX idx_tasks_due_date (due_date),
           INDEX idx_tasks_priority (priority)
         );`
+    },
+    {
+        version: 24,
+        name: 'create_file_summaries_table',
+        sql: `CREATE TABLE IF NOT EXISTS file_summaries (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          project_id VARCHAR(64) NOT NULL,
+          file_path VARCHAR(512) NOT NULL,
+          l0_abstract TEXT,
+          l1_overview TEXT,
+          l2_detail_hash VARCHAR(64),
+          content_hash VARCHAR(64) NOT NULL,
+          token_count INT DEFAULT NULL,
+          generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          generated_by VARCHAR(64) DEFAULT NULL,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+          UNIQUE KEY unique_project_file (project_id, file_path),
+          INDEX idx_summaries_project (project_id),
+          INDEX idx_summaries_updated (updated_at)
+        );`
     }
 ];
 
