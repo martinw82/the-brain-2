@@ -322,10 +322,10 @@ brain://workflow/product-launch/step-3    → Workflow step
 ├─────────────────────────────────────────────────────────────────────┤
 │                          DATA LAYER                                  │
 │  TiDB Cloud Serverless (MySQL-compatible)                           │
-│  ├─ 21 tables (v1.0)                                                │
-│  ├─ + file_summaries (v2.0)                                         │
-│  ├─ + agents, tasks, workflow_instances (v2.0)                      │
-│  └─ + memories (v2.0)                                               │
+│  ├─ 25 tables (v1.0 schema.sql)                                     │
+│  ├─ + 7 tables via migrations (v2.0) = 32 total                    │
+│  ├─ + agents as files in /agents/*.md (v2.0)                       │
+│  └─ + memories (v2.0 planned)                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -353,18 +353,26 @@ brain://workflow/product-launch/step-3    → Workflow step
 
 **Phase 2-4:** file_metadata, sync_state, sync_file_state, daily_checkins, training_logs, outreach_log, weekly_reviews, notifications, project_integrations
 
-### v2.0 Tables (Planned)
+### v2.0 Tables (Complete)
 
 ```sql
--- Hierarchical context
+-- AI infrastructure (migrations v21-22)
+ai_usage (user_id, date, input_tokens, output_tokens, estimated_cost_usd, model)
+user_ai_settings (user_id, provider, model, api_key_encrypted)
+
+-- Hierarchical context (migration v24)
 file_summaries (project_id, file_path, l0_abstract, l1_overview, content_hash)
 
--- Agent orchestration
-agents (id, capabilities, permissions, handoff_rules, is_system)
+-- Task orchestration (migration v23)
 tasks (project_id, assignee_type, assignee_id, status, workflow_instance_id)
+
+-- Workflow execution (migration v25)
+workflow_templates (id, name, steps JSON, triggers JSON, is_system)
 workflow_instances (workflow_template_id, status, current_step_index, step_results)
 
--- Intelligence
+-- Agent definitions: file-based in /agents/*.md (not a DB table)
+
+-- Intelligence (planned)
 memories (user_id, category, content, confidence, source_task_id)
 ```
 

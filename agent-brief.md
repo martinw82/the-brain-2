@@ -88,7 +88,7 @@ When building features that interact with the AI Coach or user notifications:
 
 - **Stack:** React 18 + Vite, Vercel serverless, TiDB Cloud (MySQL), JWT auth
 - **Live URL:** the-brain-2.vercel.app
-- **Main component:** `src/TheBrain.jsx` (~1,525 lines)
+- **Main component:** `src/TheBrain.jsx` (~5,829 lines)
 - **API layer:** `src/api.js` + serverless functions in `api/`
 - **DB schema:** See `schema.sql` and BRAIN_STATUS.md Section 3
 - **Multi-provider AI:** Anthropic, Moonshot, DeepSeek, Mistral, OpenAI via `api/ai.js`
