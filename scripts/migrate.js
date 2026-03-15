@@ -384,6 +384,47 @@ const migrations = [
           INDEX idx_summaries_project (project_id),
           INDEX idx_summaries_updated (updated_at)
         );`
+    },
+    {
+        version: 25,
+        name: 'create_workflow_tables',
+        sql: `CREATE TABLE IF NOT EXISTS workflow_templates (
+          id VARCHAR(64) PRIMARY KEY,
+          user_id VARCHAR(36) DEFAULT NULL,
+          name VARCHAR(64) NOT NULL,
+          description TEXT,
+          icon VARCHAR(8) DEFAULT '📋',
+          steps JSON NOT NULL,
+          triggers JSON DEFAULT NULL,
+          is_system BOOLEAN DEFAULT FALSE,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          INDEX idx_workflow_templates_system (is_system),
+          INDEX idx_workflow_templates_active (is_active)
+        );
+        
+        CREATE TABLE IF NOT EXISTS workflow_instances (
+          id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+          workflow_template_id VARCHAR(64) NOT NULL,
+          project_id VARCHAR(64) DEFAULT NULL,
+          user_id VARCHAR(36) NOT NULL,
+          status ENUM('pending', 'running', 'paused', 'completed', 'failed', 'aborted') DEFAULT 'pending',
+          current_step_index INT DEFAULT 0,
+          step_results JSON DEFAULT '{}',
+          execution_log TEXT,
+          started_by ENUM('user', 'ai', 'trigger') DEFAULT 'user',
+          started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          completed_at DATETIME DEFAULT NULL,
+          estimated_completion DATETIME DEFAULT NULL,
+          FOREIGN KEY (workflow_template_id) REFERENCES workflow_templates(id) ON DELETE CASCADE,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          INDEX idx_workflow_instances_status (status),
+          INDEX idx_workflow_instances_project (project_id),
+          INDEX idx_workflow_instances_user (user_id)
+        );`
     }
 ];
 

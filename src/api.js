@@ -587,6 +587,75 @@ export const fileSummaries = {
     del(`${BASE}/api/data?resource=file-summaries&project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`),
 };
 
+// ── WORKFLOWS (Phase 5.5) ─────────────────────────────────────
+export const workflows = {
+  // List all workflow templates
+  list: () =>
+    get(`${BASE}/api/data?resource=workflows`),
+  
+  // Get specific template
+  get: (templateId) =>
+    get(`${BASE}/api/data?resource=workflows&template_id=${templateId}`),
+  
+  // Create/update template
+  create: (template) =>
+    post(`${BASE}/api/data?resource=workflows`, template),
+  
+  // Delete custom template
+  delete: (templateId) =>
+    del(`${BASE}/api/data?resource=workflows&template_id=${templateId}`),
+};
+
+export const workflowInstances = {
+  // List instances (optionally filter by project/status)
+  list: (filters = {}) => {
+    const params = new URLSearchParams({ resource: 'workflow-instances' });
+    if (filters.project_id) params.append('project_id', filters.project_id);
+    if (filters.status) params.append('status', filters.status);
+    return get(`${BASE}/api/data?${params.toString()}`);
+  },
+  
+  // Get specific instance
+  get: (instanceId) =>
+    get(`${BASE}/api/data?resource=workflow-instances&instance_id=${instanceId}`),
+  
+  // Start new workflow instance
+  start: (templateId, projectId) =>
+    post(`${BASE}/api/data?resource=workflow-instances`, {
+      template_id: templateId,
+      project_id: projectId
+    }),
+  
+  // Pause instance
+  pause: (instanceId) =>
+    put(`${BASE}/api/data?resource=workflow-instances&id=${instanceId}`, {
+      action: 'pause'
+    }),
+  
+  // Resume instance
+  resume: (instanceId) =>
+    put(`${BASE}/api/data?resource=workflow-instances&id=${instanceId}`, {
+      action: 'resume'
+    }),
+  
+  // Abort instance
+  abort: (instanceId) =>
+    put(`${BASE}/api/data?resource=workflow-instances&id=${instanceId}`, {
+      action: 'abort'
+    }),
+  
+  // Complete current step and advance
+  completeStep: (instanceId, stepResult) =>
+    put(`${BASE}/api/data?resource=workflow-instances&id=${instanceId}`, {
+      action: 'complete-step',
+      step_result: stepResult
+    }),
+  
+  // Delete instance
+  delete: (instanceId) =>
+    del(`${BASE}/api/data?resource=workflow-instances&id=${instanceId}`),
+};
+
 // ── IMPORT PARSERS ────────────────────────────────────────────
 export function parseBuildlFormat(text) {
   // Parse BUIDL export format: MANIFEST_START...MANIFEST_END, FILES_START...FILES_END

@@ -13,6 +13,8 @@ import OutreachLogModal from "./components/OutreachLogModal.jsx";
 import WeeklyReviewPanel from "./components/WeeklyReviewPanel.jsx";
 import AgentManager from "./components/AgentManager.jsx";
 import FileSummaryViewer from "./components/FileSummaryViewer.jsx";
+import WorkflowRunner from "./components/WorkflowRunner.jsx";
+import { seedSystemWorkflows } from "./workflows.js";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -2863,8 +2865,15 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
       };
       dailyCheckinsApi();
     }
-    // Load weekly training count + today's outreach + drift check + tasks
-    if (user) { loadWeeklyTraining(); loadTodayOutreach(); loadDriftCheck(); loadTasks(); }
+    // Load weekly training count + today's outreach + drift check + tasks + seed workflows
+    if (user) { 
+      loadWeeklyTraining(); 
+      loadTodayOutreach(); 
+      loadDriftCheck(); 
+      loadTasks();
+      // Phase 5.5: Seed system workflows on first run
+      seedSystemWorkflows().catch(() => {});
+    }
   }, [user?.id]);
   
   // ── NOTIFICATIONS — load on mount and check triggers periodically (Phase 4.4) ──
@@ -5664,23 +5673,12 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
           )}
 
           {mainTab==="workflows"&&(
-            <div>
-              <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>{WORKFLOWS.map(w=><button key={w.id} style={{...S.btn(activeWF===w.id?"primary":"ghost"),fontSize:10}} onClick={()=>setActiveWF(activeWF===w.id?null:w.id)}>{w.icon} {w.label}</button>)}</div>
-              {activeWF&&(()=>{const wf=WORKFLOWS.find(w=>w.id===activeWF);if(!wf)return null;return(
-                <div style={S.card(true)}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
-                    <div style={{fontSize:13,fontWeight:700,color:"#f1f5f9"}}>{wf.icon} {wf.label}</div>
-                    <select style={{...S.sel,width:180}} value={wfProj} onChange={e=>setWfProj(e.target.value)}>{projects.map(p=><option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}</select>
-                  </div>
-                  {wf.steps.map((step,i)=>{const sk=SKILLS[step.agent];const isH=step.agent==="human";return(
-                    <div key={step.id} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:i<wf.steps.length-1?`1px solid ${C.border}`:"none",alignItems:"flex-start"}}>
-                      <div style={{width:22,height:22,borderRadius:"50%",background:isH?C.border:"#1a4fd615",border:`1px solid ${isH?C.dim:C.blue}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:isH?C.muted:C.blue,flexShrink:0}}>{step.id}</div>
-                      <div style={{flex:1}}><div style={{display:"flex",gap:6,marginBottom:3}}><div style={{fontSize:11,fontWeight:600,color:"#e2e8f0"}}>{step.label}</div><span style={S.badge(isH?C.dim:C.blue2)}>{isH?"👤 Human":`${sk?.icon} ${sk?.label}`}</span></div><div style={{fontSize:10,color:C.muted}}>{step.sop}</div></div>
-                      {!isH&&<button style={{...S.btn("ghost"),fontSize:8}} onClick={()=>copy(buildBrief(step.agent,wfProj))}>📋 Brief</button>}
-                    </div>
-                  );})}
-                </div>
-              );})()}
+            <div style={{ height: "calc(100vh - 200px)" }}>
+              <WorkflowRunner 
+                projectId={focusId}
+                project={projects.find(p => p.id === focusId)}
+                agents={[]}
+              />
             </div>
           )}
 

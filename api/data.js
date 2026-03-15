@@ -2185,6 +2185,245 @@ Provide metadata suggestions as JSON.`;
       }
     }
 
+    // ── WORKFLOWS (Phase 5.5) ───────────────────────────────────
+    if (resource === 'workflows') {
+      try {
+        // GET: List workflow templates
+        if (req.method === 'GET') {
+          const { template_id, instances, project_id } = req.query;
+          
+          // Get specific template
+          if (template_id) {
+            const [rows] = await db.execute(
+              'SELECT * FROM workflow_templates WHERE id = ? AND (is_system = TRUE OR user_id = ?)',
+              [template_id, auth.userId]
+            );
+            return ok(res, { template: rows[0] || null });
+          }
+          
+          // List all templates
+          const [rows] = await db.execute(
+            'SELECT * FROM workflow_templates WHERE is_system = TRUE OR user_id = ? ORDER BY is_system DESC, name',
+            [auth.userId]
+          );
+          return ok(res, { templates: rows });
+        }
+        
+        // POST: Create/update template
+        if (req.method === 'POST') {
+          const { id, name, description, icon, steps, triggers } = req.body || {};
+          if (!id || !name || !steps) return err(res, 'id, name, steps required');
+          
+          try {
+            await db.execute(
+              `INSERT INTO workflow_templates (id, user_id, name, description, icon, steps, triggers, is_system)
+               VALUES (?, ?, ?, ?, ?, ?, ?, FALSE)`,
+              [id, auth.userId, name, description || '', icon || '📋', JSON.stringify(steps), triggers ? JSON.stringify(triggers) : null]
+            );
+            return ok(res, { success: true, id }, 201);
+          } catch (e) {
+            if (e.code === 'ER_DUP_ENTRY') {
+              // Update existing
+              await db.execute(
+                `UPDATE workflow_templates 
+                 SET name = ?, description = ?, icon = ?, steps = ?, triggers = ?
+                 WHERE id = ? AND user_id = ?`,
+                [name, description || '', icon || '📋', JSON.stringify(steps), triggers ? JSON.stringify(triggers) : null, id, auth.userId]
+              );
+              return ok(res, { success: true, updated: true });
+            }
+            throw e;
+          }
+        }
+        
+        // DELETE: Remove custom template
+        if (req.method === 'DELETE' && req.query.template_id) {
+          await db.execute(
+            'DELETE FROM workflow_templates WHERE id = ? AND user_id = ? AND is_system = FALSE',
+            [req.query.template_id, auth.userId]
+          );
+          return ok(res, { success: true });
+        }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) {
+          return ok(res, { templates: [] });
+        }
+        throw e;
+      }
+    }
+    
+    // ── WORKFLOW INSTANCES (Phase 5.5) ──────────────────────────
+    if (resource === 'workflow-instances') {
+      try {
+        // GET: List instances or get specific
+        if (req.method === 'GET') {
+          const { instance_id, project_id, status } = req.query;
+          
+          if (instance_id) {
+            const [rows] = await db.execute(
+              `SELECT wi.*, wt.name as template_name, wt.icon as template_icon, wt.steps as template_steps
+               FROM workflow_instances wi
+               JOIN workflow_templates wt ON wi.workflow_template_id = wt.id
+               WHERE wi.id = ? AND wi.user_id = ?`,
+              [instance_id, auth.userId]
+            );
+            return ok(res, { instance: rows[0] || null });
+          }
+          
+          let sql = `SELECT wi.*, wt.name as template_name, wt.icon as template_icon
+                     FROM workflow_instances wi
+                     JOIN workflow_templates wt ON wi.workflow_template_id = wt.id
+                     WHERE wi.user_id = ?`;
+          const params = [auth.userId];
+          
+          if (project_id) {
+            sql += ' AND wi.project_id = ?';
+            params.push(project_id);
+          }
+          if (status) {
+            sql += ' AND wi.status = ?';
+            params.push(status);
+          }
+          
+          sql += ' ORDER BY wi.started_at DESC';
+          
+          const [rows] = await db.execute(sql, params);
+          return ok(res, { instances: rows });
+        }
+        
+        // POST: Create/start workflow instance
+        if (req.method === 'POST') {
+          const { template_id, project_id } = req.body || {};
+          if (!template_id) return err(res, 'template_id required');
+          
+          // Get template
+          const [templates] = await db.execute(
+            'SELECT * FROM workflow_templates WHERE id = ? AND (is_system = TRUE OR user_id = ?)',
+            [template_id, auth.userId]
+          );
+          if (!templates.length) return err(res, 'Template not found', 404);
+          const template = templates[0];
+          
+          const id = crypto.randomUUID();
+          const now = new Date().toISOString();
+          
+          await db.execute(
+            `INSERT INTO workflow_instances 
+             (id, workflow_template_id, project_id, user_id, status, step_results, execution_log, started_at)
+             VALUES (?, ?, ?, ?, 'running', '{}', ?, ?)`,
+            [id, template_id, project_id || null, auth.userId, `${now}: Workflow instance created\n${now}: Starting step 1`, now]
+          );
+          
+          return ok(res, { 
+            success: true, 
+            id, 
+            instance: {
+              id,
+              workflow_template_id: template_id,
+              template_name: template.name,
+              status: 'running',
+              current_step_index: 0
+            }
+          }, 201);
+        }
+        
+        // PUT: Update instance (pause, resume, complete step, abort)
+        if (req.method === 'PUT' && resourceId) {
+          const { action, step_result } = req.body || {};
+          
+          const [instances] = await db.execute(
+            'SELECT * FROM workflow_instances WHERE id = ? AND user_id = ?',
+            [resourceId, auth.userId]
+          );
+          if (!instances.length) return err(res, 'Instance not found', 404);
+          const instance = instances[0];
+          
+          const now = new Date().toISOString();
+          
+          switch (action) {
+            case 'pause':
+              await db.execute(
+                "UPDATE workflow_instances SET status = 'paused' WHERE id = ?",
+                [resourceId]
+              );
+              return ok(res, { success: true, status: 'paused' });
+              
+            case 'resume':
+              await db.execute(
+                "UPDATE workflow_instances SET status = 'running' WHERE id = ?",
+                [resourceId]
+              );
+              return ok(res, { success: true, status: 'running' });
+              
+            case 'abort':
+              await db.execute(
+                "UPDATE workflow_instances SET status = 'aborted', completed_at = ? WHERE id = ?",
+                [now, resourceId]
+              );
+              return ok(res, { success: true, status: 'aborted' });
+              
+            case 'complete-step':
+              // Update step results and advance
+              const stepResults = JSON.parse(instance.step_results || '{}');
+              const steps = JSON.parse(step_result?.steps || '[]');
+              const currentStep = steps[instance.current_step_index];
+              
+              if (currentStep) {
+                stepResults[`step_${currentStep.id}`] = {
+                  ...step_result,
+                  completed_at: now
+                };
+              }
+              
+              const nextStepIndex = instance.current_step_index + 1;
+              const isComplete = nextStepIndex >= steps.length;
+              
+              await db.execute(
+                `UPDATE workflow_instances 
+                 SET current_step_index = ?,
+                     step_results = ?,
+                     status = ?,
+                     completed_at = ?,
+                     execution_log = CONCAT(execution_log, ?)
+                 WHERE id = ?`,
+                [
+                  nextStepIndex,
+                  JSON.stringify(stepResults),
+                  isComplete ? 'completed' : 'running',
+                  isComplete ? now : null,
+                  `\n${now}: Step ${instance.current_step_index + 1} completed`,
+                  resourceId
+                ]
+              );
+              
+              return ok(res, { 
+                success: true, 
+                advanced: !isComplete,
+                completed: isComplete,
+                next_step_index: isComplete ? null : nextStepIndex
+              });
+              
+            default:
+              return err(res, 'Unknown action');
+          }
+        }
+        
+        // DELETE: Remove instance
+        if (req.method === 'DELETE' && resourceId) {
+          await db.execute(
+            'DELETE FROM workflow_instances WHERE id = ? AND user_id = ?',
+            [resourceId, auth.userId]
+          );
+          return ok(res, { success: true });
+        }
+      } catch (e) {
+        if (e.message.includes('Table') && e.message.includes("doesn't exist")) {
+          return ok(res, { instances: [] });
+        }
+        throw e;
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e.message, e.stack);

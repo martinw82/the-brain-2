@@ -1,0 +1,253 @@
+{
+  "workflows": [
+    {
+      "id": "system-product-launch",
+      "name": "Product Launch",
+      "description": "Complete product launch workflow from final build to post-launch monitoring",
+      "icon": "🚀",
+      "steps": [
+        {
+          "id": "build-check",
+          "label": "Final Build Check",
+          "capability": "code.review",
+          "sop": "Verify all features work, no console errors, mobile responsive",
+          "auto_assign": true
+        },
+        {
+          "id": "security-audit",
+          "label": "Security Audit",
+          "capability": "code.review",
+          "sop": "Check env vars, HTTPS, remove debug code, verify no secrets",
+          "auto_assign": true
+        },
+        {
+          "id": "launch-assets",
+          "label": "Launch Assets",
+          "capability": "design.assets",
+          "sop": "Create screenshots, banner, OG image, favicon",
+          "auto_assign": true
+        },
+        {
+          "id": "launch-copy",
+          "label": "Launch Copy",
+          "capability": "content.write",
+          "sop": "Write launch thread, email announcement, changelog",
+          "auto_assign": true
+        },
+        {
+          "id": "deploy",
+          "label": "Deploy",
+          "capability": "code.deploy",
+          "sop": "Deploy to production, verify live URL, test critical paths",
+          "auto_assign": true
+        },
+        {
+          "id": "announce",
+          "label": "Post Announcement",
+          "capability": "content.social",
+          "sop": "Publish launch thread, tag relevant communities, reply to comments",
+          "auto_assign": false
+        },
+        {
+          "id": "monitor",
+          "label": "Monitor",
+          "capability": "code.debug",
+          "sop": "Watch error logs, analytics, first 48h feedback",
+          "auto_assign": false
+        }
+      ],
+      "triggers": ["manual", "on_milestone_complete"]
+    },
+    {
+      "id": "system-content-sprint",
+      "name": "Content Sprint",
+      "description": "Rapid content creation workflow for threads, posts, and articles",
+      "icon": "✍️",
+      "steps": [
+        {
+          "id": "pick-angle",
+          "label": "Pick Content Angle",
+          "capability": "strategy.research",
+          "sop": "Review content calendar, find gaps, check what's performing",
+          "auto_assign": false
+        },
+        {
+          "id": "draft-content",
+          "label": "Draft Content",
+          "capability": "content.write",
+          "sop": "Write thread + blog post, save to staging with DRAFT_ prefix",
+          "auto_assign": true
+        },
+        {
+          "id": "create-assets",
+          "label": "Create Visual Assets",
+          "capability": "design.assets",
+          "sop": "Create graphics, diagrams, visual hooks",
+          "auto_assign": true
+        },
+        {
+          "id": "review",
+          "label": "Review & Approve",
+          "capability": "strategy.analyze",
+          "sop": "Human reviews drafts, approves or sends back for edits",
+          "auto_assign": false,
+          "approval_required": true
+        },
+        {
+          "id": "schedule",
+          "label": "Schedule & Publish",
+          "capability": "content.social",
+          "sop": "Schedule posts, update content calendar",
+          "auto_assign": false
+        }
+      ],
+      "triggers": ["manual"]
+    },
+    {
+      "id": "system-idea-to-brief",
+      "name": "Idea → Brief",
+      "description": "Transform a raw idea into a structured dev brief",
+      "icon": "💡",
+      "steps": [
+        {
+          "id": "capture",
+          "label": "Capture Idea",
+          "capability": "strategy.plan",
+          "sop": "Human adds idea to bank with one-sentence description",
+          "auto_assign": false
+        },
+        {
+          "id": "validate",
+          "label": "Validate Idea",
+          "capability": "strategy.analyze",
+          "sop": "Score: revenue potential, effort, goal alignment. Kill or continue.",
+          "auto_assign": true
+        },
+        {
+          "id": "research",
+          "label": "Research",
+          "capability": "research.market",
+          "sop": "3 competitors, gap analysis, target audience",
+          "auto_assign": true
+        },
+        {
+          "id": "mvp-scope",
+          "label": "MVP Scope",
+          "capability": "strategy.plan",
+          "sop": "5 must-have features max. Cut everything else.",
+          "auto_assign": true
+        },
+        {
+          "id": "dev-brief",
+          "label": "Dev Brief",
+          "capability": "code.write",
+          "sop": "Tech stack, components, timeline, Bolt-ready prompt",
+          "auto_assign": true
+        },
+        {
+          "id": "wireframes",
+          "label": "Wireframes",
+          "capability": "design.ui",
+          "sop": "Core screens, user flow, save as SKETCH_",
+          "auto_assign": true
+        }
+      ],
+      "triggers": ["manual", "on_idea_promoted"]
+    },
+    {
+      "id": "system-weekly-review",
+      "name": "Weekly Review",
+      "description": "End-of-week reflection and planning workflow",
+      "icon": "📊",
+      "steps": [
+        {
+          "id": "health-check",
+          "label": "Health Check",
+          "capability": "strategy.analyze",
+          "sop": "Rate momentum 1-5 for each project. Be honest.",
+          "auto_assign": false
+        },
+        {
+          "id": "review-staging",
+          "label": "Review Staging",
+          "capability": "strategy.analyze",
+          "sop": "Human approves, defers, or kills all staging items",
+          "auto_assign": false
+        },
+        {
+          "id": "ai-review",
+          "label": "AI Analysis",
+          "capability": "strategy.analyze",
+          "sop": "Full context analysis, bottlenecks, recommendations",
+          "auto_assign": true
+        },
+        {
+          "id": "update-devlogs",
+          "label": "Update Devlogs",
+          "capability": "content.write",
+          "sop": "Log entry for each active project",
+          "auto_assign": false
+        },
+        {
+          "id": "set-focus",
+          "label": "Set Focus",
+          "capability": "strategy.prioritize",
+          "sop": "Pick #1 priority for next week, define next action",
+          "auto_assign": false
+        },
+        {
+          "id": "build-post",
+          "label": "Build in Public Post",
+          "capability": "content.social",
+          "sop": "Honest progress update, lessons learned",
+          "auto_assign": true
+        }
+      ],
+      "triggers": ["manual", "on_schedule_weekly"]
+    },
+    {
+      "id": "system-security-audit",
+      "name": "Security Audit",
+      "description": "Comprehensive security review workflow",
+      "icon": "🔒",
+      "steps": [
+        {
+          "id": "dependency-check",
+          "label": "Dependency Check",
+          "capability": "audit.security",
+          "sop": "Check for known vulnerabilities in dependencies",
+          "auto_assign": true
+        },
+        {
+          "id": "env-var-audit",
+          "label": "Environment Variables",
+          "capability": "audit.security",
+          "sop": "Verify no secrets in code, proper env handling",
+          "auto_assign": true
+        },
+        {
+          "id": "input-validation",
+          "label": "Input Validation",
+          "capability": "audit.security",
+          "sop": "Check all user inputs are validated/sanitized",
+          "auto_assign": true
+        },
+        {
+          "id": "auth-review",
+          "label": "Authentication Review",
+          "capability": "audit.security",
+          "sop": "Review auth flows, session handling, password policies",
+          "auto_assign": true
+        },
+        {
+          "id": "report",
+          "label": "Security Report",
+          "capability": "content.write",
+          "sop": "Document findings, severity, remediation steps",
+          "auto_assign": true
+        }
+      ],
+      "triggers": ["manual", "on_schedule_monthly"]
+    }
+  ]
+}
