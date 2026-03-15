@@ -371,10 +371,19 @@ All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
   - Triggers: 25+ day streak → Assistant, missed check-ins → Coach, 50%+ delegation → Silent
   - UI: Purple banner in Command Centre with one-click mode switch
 
+- **Phase 7.3 — Auto Task Creation** (2026-03-15)
+  - `resource=auto-tasks` API — Scans DEVLOG/TODO/CHANGELOG for TODO|FIXME|XXX|BLOCKED
+  - `resource=create-from-proposed` — Convert proposed to real task
+  - Patterns: TODO, FIXME, XXX, BLOCKED, - [ ] checkboxes
+  - Priority: BLOCKED=critical, FIXME=high, TODO/checkbox=medium
+  - UI: Green "Proposed Tasks" banner in Command Centre with Create Task button
+
 ### 📋 v2.0 NEXT UP
 
-1. **Phase 7** — Intelligence features (recursive retrieval, workflow learning, memory)
-2. **Phase 8** — Ecosystem & Scale
+1. **Phase 7.1** — Recursive Directory Retrieval
+2. **Phase 7.2** — Workflow Learning
+3. **Phase 7.4** — Memory Self-Iteration
+4. **Phase 8** — Ecosystem & Scale
 
 ### 📦 v2.0 PARKING LOT
 

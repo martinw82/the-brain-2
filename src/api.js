@@ -596,6 +596,14 @@ export const tasks = {
 
   // Delete a task
   delete: (id) => del(`${BASE}/api/data?resource=tasks&id=${id}`),
+
+  // Auto Task Creation (Phase 7.3)
+  // Scan DEVLOG/TODO files for tasks
+  getProposed: () => get(`${BASE}/api/data?resource=auto-tasks`),
+
+  // Create task from proposed
+  createFromProposed: (task) =>
+    post(`${BASE}/api/data?resource=create-from-proposed`, task),
 };
 
 // ── FILE SUMMARIES (Phase 5.2) ───────────────────────────────

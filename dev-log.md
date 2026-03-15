@@ -1270,6 +1270,45 @@ Phase 5.2: Hierarchical Context Summarization (L0/L1/L2)
 
 ---
 
+## Session 051 — 2026-03-15
+
+**Branch:** `grok-fixes-everything`
+**Task:** Phase 7.3 — Auto Task Creation
+**Status:** ✅ Complete
+
+### Implementation Summary
+
+Built system that scans DEVLOG/TODO/CHANGELOG files for task markers and creates proposed tasks.
+
+**API Endpoints (`api/data.js`):**
+
+- `GET /api/data?resource=auto-tasks` — Scans project files for task markers
+- `POST /api/data?resource=create-from-proposed` — Converts proposed to real task
+
+**Detection Patterns:**
+| Pattern | Priority | Example |
+|---------|----------|---------|
+| BLOCKED | Critical | "BLOCKED: waiting for API key" |
+| FIXME | High | "FIXME: auth bug" |
+| TODO | Medium | "TODO: implement login" |
+| - [ ] | Medium | "- [ ] write tests" |
+| XXX | Medium | "XXX: refactor this" |
+
+**Client (`src/api.js`):**
+
+- Added `tasks.getProposed()` — Fetch proposed tasks
+- Added `tasks.createFromProposed(task)` — Create real task from proposed
+
+**UI (`CommandCentre.jsx`):**
+
+- Green-themed "Proposed Tasks from DEVLOG" banner
+- Shows: title, project, source file, priority badge
+- "Create Task" button — one-click conversion
+- Deduplication — avoids creating duplicate tasks
+- Shows up to 5 tasks, notes if more found
+
+---
+
 ## Session 050 — 2026-03-15
 
 **Branch:** `grok-fixes-everything`

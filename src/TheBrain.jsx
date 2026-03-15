@@ -5819,6 +5819,11 @@ export default function TheBrain({
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  
+  // Proposed Tasks from DEVLOG (Phase 7.3)
+  const [proposedTasks, setProposedTasks] = useState([]);
+  const [proposedTasksLoading, setProposedTasksLoading] = useState(false);
+  
   const [taskForm, setTaskForm] = useState({
     title: '',
     description: '',
@@ -6425,6 +6430,8 @@ export default function TheBrain({
       loadTasks();
       // Phase 6.2: Load smart mode suggestions
       loadModeSuggestions();
+      // Phase 7.3: Load proposed tasks from DEVLOG
+      loadProposedTasks();
       // Phase 5.5: Seed system workflows on first run
       seedSystemWorkflows().catch(() => {});
     }
@@ -7474,6 +7481,38 @@ export default function TheBrain({
       console.error('Tasks load error:', e);
     } finally {
       setTasksLoading(false);
+    }
+  };
+
+  // ── PROPOSED TASKS FROM DEVLOG (Phase 7.3) ────────────────
+  const loadProposedTasks = async () => {
+    try {
+      setProposedTasksLoading(true);
+      const data = await tasksApi.getProposed();
+      if (data && data.proposed) {
+        setProposedTasks(data.proposed);
+      }
+    } catch (e) {
+      console.error('Proposed tasks load error:', e);
+    } finally {
+      setProposedTasksLoading(false);
+    }
+  };
+
+  const createTaskFromProposed = async (proposed) => {
+    try {
+      await tasksApi.createFromProposed({
+        project_id: proposed.project_id,
+        title: proposed.title,
+        description: proposed.description,
+        priority: proposed.priority,
+        source_file: proposed.source_file,
+      });
+      setProposedTasks((prev) => prev.filter((p) => p !== proposed));
+      setToast({ msg: `Task created: ${proposed.title}` });
+    } catch (e) {
+      console.error('Create task from proposed error:', e);
+      setToast({ msg: 'Failed to create task' });
     }
   };
 
@@ -11813,6 +11852,9 @@ export default function TheBrain({
                 modeSuggestions={modeSuggestions}
                 dismissModeSuggestion={dismissModeSuggestion}
                 switchToMode={switchToMode}
+                proposedTasks={proposedTasks}
+                proposedTasksLoading={proposedTasksLoading}
+                createTaskFromProposed={createTaskFromProposed}
               />
             )}
 

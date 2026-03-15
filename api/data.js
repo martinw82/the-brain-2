@@ -3690,6 +3690,173 @@ Provide metadata suggestions as JSON.`;
       }
     }
 
+    // ── AUTO TASK CREATION (Phase 7.3) ─────────────────────────
+    if (resource === 'auto-tasks') {
+      if (req.method !== 'GET') return err(res, 'Method not allowed', 405);
+
+      try {
+        const proposedTasks = [];
+
+        // Get all project files that look like DEVLOG or have TODO/FIXME markers
+        const [files] = await db.execute(
+          `SELECT pf.id, pf.project_id, pf.path, pf.content, p.name as project_name
+           FROM project_files pf
+           JOIN projects p ON pf.project_id = p.id
+           WHERE pf.deleted_at IS NULL 
+           AND p.user_id = ?
+           AND (pf.path LIKE '%DEVLOG%' OR pf.path LIKE '%TODO%' OR pf.path LIKE '%CHANGELOG%')`,
+          [auth.userId]
+        );
+
+        // Patterns to detect
+        const patterns = [
+          { regex: /TODO:?\s*(.+)/gi, type: 'todo', priority: 'medium' },
+          { regex: /FIXME:?\s*(.+)/gi, type: 'fixme', priority: 'high' },
+          { regex: /XXX:?\s*(.+)/gi, type: 'xxx', priority: 'medium' },
+          {
+            regex: /BLOCKED:?\s*(.+)/gi,
+            type: 'blocked',
+            priority: 'critical',
+          },
+          { regex: /- \[\s*\]\s*(.+)/g, type: 'checkbox', priority: 'medium' },
+        ];
+
+        for (const file of files) {
+          const content = file.content || '';
+
+          for (const pattern of patterns) {
+            let match;
+            // Reset regex state
+            const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+
+            while ((match = regex.exec(content)) !== null) {
+              const text = (match[1] || match[0]).trim();
+              if (text.length < 3 || text.length > 200) continue;
+
+              // Skip if already looks like a completed task
+              if (
+                text.includes('complete') ||
+                text.includes('done') ||
+                text.includes('✓')
+              )
+                continue;
+
+              proposedTasks.push({
+                source_file: file.path,
+                project_id: file.project_id,
+                project_name: file.project_name,
+                type: pattern.type,
+                title: text.substring(0, 100),
+                description: `Found in ${file.path}: ${text}`,
+                priority: pattern.priority,
+                detected_text: text.substring(0, 200),
+              });
+            }
+          }
+        }
+
+        // Also check for BLOCKED comments in any file
+        const [allFiles] = await db.execute(
+          `SELECT pf.id, pf.project_id, pf.path, pf.content, p.name as project_name
+           FROM project_files pf
+           JOIN projects p ON pf.project_id = p.id
+           WHERE pf.deleted_at IS NULL 
+           AND p.user_id = ?
+           AND pf.content LIKE '%BLOCKED%'`,
+          [auth.userId]
+        );
+
+        for (const file of allFiles) {
+          const content = file.content || '';
+          const blockedRegex = /BLOCKED[:\s]*(.+)/gi;
+          let match;
+
+          while ((match = blockedRegex.exec(content)) !== null) {
+            const text = match[1].trim();
+            // Check if we already have this from DEVLOG scan
+            const exists = proposedTasks.some(
+              (t) => t.source_file === file.path && t.detected_text === text
+            );
+            if (!exists && text.length > 3) {
+              proposedTasks.push({
+                source_file: file.path,
+                project_id: file.project_id,
+                project_name: file.project_name,
+                type: 'blocked',
+                title: text.substring(0, 100),
+                description: `Blocked in ${file.path}: ${text}`,
+                priority: 'critical',
+                detected_text: text.substring(0, 200),
+              });
+            }
+          }
+        }
+
+        // Remove duplicates
+        const uniqueTasks = [];
+        const seen = new Set();
+        for (const task of proposedTasks) {
+          const key = `${task.project_id}:${task.detected_text}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueTasks.push(task);
+          }
+        }
+
+        return ok(res, {
+          proposed: uniqueTasks,
+          analyzed_projects: files.length,
+          analyzed_files: allFiles.length,
+        });
+      } catch (e) {
+        if (
+          e.message.includes('Table') &&
+          e.message.includes("doesn't exist")
+        ) {
+          return ok(res, {
+            proposed: [],
+            analyzed_projects: 0,
+            analyzed_files: 0,
+          });
+        }
+        throw e;
+      }
+    }
+
+    // ── CREATE TASK FROM PROPOSED (Phase 7.3) ─────────────────
+    if (resource === 'create-from-proposed') {
+      if (req.method !== 'POST') return err(res, 'Method not allowed', 405);
+
+      const { project_id, title, description, priority, source_file } =
+        req.body || {};
+
+      if (!title || !project_id)
+        return err(res, 'title and project_id required');
+
+      try {
+        const [result] = await db.execute(
+          `INSERT INTO tasks (user_id, project_id, title, description, priority, status, assigned_by, assignment_reason, created_at)
+           VALUES (?, ?, ?, ?, ?, 'pending', 'ai', ?, NOW())`,
+          [
+            auth.userId,
+            project_id,
+            title,
+            description || '',
+            priority || 'medium',
+            `Auto-created from ${source_file || 'DEVLOG scan'}`,
+          ]
+        );
+
+        return ok(res, {
+          success: true,
+          task_id: result.insertId,
+          title,
+        });
+      } catch (e) {
+        throw e;
+      }
+    }
+
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e.message, e.stack);

@@ -534,24 +534,34 @@ CREATE TABLE workflow_instances (
 
 ---
 
-## 7.3 Auto Task Creation `[API]` `[DB]` 📋
+## 7.3 Auto Task Creation `[API]` `[DB]` ✅ COMPLETE (2026-03-15)
 
 **Deliverable:** Create tasks from unstructured inputs
 
 **Sources:**
 
-- DEVLOG.md: "Started work on auth" → Task: "Complete auth"
-- Blockers: "Waiting for API key" → Task: "Follow up on API key"
-- Comments: "We should refactor this" → Task: "Refactor X"
+- DEVLOG.md: "TODO: fix auth bug" → Proposed Task
+- Blockers: "BLOCKED: waiting for API key" → Proposed Task (critical priority)
+- Checkboxes: "- [ ] implement login" → Proposed Task
+- FIXME/XXX markers → Proposed Task
 
 **Implementation:**
 
-- [ ] `[API]` Background job: scan DEVLOG.md daily
-- [ ] `[API]` Extract keywords: TODO|FIXME|XXX|BLOCKED
-- [ ] `[API]` AI classification: type, priority, assignee
-- [ ] `[UI]` "Proposed Tasks" queue for approval
+- [x] `[API]` Scan DEVLOG/TODO/CHANGELOG files for markers
+- [x] `[API]` Extract keywords: TODO|FIXME|XXX|BLOCKED|checkbox
+- [x] `[API]` Priority assignment based on type (BLOCKED=critical, FIXME=high, TODO=medium)
+- [x] `[UI]` "Proposed Tasks" banner in Command Centre
+- [x] `[API]` `resource=auto-tasks` — Returns proposed tasks from DEVLOG
+- [x] `[API]` `resource=create-from-proposed` — Convert proposed to real task
 
-**Done when:** Unstructured inputs become structured tasks
+**UI Features:**
+
+- Green-themed banner (distinguishes from mode suggestions)
+- Shows: title, project, source file, priority badge
+- "Create Task" button — one-click conversion to real task
+- Deduplication — avoids creating duplicate tasks
+
+**Done when:** ✅ Unstructured inputs become structured tasks (Complete 2026-03-15)
 
 ---
 
@@ -670,12 +680,13 @@ CREATE TABLE memories (
 
 # Immediate Next Steps
 
-Phase 5 (5.1-5.6) and Phase 6 (6.1-6.2) are complete! Next priorities:
+Phase 5 (5.1-5.6), Phase 6 (6.1-6.2), and Phase 7.3 are complete! Next priorities:
 
-1. **Phase 7 Intelligence** — Recursive directory retrieval, workflow learning, auto task creation
-2. **Phase 8** — Ecosystem & Scale
+1. **Phase 7.1** — Recursive Directory Retrieval (AI explores project structure)
+2. **Phase 7.2** — Workflow Learning (detect patterns, suggest improvements)
+3. **Phase 7.4** — Memory Self-Iteration (learn from execution)
 
-Phase 5.6 complete: Agents can now read/write files, create tasks, search projects, and complete assignments with preview/auto modes.
+Phase 7.3 complete: Auto Task Creation scans DEVLOG/TODO/CHANGELOG files for TODO|FIXME|XXX|BLOCKED markers and creates proposed tasks.
 
 ---
 

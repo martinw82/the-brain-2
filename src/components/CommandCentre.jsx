@@ -53,6 +53,9 @@ const CommandCentre = ({
   modeSuggestions,
   dismissModeSuggestion,
   switchToMode,
+  proposedTasks,
+  proposedTasksLoading,
+  createTaskFromProposed,
 }) => {
   return (
     <div>
@@ -349,6 +352,99 @@ const CommandCentre = ({
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Proposed Tasks from DEVLOG (Phase 7.3) */}
+      {proposedTasks && proposedTasks.length > 0 && (
+        <div
+          style={{
+            background: 'rgba(34,197,94,0.05)',
+            border: '1px solid #22c55e30',
+            borderRadius: 6,
+            padding: '12px 14px',
+            marginBottom: 10,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 9,
+              color: '#22c55e',
+              letterSpacing: '0.12em',
+              marginBottom: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span>📋 PROPOSED TASKS FROM DEVLOG</span>
+            <span style={{ fontSize: 8, color: C.muted }}>{proposedTasks.length} found</span>
+          </div>
+          {proposedTasks.slice(0, 5).map((task, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                padding: '8px 0',
+                borderTop: i > 0 ? '1px solid #22c55e20' : 'none',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span
+                  style={{
+                    fontSize: 9,
+                    padding: '2px 6px',
+                    borderRadius: 3,
+                    background:
+                      task.priority === 'critical'
+                        ? `${C.red}20`
+                        : task.priority === 'high'
+                        ? `${C.amber}20`
+                        : `${C.blue}20`,
+                    color:
+                      task.priority === 'critical'
+                        ? C.red
+                        : task.priority === 'high'
+                        ? C.amber
+                        : C.blue,
+                  }}
+                >
+                  {task.priority}
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.text }}>
+                    {task.title}
+                  </div>
+                  <div style={{ fontSize: 9, color: C.muted }}>
+                    {task.project_name} · {task.source_file}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                <button
+                  style={{
+                    background: '#22c55e',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    padding: '4px 10px',
+                    fontSize: 9,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => createTaskFromProposed(task)}
+                >
+                  Create Task
+                </button>
+              </div>
+            </div>
+          ))}
+          {proposedTasks.length > 5 && (
+            <div style={{ fontSize: 9, color: C.muted, marginTop: 8 }}>
+              +{proposedTasks.length - 5} more tasks found. Check in project files for full list.
+            </div>
+          )}
         </div>
       )}
 
