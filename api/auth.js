@@ -41,6 +41,9 @@ export default async function handler(req, res) {
   // Set CORS headers
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(204).end();
+  
+  // Handle HEAD request for connectivity check (sync.js isOnline)
+  if (req.method === 'HEAD') return res.status(200).end();
 
   const action = req.query.action;
   let db;
