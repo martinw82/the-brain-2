@@ -443,3 +443,19 @@ export default {
   getParent: getParentURI,
   compare: compareURIs
 };
+
+/**
+ * Generate a simple content hash for change detection
+ * @param {string} content - Content to hash
+ * @returns {string} - 16-character hash
+ */
+export function contentHash(content) {
+  if (!content) return '0';
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    const char = content.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(16).padStart(16, '0');
+}

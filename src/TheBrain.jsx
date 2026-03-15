@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token, drift as driftApi, aiMetadata as aiMetadataApi, scripts as scriptsApi, integrations as integrationsApi, notifications as notificationsApi, userAISettings, tasks as tasksApi } from "./api.js";
+import { projects as projectsApi, staging as stagingApi, ideas as ideasApi, sessions as sessionsApi, comments as commentsApi, search as searchApi, ai as aiApi, areas as areasApi, goals as goalsApi, templates as templatesApi, tags as tagsApi, links as linksApi, settings as settingsApi, fileMetadata, token, drift as driftApi, aiMetadata as aiMetadataApi, scripts as scriptsApi, integrations as integrationsApi, notifications as notificationsApi, userAISettings, tasks as tasksApi, fileSummaries } from "./api.js";
 import { cache } from "./cache.js";
 import { sync } from "./sync.js";
 import { desktopSync } from "./desktop-sync.js";
-import { parseURI, extractURIs, uriToNavigation, resolveLabel, isValidURI } from "./uri.js";
+import { parseURI, extractURIs, uriToNavigation, resolveLabel, isValidURI, contentHash } from "./uri.js";
+import { checkSummaryStatus, storeSummaries, L0_PROMPT, L1_PROMPT } from "./summaries.js";
 import FolderSyncSetup from "./components/FolderSyncSetup.jsx";
 import SyncReviewModal from "./components/SyncReviewModal.jsx";
 import DailyCheckinModal from "./components/DailyCheckinModal.jsx";
 import TrainingLogModal from "./components/TrainingLogModal.jsx";
 import OutreachLogModal from "./components/OutreachLogModal.jsx";
 import WeeklyReviewPanel from "./components/WeeklyReviewPanel.jsx";
+import FileSummaryViewer from "./components/FileSummaryViewer.jsx";
 
 // ============================================================
 // THE BRAIN v6 — Wired Edition
@@ -2930,10 +2932,45 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
     try {
       await projectsApi.saveFile(projId, path, content);
       showToast("✓ Saved");
+      
+      // Phase 5.2: Trigger summary generation in background (fire and forget)
+      if (content.length > 100) {
+        generateSummaryAsync(projId, path, content);
+      }
     } catch (e) {
       showToast("⚠ Save failed — check connection");
     } finally { setSaving(false); }
   }, [projects, fileHistory]);
+  
+  // Phase 5.2: Async summary generation (background)
+  const generateSummaryAsync = async (projId, path, content) => {
+    try {
+      // Check if summary needed
+      const { needsUpdate } = await checkSummaryStatus(projId, path, content);
+      if (!needsUpdate) return;
+      
+      // Only summarize markdown and code files
+      const ext = path.split('.').pop();
+      if (!['md', 'txt', 'js', 'jsx', 'ts', 'tsx', 'json'].includes(ext)) return;
+      
+      // Generate L0 (abstract) and L1 (overview) in parallel
+      const [l0Response, l1Response] = await Promise.all([
+        aiApi.ask("claude-sonnet-4-6", `${L0_PROMPT}\n\n--- FILE CONTENT ---\n${content.slice(0, 3000)}...\n(end of preview)`),
+        content.length > 500 ? aiApi.ask("claude-sonnet-4-6", `${L1_PROMPT}\n\n--- FILE CONTENT ---\n${content.slice(0, 8000)}...\n(end of preview)`) : Promise.resolve(null)
+      ]);
+      
+      // Store summaries
+      await storeSummaries(projId, path, content, {
+        l0_abstract: l0Response?.response || '',
+        l1_overview: l1Response?.response || ''
+      });
+      
+      console.log(`[Summary] Generated for ${path}`);
+    } catch (e) {
+      // Silent fail - summaries are optional
+      console.log(`[Summary] Failed for ${path}:`, e.message);
+    }
+  };
 
   const handleHubSave = useCallback((path, content) => {
     if (hubId) saveFile(hubId, path, content);
@@ -5066,6 +5103,9 @@ export default function TheBrain({ user, initialProjects=[], initialStaging=[], 
                   onSyncStateChange={setSyncState}
                   projectFiles={hub?.files ? Object.entries(hub.files).map(([path, content]) => ({ path, content })) : []}
                 />
+
+                {/* File Summaries (Phase 5.2) */}
+                <FileSummaryViewer projectId={hubId} projectFiles={hub?.files || {}} />
 
                 {/* Manifest and Folder Summary */}
                 <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:10}}>
