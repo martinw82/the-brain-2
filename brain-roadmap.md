@@ -498,7 +498,7 @@ CREATE TABLE workflow_instances (
 
 # 🧠 PHASE 7 — Intelligence & Evolution
 
-## 7.1 Recursive Directory Retrieval `[API]` `[EXTENSIBLE]` 📋
+## 7.1 Recursive Directory Retrieval `[API]` `[EXTENSIBLE]` ✅ COMPLETE (2026-03-15)
 
 **Deliverable:** AI explores project structure intelligently (Open Viking pattern)
 
@@ -510,16 +510,21 @@ CREATE TABLE workflow_instances (
 4. Recursive descent if subdirectories found
 5. Return results + trace
 
-**UI:**
+**Implementation:**
 
-- [ ] `[UI]` "Retrieval trace" in AI responses
-- [ ] Shows: "Explored briefs/ → system/ → skipped marketing/"
+- [x] `[API]` `src/retrieval.js` — Full recursive retrieval implementation
+- [x] `[API]` Intent analysis: extracts keywords, intent type, domain from queries
+- [x] `[API]` L0 vector search: ranks directories by relevance using abstracts
+- [x] `[API]` L1 exploration: retrieves overviews within candidate directories
+- [x] `[API]` Recursive descent: explores subdirectories up to max depth (3)
+- [x] `[API]` Retrieval trace: visualizes what was explored/skipped in AI responses
+- [x] `[API]` Integrated into `agentFunctions.js` as `explore_project` function
 
-**Done when:** AI finds context by exploring structure, not just flat search
+**Done when:** ✅ AI finds context by exploring structure, not just flat search (Complete 2026-03-15)
 
 ---
 
-## 7.2 Workflow Learning `[API]` `[DB]` 📋
+## 7.2 Workflow Learning `[API]` `[DB]` ✅ COMPLETE (2026-03-15)
 
 **Deliverable:** Detect patterns, suggest workflow improvements
 
@@ -530,7 +535,16 @@ CREATE TABLE workflow_instances (
 - Track: agent success rates
 - Suggest: "Dev agent always takes 2x. Adjust estimate?"
 
-**Done when:** System suggests workflow templates from completed work
+**Implementation:**
+
+- [x] `[API]` `src/workflowLearning.js` — Client module for pattern analysis
+- [x] `[API]` `resource=workflow-patterns` — Server-side analysis (needs 3+ completed workflows)
+- [x] `[API]` Pattern detection: step duration, agent success rates, bottlenecks
+- [x] `[API]` Suggestions: estimate adjustments, agent reliability, bottleneck fixes
+- [x] `[API]` `resource=apply-workflow-suggestion` — Acknowledge suggestions
+- [x] `[API]` `workflowPatterns` client API wrapper
+
+**Done when:** ✅ System suggests workflow templates from completed work (Complete 2026-03-15)
 
 ---
 

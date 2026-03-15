@@ -4,6 +4,50 @@ _Session-based progress tracking for The Brain project_
 
 ---
 
+## Session 049 — 2026-03-15
+
+**Branch:** `grok-fixes-everything`
+**Task:** Phase 7.2 — Workflow Learning
+**Status:** ✅ Complete
+
+### Implementation Summary
+
+Built pattern detection and suggestion system for workflow optimization.
+
+**New Files:**
+
+- `src/workflowLearning.js` — Client-side module for workflow pattern analysis
+
+**API Endpoints:**
+
+1. `resource=workflow-patterns` — Analyzes completed workflows (needs 3+)
+   - Step duration patterns (actual vs estimated)
+   - Agent success rates per task type
+   - Bottleneck detection (blocked steps)
+   - Generates suggestions: estimate adjustments, agent reliability, bottleneck fixes
+
+2. `resource=apply-workflow-suggestion` — Acknowledge and apply suggestions
+
+**Client API (`src/api.js`):**
+
+- `workflowPatterns.get(projectId)` — Fetch patterns and suggestions
+- `workflowPatterns.applySuggestion(suggestion)` — Acknowledge suggestions
+
+**Patterns Detected:**
+
+- Step duration ratio (estimated vs actual) — flags 1.5x+ overruns
+- Agent success rate per task type — flags <50% success
+- Bottleneck frequency — flags >30% block rate
+
+**Suggestions Generated:**
+
+- "Adjust time estimate" — if step takes 1.5x+ longer than planned
+- "Agent success rate low" — if agent completes <50% tasks
+- "Step frequently blocked" — if >30% block rate
+- "Average workflow duration" — summary for 5+ completed workflows
+
+---
+
 ## Session 048 — 2026-03-15
 
 **Branch:** `grok-fixes-everything`
