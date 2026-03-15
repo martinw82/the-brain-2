@@ -595,7 +595,7 @@ CREATE TABLE memories (
 ### Immediate (Next) ✅ COMPLETE
 
 6. **Agent Task Execution** — Function calling, sandboxed actions, preview mode ✅ COMPLETE (2026-03-15)
-7. **Assistance Mode Setting** — UI selector, gated features (Coach/Assistant/Silent) 📋 NEXT
+7. **Assistance Mode Setting** — UI selector, gated features (Coach/Assistant/Silent) ✅ COMPLETE (2026-03-15)
 
 ### Short-term
 

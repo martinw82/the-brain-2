@@ -417,7 +417,7 @@ CREATE TABLE workflow_instances (
 
 **Goal:** Three modes serving different user needs
 
-## 6.1 Mode System Core `[DB]` `[API]` `[UI]` `[CONFIG]` 📋
+## 6.1 Mode System Core `[DB]` `[API]` `[UI]` `[CONFIG]` ✅ COMPLETE (2026-03-15)
 
 **Deliverable:** Coach / Assistant / Silent modes
 
@@ -446,15 +446,22 @@ CREATE TABLE workflow_instances (
 | Task creation   | Proactive                       | Proactive                   | Manual only      |
 | Agent execution | Auto-runs                       | Auto-runs                   | Preview mode     |
 
-**Tasks:**
+**Implementation:**
 
-- [ ] `[DB]` Add `assistance_mode` to settings JSON
-- [ ] `[UI]` Mode selector in Settings with descriptions
-- [ ] `[API]` Mode-aware system prompt builder
-- [ ] `[UI]` Mode-based feature visibility
-- [ ] `[API]` Mode-aware interruption logic
+- [x] `[DB]` Add `assistance_mode` to settings JSON
+- [x] `[UI]` Mode selector in Settings with descriptions (TheBrain.jsx)
+- [x] `[API]` Mode-aware system prompt builder (api/ai.js)
+- [x] `[UI]` Mode-based feature visibility (modeHelper.js + components)
+- [x] `[API]` Mode-aware interruption logic (UI gating via modeHelper)
 
-**Done when:** User can switch modes, UI adapts, AI tone changes
+**Components:**
+
+- `src/modeHelper.js` — Mode matrix, getMode, getBehavior, shouldShow functions
+- `MODE_INFO` — Display metadata for each mode
+- Settings toggle in Settings modal
+- AICoach, CommandCentre gated by mode
+
+**Done when:** ✅ User can switch modes, UI adapts, AI tone changes (Complete 2026-03-15)
 
 ---
 
@@ -651,11 +658,10 @@ CREATE TABLE memories (
 
 # Immediate Next Steps
 
-Phase 5 (5.1-5.6) is complete! Next priorities:
+Phase 5 (5.1-5.6) and Phase 6.1 are complete! Next priorities:
 
-1. **6.1 Mode System** — Coach/Assistant/Silent modes gate existing features
-2. **6.2 Smart Mode Suggestions** — System suggests mode changes based on behavior
-3. **Phase 7 Intelligence** — Recursive directory retrieval, workflow learning, auto task creation
+1. **6.2 Smart Mode Suggestions** — System suggests mode changes based on behavior
+2. **Phase 7 Intelligence** — Recursive directory retrieval, workflow learning, auto task creation
 
 Phase 5.6 complete: Agents can now read/write files, create tasks, search projects, and complete assignments with preview/auto modes.
 

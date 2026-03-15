@@ -1,4 +1,4 @@
-****\*\*\*\*****APPEND AND ANNOTATE ALL EDITS****\*\*\*\*****
+\***\*\*\*\*\*\*\***APPEND AND ANNOTATE ALL EDITS\***\*\*\*\*\*\*\***
 
 # THE BRAIN — Master Status Document v2.0
 
@@ -355,9 +355,20 @@ All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
   - Auto mode: agents execute immediately (toggle in Settings)
   - Ignore patterns: per-agent security controls
 
+### ✅ COMPLETED (v2.0 Phase 6)
+
+- **Phase 6.1 — Mode System** (2026-03-15)
+  - `src/modeHelper.js` — Mode matrix, getMode, getBehavior, shouldShow
+  - Settings: assistance_mode (coach/assistant/silent)
+  - UI: Mode selector in Settings modal
+  - AI: Mode-aware prompts (api/ai.js)
+  - Components: AICoach, CommandCentre gated by mode
+  - Feature gating: daily_checkin, drift_alerts, outreach_enforcement, notifications
+
 ### 📋 v2.0 NEXT UP
 
-1. **Phase 6.1** — Mode System (Coach/Assistant/Silent)
+1. **Phase 6.2** — Smart Mode Suggestions
+2. **Phase 7** — Intelligence features
 
 ### 📦 v2.0 PARKING LOT
 
@@ -408,7 +419,7 @@ See BRAIN_ROADMAP.md Phases 5-8 for full pipeline.
 _THE BRAIN v1.0 — Wired Edition (COMPLETE)_  
 _THE BRAIN v2.0 — Orchestrator Edition (PLANNED)_
 
-******\*******APPEND AND ANNOTATE ALL EDITS******\*\*\*******
+**\*\***\***\*\***APPEND AND ANNOTATE ALL EDITS**\*\***\*\*\***\*\***
 
 ---
 
