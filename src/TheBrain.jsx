@@ -53,19 +53,37 @@ import FileSummaryViewer from './components/FileSummaryViewer.jsx';
 import WorkflowRunner from './components/WorkflowRunner.jsx';
 import { seedSystemWorkflows } from './workflows.js';
 import { getMode, getBehavior, shouldShow, MODE_INFO } from './modeHelper.js';
+import {
+  C,
+  S,
+  BREAKPOINTS,
+  BUIDL_VERSION,
+  THAILAND_TARGET,
+  BUIDL_PHASES,
+  STANDARD_FOLDERS,
+  STANDARD_FOLDER_IDS,
+  ITEM_TAGS,
+  REVIEW_STATUSES,
+  STATUS_MAP,
+} from './utils/constants.js';
+import {
+  makeManifest,
+  calcHealth,
+  makeDefaultFiles,
+  makeProject,
+} from './utils/projectFactory.js';
+import {
+  getFileType,
+  formatFileSize,
+  buildZipExport,
+} from './utils/fileHandlers.js';
 
 // ============================================================
 // THE BRAIN v2.0 — Orchestrator Edition
 // Full persistence via TiDB/MySQL + Netlify Functions
 // ============================================================
 
-// ═══════════════════════════════════════════════════════════
-// RESPONSIVE BREAKPOINTS (Phase 4.1)
-// ═══════════════════════════════════════════════════════════
-const BREAKPOINTS = {
-  mobile: 768,
-  tablet: 1024,
-};
+// BREAKPOINTS, C, S moved to utils/constants.js
 
 // ── UNDO/REDO SYSTEM ─────────────────────────────────────────
 const useUndoRedo = (limit = 50) => {
@@ -339,126 +357,6 @@ const useBreakpoint = () => {
   };
 };
 
-const C = {
-  bg: '#070b14',
-  surface: '#0a0f1e',
-  border: '#0f1e3a',
-  blue: '#1a4fd6',
-  blue2: '#3b82f6',
-  green: '#10b981',
-  amber: '#f59e0b',
-  red: '#ef4444',
-  purple: '#6366f1',
-  text: '#cbd5e1',
-  muted: '#475569',
-  dim: '#334155',
-  mono: "'JetBrains Mono','Fira Code','Courier New',monospace",
-};
-const S = {
-  root: {
-    fontFamily: C.mono,
-    background: C.bg,
-    color: C.text,
-    minHeight: '100vh',
-  },
-  card: (hi, col) => ({
-    background: C.surface,
-    border: `1px solid ${hi ? col || C.blue : C.border}`,
-    borderRadius: 8,
-    padding: '14px 18px',
-    marginBottom: 10,
-    boxShadow: hi ? `0 0 18px ${col || C.blue}18` : 'none',
-  }),
-  input: {
-    background: '#0d1424',
-    border: `1px solid ${C.border}`,
-    borderRadius: 6,
-    color: '#e2e8f0',
-    fontFamily: C.mono,
-    fontSize: 12,
-    padding: '7px 11px',
-    outline: 'none',
-    width: '100%',
-    boxSizing: 'border-box',
-  },
-  sel: {
-    background: '#0d1424',
-    border: `1px solid ${C.border}`,
-    borderRadius: 6,
-    color: '#e2e8f0',
-    fontFamily: C.mono,
-    fontSize: 12,
-    padding: '7px 11px',
-    outline: 'none',
-    width: '100%',
-    boxSizing: 'border-box',
-  },
-  // Phase 4.1: Added minHeight:44 for mobile touch targets (44px minimum)
-  btn: (v = 'primary', c) => ({
-    background:
-      v === 'primary'
-        ? c || C.blue
-        : v === 'success'
-          ? 'rgba(16,185,129,0.15)'
-          : v === 'danger'
-            ? 'rgba(239,68,68,0.15)'
-            : 'transparent',
-    border:
-      v === 'ghost'
-        ? `1px solid ${C.border}`
-        : v === 'success'
-          ? '1px solid #10b98140'
-          : v === 'danger'
-            ? '1px solid #ef444440'
-            : 'none',
-    color: v === 'success' ? C.green : v === 'danger' ? C.red : '#e2e8f0',
-    borderRadius: 5,
-    padding: '5px 12px',
-    fontSize: 10,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    cursor: 'pointer',
-    fontFamily: C.mono,
-    whiteSpace: 'nowrap',
-    minHeight: 44,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  }),
-  tab: (a, c = C.blue2) => ({
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    fontFamily: C.mono,
-    fontSize: 10,
-    letterSpacing: '0.1em',
-    textTransform: 'uppercase',
-    padding: '7px 13px',
-    color: a ? c : C.dim,
-    borderBottom: a ? `2px solid ${c}` : '2px solid transparent',
-    minHeight: 44,
-  }),
-  badge: (c = C.blue2) => ({
-    fontSize: 9,
-    padding: '2px 6px',
-    borderRadius: 3,
-    background: `${c}18`,
-    color: c,
-    border: `1px solid ${c}35`,
-    letterSpacing: '0.09em',
-    fontWeight: 700,
-    whiteSpace: 'nowrap',
-  }),
-  label: (c = C.blue) => ({
-    fontSize: 9,
-    color: c,
-    textTransform: 'uppercase',
-    letterSpacing: '0.14em',
-    marginBottom: 6,
-    display: 'block',
-  }),
-};
-
 // ── SMALL COMPONENTS ─────────────────────────────────────────
 const AreaPill = ({ area, active, onClick }) => (
   <button
@@ -553,13 +451,7 @@ const HealthBar = ({ score }) => {
     </div>
   );
 };
-const STATUS_MAP = {
-  active: { l: 'ACTIVE', c: C.green },
-  stalled: { l: 'STALLED', c: C.amber },
-  paused: { l: 'PAUSED', c: C.purple },
-  done: { l: 'DONE', c: C.blue2 },
-  idea: { l: 'IDEA', c: '#94a3b8' },
-};
+// STATUS_MAP moved to utils/constants.js
 const BadgeStatus = ({ status }) => {
   const m = STATUS_MAP[status] || STATUS_MAP.idea;
   return <span style={S.badge(m.c)}>{m.l}</span>;
@@ -1268,414 +1160,7 @@ const MetadataEditor = ({
   );
 };
 
-// ── CONSTANTS ─────────────────────────────────────────────────
-const BUIDL_VERSION = '1.0';
-const STANDARD_FOLDERS = [
-  {
-    id: 'content-assets',
-    icon: '📚',
-    label: 'Content Assets',
-    desc: 'Guides, blogs, threads, tutorials',
-  },
-  {
-    id: 'project-artifacts',
-    icon: '📦',
-    label: 'Project Artifacts',
-    desc: 'Feature lists, roadmaps, personas',
-  },
-  {
-    id: 'design-assets',
-    icon: '🎨',
-    label: 'Design Assets',
-    desc: 'Logos, brand kits, style guides',
-  },
-  {
-    id: 'code-modules',
-    icon: '🛠',
-    label: 'Code Modules',
-    desc: 'Components, contracts, scripts',
-  },
-  {
-    id: 'marketing',
-    icon: '📣',
-    label: 'Marketing',
-    desc: 'Campaigns, press kits, strategy',
-  },
-  {
-    id: 'analytics',
-    icon: '📈',
-    label: 'Analytics',
-    desc: 'Tracking plans, KPIs, data',
-  },
-  {
-    id: 'infrastructure',
-    icon: '⚙️',
-    label: 'Infrastructure',
-    desc: 'Hosting, deploy configs',
-  },
-  { id: 'qa', icon: '📋', label: 'QA', desc: 'Test plans, checklists' },
-  { id: 'support', icon: '🤝', label: 'Support', desc: 'FAQs, community docs' },
-  { id: 'legal', icon: '⚖️', label: 'Legal', desc: 'Privacy, ToS, licensing' },
-  {
-    id: 'staging',
-    icon: '🌀',
-    label: 'Staging',
-    desc: 'Raw inputs — unreviewed',
-  },
-  {
-    id: 'system',
-    icon: '📂',
-    label: 'System',
-    desc: 'DEVLOG, SYSTEM_INDEX, meta',
-  },
-  {
-    id: 'tools',
-    icon: '🔧',
-    label: 'Tools',
-    desc: 'Scripts, automation, utilities',
-  },
-];
-const STANDARD_FOLDER_IDS = new Set(STANDARD_FOLDERS.map((f) => f.id));
-const ITEM_TAGS = [
-  'IDEA_',
-  'SKETCH_',
-  'RND_',
-  'REWRITE_',
-  'PROMPT_',
-  'FINAL_',
-  'DRAFT_',
-  'CODE_',
-];
-const REVIEW_STATUSES = {
-  'in-review': { label: 'IN REVIEW', color: C.amber, icon: '🔄' },
-  approved: { label: 'APPROVED', color: C.green, icon: '✅' },
-  rejected: { label: 'REJECTED', color: C.red, icon: '❌' },
-  deferred: { label: 'DEFERRED', color: C.purple, icon: '⏳' },
-};
-const THAILAND_TARGET = 3000;
-const BUIDL_PHASES = [
-  'BOOTSTRAP',
-  'UNLEASH',
-  'INNOVATE',
-  'DECENTRALIZE',
-  'LEARN',
-  'SHIP',
-];
-
-// ── MANIFEST + PROJECT FACTORY ────────────────────────────────
-const makeManifest = (p) => ({
-  buidl_version: BUIDL_VERSION,
-  id: p.id,
-  name: p.name,
-  emoji: p.emoji || '📁',
-  phase: p.phase || 'BOOTSTRAP',
-  status: p.status || 'active',
-  priority: p.priority || 1,
-  revenue_ready: p.revenueReady || false,
-  income_target: p.incomeTarget || 0,
-  momentum: p.momentum || 3,
-  last_touched: p.lastTouched || new Date().toISOString().slice(0, 7),
-  desc: p.desc || '',
-  next_action: p.nextAction || '',
-  blockers: p.blockers || [],
-  tags: p.tags || [],
-  skills: p.skills || ['dev', 'strategy'],
-  custom_folders: (p.customFolders || []).map((f) => ({
-    id: f.id,
-    label: f.label,
-    icon: f.icon || '📁',
-    desc: f.desc || '',
-  })),
-  integrations: p.integrations || {},
-  created: p.created || new Date().toISOString(),
-  exported: new Date().toISOString(),
-});
-
-const calcHealth = (p) => {
-  const now = new Date(),
-    last = new Date((p.lastTouched || '2025-01') + '-01');
-  const days = Math.floor((now - last) / (1000 * 60 * 60 * 24));
-  let s = 100;
-  s -= Math.min(40, days * 0.5);
-  s -= (p.blockers || []).length * 8;
-  s -= (5 - (p.momentum || 3)) * 6;
-  if (p.status === 'paused') s -= 15;
-  if (p.status === 'stalled') s -= 20;
-  return Math.max(0, Math.round(s));
-};
-
-const makeDefaultFiles = (name, templateConfig = null) => {
-  const folders = templateConfig?.folders || STANDARD_FOLDERS.map((f) => f.id);
-  const showFolder = (id) => folders.includes(id);
-
-  const files = {
-    'PROJECT_OVERVIEW.md': `# ${name}\n\n## What is this?\n\n> One sentence description here.\n\n## Problem\n\n## Solution\n\n## Target User\n\n## Revenue Model\n\n## Current Status\n\n## Next Milestone\n`,
-    'DEVLOG.md': `# Dev Log — ${name}\n\n## ${new Date().toISOString().slice(0, 10)}\n\n- Project initialised\n`,
-    'TASKS.md': `# Tasks — ${name}\n\n## In Progress\n- [ ] Define MVP scope\n\n## Backlog\n- [ ] Set up repo\n\n## Done\n`,
-    'SYSTEM_INDEX.md': `# System Index — ${name}\n\n## Folders\n${STANDARD_FOLDERS.filter(
-      (f) => folders.includes(f.id)
-    )
-      .map((f) => `- **${f.label}**: ${f.desc}`)
-      .join('\n')}\n`,
-    'system/agent.ignore': `# agent.ignore\nlegal/\ninfrastructure/\nsystem/agent.ignore\nmanifest.json\n`,
-    'system/SKILL.md': `# Project Skill Overrides — ${name}\n\n## Dev Agent Overrides\n# - Custom rules here\n`,
-    'system/DEPENDENCY_GRAPH.md': `# Dependency Graph — ${name}\n\nVisualise project relationships and architecture.\n\n## System Architecture\n\n\`\`\`mermaid\ngraph TB\n    subgraph Frontend\n        UI[User Interface]\n        State[State Management]\n    end\n    \n    subgraph Backend\n        API[API Layer]\n        DB[(Database)]\n    end\n    \n    subgraph External\n        AI[AI Provider]\n        Storage[File Storage]\n    end\n    \n    UI --> State\n    State --> API\n    API --> DB\n    API --> AI\n    API --> Storage\n\`\`\`\n\n## Data Flow\n\n\`\`\`mermaid\nsequenceDiagram\n    participant U as User\n    participant F as Frontend\n    participant A as API\n    participant D as Database\n    \n    U->>F: Action\n    F->>A: Request\n    A->>D: Query\n    D-->>A: Result\n    A-->>F: Response\n    F-->>U: Update UI\n\`\`\`\n\n## Project Dependencies\n\n\`\`\`mermaid\ngraph LR\n    A[${name}] --> B[Core Feature]\n    A --> C[Integration]\n    A --> D[Documentation]\n    \n    B --> B1[Module 1]\n    B --> B2[Module 2]\n    \n    C --> C1[External API]\n    C --> C2[Service]\n\`\`\`\n\n---\n\n*Edit this file to customise diagrams for your project*\n`,
-  };
-
-  if (showFolder('marketing'))
-    files['CONTENT_CALENDAR.md'] =
-      `# Content Calendar — ${name}\n\n| Date | Platform | Type | Topic | Status |\n|------|----------|------|-------|--------|\n`;
-  if (showFolder('staging')) {
-    files['REVIEW_QUEUE.md'] =
-      `# Review Queue — ${name}\n\n| Item | Tag | Added | Status | Notes |\n|------|-----|-------|--------|-------|\n`;
-    files['staging/.gitkeep'] = '';
-  }
-
-  // Phase 3.6: Tools folder with predefined scripts
-  files['tools/.gitkeep'] = '';
-  files['tools/export-zip.js'] = `// Export all project files as ZIP
-// Usage: Run this script to generate a downloadable ZIP archive
-
-const fs = require('fs');
-const path = require('path');
-const JSZip = require('jszip');
-
-async function exportZip(projectFiles, projectName) {
-  const zip = new JSZip();
-  
-  // Add all files to ZIP
-  for (const [filePath, content] of Object.entries(projectFiles)) {
-    zip.file(filePath, content);
-  }
-  
-  // Generate ZIP
-  const blob = await zip.generateAsync({ type: 'blob' });
-  
-  // Trigger download
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = \`\${projectName.replace(/\\s+/g, '-').toLowerCase()}-export.zip\`;
-  a.click();
-  URL.revokeObjectURL(url);
-  
-  return \`Exported \${Object.keys(projectFiles).length} files\`;
-}
-
-// Script metadata
-export const meta = {
-  name: 'Export ZIP',
-  description: 'Export all project files as a ZIP archive',
-  language: 'javascript'
-};
-`;
-  files['tools/word-count.js'] =
-    `// Count words across all markdown files in project
-// Usage: Run this script to get word count statistics
-
-function countWords(projectFiles) {
-  const mdFiles = Object.entries(projectFiles).filter(([path]) => 
-    path.endsWith('.md') || path.endsWith('.txt')
-  );
-  
-  let totalWords = 0;
-  const fileStats = [];
-  
-  for (const [path, content] of mdFiles) {
-    // Remove markdown syntax for accurate count
-    const cleanContent = content
-      .replace(/[#\\*\\[\\]()\\-\\|\\/>]/g, ' ')
-      .replace(/\\s+/g, ' ')
-      .trim();
-    
-    const words = cleanContent.split(/\\s+/).filter(w => w.length > 0).length;
-    totalWords += words;
-    fileStats.push({ path, words });
-  }
-  
-  // Sort by word count
-  fileStats.sort((a, b) => b.words - a.words);
-  
-  return {
-    totalWords,
-    fileCount: mdFiles.length,
-    topFiles: fileStats.slice(0, 5),
-    averagePerFile: mdFiles.length > 0 ? Math.round(totalWords / mdFiles.length) : 0
-  };
-}
-
-// Script metadata
-export const meta = {
-  name: 'Word Count',
-  description: 'Count words across all markdown files',
-  language: 'javascript'
-};
-`;
-  files['tools/list-todos.js'] = `// List all TODO items across project files
-// Usage: Run this script to extract all TODOs and FIXMEs
-
-function listTodos(projectFiles) {
-  const todos = [];
-  
-  for (const [path, content] of Object.entries(projectFiles)) {
-    const lines = content.split('\\n');
-    
-    lines.forEach((line, index) => {
-      // Match TODO, FIXME, HACK, XXX patterns
-      const match = line.match(/(TODO|FIXME|HACK|XXX)[\\s:]*(.+)/i);
-      if (match) {
-        todos.push({
-          path,
-          line: index + 1,
-          type: match[1].toUpperCase(),
-          text: match[2].trim()
-        });
-      }
-    });
-  }
-  
-  // Group by type
-  const byType = todos.reduce((acc, todo) => {
-    acc[todo.type] = (acc[todo.type] || 0) + 1;
-    return acc;
-  }, {});
-  
-  return {
-    total: todos.length,
-    byType,
-    todos: todos.slice(0, 20) // Limit to first 20
-  };
-}
-
-// Script metadata
-export const meta = {
-  name: 'List TODOs',
-  description: 'Find all TODO, FIXME, HACK, XXX items in project files',
-  language: 'javascript'
-};
-`;
-
-  return files;
-};
-
-const makeProject = (
-  id,
-  name,
-  emoji,
-  phase,
-  status,
-  priority,
-  revenueReady,
-  desc,
-  nextAction,
-  blockers,
-  tags,
-  momentum,
-  lastTouched,
-  incomeTarget,
-  skills = [],
-  customFolders = [],
-  templateConfig = null
-) => {
-  const files = {
-    ...makeDefaultFiles(name, templateConfig),
-    'manifest.json': JSON.stringify(
-      makeManifest({
-        id,
-        name,
-        emoji,
-        phase,
-        status,
-        priority,
-        revenueReady,
-        incomeTarget,
-        momentum,
-        lastTouched,
-        desc,
-        nextAction,
-        blockers,
-        tags,
-        skills,
-        customFolders,
-      }),
-      null,
-      2
-    ),
-  };
-
-  if (templateConfig?.folders) {
-    templateConfig.folders.forEach((fId) => {
-      files[`${fId}/.gitkeep`] = '';
-    });
-  } else {
-    customFolders.forEach((f) => {
-      files[`${f.id}/.gitkeep`] = '';
-    });
-  }
-
-  const p = {
-    id,
-    name,
-    emoji,
-    phase,
-    status,
-    priority,
-    revenueReady,
-    desc,
-    nextAction,
-    blockers,
-    tags,
-    momentum,
-    lastTouched,
-    incomeTarget,
-    skills: skills.length ? skills : ['dev', 'strategy'],
-    customFolders,
-    integrations: {},
-    files,
-    activeFile: 'PROJECT_OVERVIEW.md',
-    created: new Date().toISOString(),
-  };
-  p.health = calcHealth(p);
-  return p;
-};
-
-// ── FILE TYPE DETECTION ────────────────────────────────────────
-const getFileType = (path) => {
-  const ext = path?.split('.').pop()?.toLowerCase() || '';
-  const textExts = [
-    'md',
-    'json',
-    'js',
-    'ts',
-    'py',
-    'sol',
-    'txt',
-    'css',
-    'html',
-    'xml',
-    'yaml',
-    'yml',
-    'env',
-  ];
-  const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'];
-  const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'flac'];
-  const videoExts = ['mp4', 'webm', 'mov', 'avi', 'mkv'];
-  const archiveExts = ['zip', 'tar', 'gz', 'rar', '7z'];
-  const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
-  if (textExts.includes(ext)) return 'text';
-  if (imageExts.includes(ext)) return 'image';
-  if (audioExts.includes(ext)) return 'audio';
-  if (videoExts.includes(ext)) return 'video';
-  if (archiveExts.includes(ext)) return 'archive';
-  if (docExts.includes(ext)) return 'document';
-  return 'binary';
-};
-
-// ── FILE SIZE FORMATTER ────────────────────────────────────────
-const formatFileSize = (base64str) => {
-  const kb = Math.floor(base64str.length / 4 / 1024);
-  return kb > 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`;
-};
+// Constants moved to utils/constants.js
 
 // ── MERMAID RENDERER (Phase 3.2) ────────────────────────────
 const MermaidRenderer = ({ chart, id }) => {
@@ -5674,17 +5159,6 @@ const BootstrapWizard = ({ project, onComplete, onClose }) => {
       </div>
     </div>
   );
-};
-
-// ── EXPORT UTILITIES ──────────────────────────────────────────
-const buildZipExport = (project) => {
-  const manifest = makeManifest(project);
-  let out = `BUIDL_EXPORT_V1\nMANIFEST_START\n${JSON.stringify(manifest, null, 2)}\nMANIFEST_END\nFILES_START\n`;
-  Object.entries(project.files || {}).forEach(([path, content]) => {
-    out += `FILE_START:${path}\n${content || ''}\nFILE_END:${path}\n`;
-  });
-  out += `FILES_END\n`;
-  return out;
 };
 
 // ══════════════════════════════════════════════════════════════
