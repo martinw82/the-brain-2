@@ -75,9 +75,7 @@ const CommandCentre = ({
             key={a.id}
             style={S.card(activeAreaFilter === a.id, a.color)}
             onClick={() =>
-              setActiveAreaFilter(
-                activeAreaFilter === a.id ? null : a.id
-              )
+              setActiveAreaFilter(activeAreaFilter === a.id ? null : a.id)
             }
           >
             <div
@@ -90,9 +88,7 @@ const CommandCentre = ({
             >
               <span style={{ fontSize: 14 }}>
                 {a.icon}{' '}
-                <span style={{ fontSize: 12, fontWeight: 700 }}>
-                  {a.name}
-                </span>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>{a.name}</span>
               </span>
               <span style={{ fontSize: 10, color: C.muted }}>
                 {a.projectCount} projects
@@ -206,9 +202,7 @@ const CommandCentre = ({
                       {flag.message}
                     </span>
                     {flag.severity === 'high' && (
-                      <span
-                        style={{ ...S.badge(C.red), fontSize: 8 }}
-                      >
+                      <span style={{ ...S.badge(C.red), fontSize: 8 }}>
                         HIGH
                       </span>
                     )}
@@ -378,7 +372,9 @@ const CommandCentre = ({
             }}
           >
             <span>📋 PROPOSED TASKS FROM DEVLOG</span>
-            <span style={{ fontSize: 8, color: C.muted }}>{proposedTasks.length} found</span>
+            <span style={{ fontSize: 8, color: C.muted }}>
+              {proposedTasks.length} found
+            </span>
           </div>
           {proposedTasks.slice(0, 5).map((task, i) => (
             <div
@@ -391,7 +387,9 @@ const CommandCentre = ({
                 borderTop: i > 0 ? '1px solid #22c55e20' : 'none',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <div
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}
+              >
                 <span
                   style={{
                     fontSize: 9,
@@ -401,14 +399,14 @@ const CommandCentre = ({
                       task.priority === 'critical'
                         ? `${C.red}20`
                         : task.priority === 'high'
-                        ? `${C.amber}20`
-                        : `${C.blue}20`,
+                          ? `${C.amber}20`
+                          : `${C.blue}20`,
                     color:
                       task.priority === 'critical'
                         ? C.red
                         : task.priority === 'high'
-                        ? C.amber
-                        : C.blue,
+                          ? C.amber
+                          : C.blue,
                   }}
                 >
                   {task.priority}
@@ -442,7 +440,8 @@ const CommandCentre = ({
           ))}
           {proposedTasks.length > 5 && (
             <div style={{ fontSize: 9, color: C.muted, marginTop: 8 }}>
-              +{proposedTasks.length - 5} more tasks found. Check in project files for full list.
+              +{proposedTasks.length - 5} more tasks found. Check in project
+              files for full list.
             </div>
           )}
         </div>
@@ -542,11 +541,10 @@ const CommandCentre = ({
               style={{
                 width: `${Math.min(
                   100,
-                  Math.round((weeklyTraining.count / 3) * 100),
+                  Math.round((weeklyTraining.count / 3) * 100)
                 )}%`,
                 height: '100%',
-                background:
-                  weeklyTraining.count >= 3 ? C.green : C.amber,
+                background: weeklyTraining.count >= 3 ? C.green : C.amber,
                 borderRadius: 3,
                 transition: 'width 0.3s',
               }}
@@ -606,8 +604,7 @@ const CommandCentre = ({
                 style={{
                   fontSize: 22,
                   fontWeight: 700,
-                  color:
-                    todayOutreach.length > 0 ? C.purple : C.dim,
+                  color: todayOutreach.length > 0 ? C.purple : C.dim,
                 }}
               >
                 {todayOutreach.length}
@@ -647,9 +644,7 @@ const CommandCentre = ({
               </div>
             </div>
           </div>
-          <div
-            style={{ flex: 1, width: isMobile ? '100%' : 'auto' }}
-          >
+          <div style={{ flex: 1, width: isMobile ? '100%' : 'auto' }}>
             {todayOutreach.length > 0 ? (
               <div
                 style={{
@@ -682,16 +677,15 @@ const CommandCentre = ({
                   </div>
                 ))}
               </div>
-            ) : getBehavior('outreach_enforcement', currentMode) ===
-              'modal' ? (
-                <div style={{ fontSize: 9, color: C.red }}>
-                  ⚠ No outreach yet today
-                </div>
-              ) : (
-                <div style={{ fontSize: 9, color: C.dim }}>
-                  No outreach logged today
-                </div>
-              )}
+            ) : getBehavior('outreach_enforcement', currentMode) === 'modal' ? (
+              <div style={{ fontSize: 9, color: C.red }}>
+                ⚠ No outreach yet today
+              </div>
+            ) : (
+              <div style={{ fontSize: 9, color: C.dim }}>
+                No outreach logged today
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -734,126 +728,117 @@ const CommandCentre = ({
           </button>
         </div>
         {tasksLoading ? (
-          <div style={{ fontSize: 10, color: C.dim }}>
-            Loading tasks...
+          <div style={{ fontSize: 10, color: C.dim }}>Loading tasks...</div>
+        ) : tasks.filter((t) => t.status !== 'complete').length === 0 ? (
+          <div style={{ fontSize: 9, color: C.dim }}>
+            No pending tasks. Create one to get started.
           </div>
-        ) : tasks.filter((t) => t.status !== 'complete').length ===
-          0 ? (
-            <div style={{ fontSize: 9, color: C.dim }}>
-              No pending tasks. Create one to get started.
-            </div>
-          ) : (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-              }}
-            >
-              {tasks
-                .filter((t) => t.status !== 'complete')
-                .slice(0, 5)
-                .map((task) => {
-                  const project = projects.find(
-                    (p) => p.id === task.project_id
-                  );
-                  const priorityColor =
-                    task.priority === 'critical'
-                      ? C.red
-                      : task.priority === 'high'
-                        ? C.amber
-                        : task.priority === 'medium'
-                          ? C.blue
-                          : C.dim;
-                  return (
-                    <div
-                      key={task.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '6px 8px',
-                        background: '#0a0f14',
-                        borderRadius: 4,
-                      }}
-                    >
-                      <button
-                        style={{
-                          width: 16,
-                          height: 16,
-                          border: `1px solid ${C.border}`,
-                          borderRadius: 3,
-                          background: 'transparent',
-                          cursor: 'pointer',
-                          flexShrink: 0,
-                        }}
-                        onClick={() => completeTask(task.id)}
-                        title="Complete task"
-                      />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: 10,
-                            color: C.text,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {task.title}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 8,
-                            color: C.dim,
-                            display: 'flex',
-                            gap: 6,
-                          }}
-                        >
-                          {project && (
-                            <span>
-                              {project.emoji} {project.name}
-                            </span>
-                          )}
-                          <span style={{ color: priorityColor }}>
-                            {task.priority}
-                          </span>
-                          {task.assignee_type === 'agent' && (
-                            <span>🤖 {task.assignee_id}</span>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        style={{
-                          ...S.btn('ghost'),
-                          padding: '2px 6px',
-                          fontSize: 8,
-                          color: C.red,
-                        }}
-                        onClick={() => deleteTask(task.id)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  );
-                })}
-              {tasks.filter((t) => t.status !== 'complete').length >
-                5 && (
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+            }}
+          >
+            {tasks
+              .filter((t) => t.status !== 'complete')
+              .slice(0, 5)
+              .map((task) => {
+                const project = projects.find((p) => p.id === task.project_id);
+                const priorityColor =
+                  task.priority === 'critical'
+                    ? C.red
+                    : task.priority === 'high'
+                      ? C.amber
+                      : task.priority === 'medium'
+                        ? C.blue
+                        : C.dim;
+                return (
                   <div
+                    key={task.id}
                     style={{
-                      fontSize: 9,
-                      color: C.dim,
-                      textAlign: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 8px',
+                      background: '#0a0f14',
+                      borderRadius: 4,
                     }}
                   >
-                    +
-                    {tasks.filter((t) => t.status !== 'complete').length -
-                      5}{' '}
-                    more tasks
+                    <button
+                      style={{
+                        width: 16,
+                        height: 16,
+                        border: `1px solid ${C.border}`,
+                        borderRadius: 3,
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                      onClick={() => completeTask(task.id)}
+                      title="Complete task"
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: C.text,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {task.title}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 8,
+                          color: C.dim,
+                          display: 'flex',
+                          gap: 6,
+                        }}
+                      >
+                        {project && (
+                          <span>
+                            {project.emoji} {project.name}
+                          </span>
+                        )}
+                        <span style={{ color: priorityColor }}>
+                          {task.priority}
+                        </span>
+                        {task.assignee_type === 'agent' && (
+                          <span>🤖 {task.assignee_id}</span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      style={{
+                        ...S.btn('ghost'),
+                        padding: '2px 6px',
+                        fontSize: 8,
+                        color: C.red,
+                      }}
+                      onClick={() => deleteTask(task.id)}
+                    >
+                      ✕
+                    </button>
                   </div>
-                )}
-            </div>
-          )}
-        </div>
+                );
+              })}
+            {tasks.filter((t) => t.status !== 'complete').length > 5 && (
+              <div
+                style={{
+                  fontSize: 9,
+                  color: C.dim,
+                  textAlign: 'center',
+                }}
+              >
+                +{tasks.filter((t) => t.status !== 'complete').length - 5} more
+                tasks
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div style={S.card(true)}>
@@ -955,18 +940,13 @@ const CommandCentre = ({
             {focusP.blockers?.length > 0 && (
               <div style={{ marginBottom: 8 }}>
                 {focusP.blockers.map((b, i) => (
-                  <div
-                    key={i}
-                    style={{ fontSize: 10, color: '#78350f' }}
-                  >
+                  <div key={i} style={{ fontSize: 10, color: '#78350f' }}>
                     ⚠ {b}
                   </div>
                 ))}
               </div>
             )}
-            <div
-              style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}
-            >
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               <button
                 style={S.btn('success')}
                 onClick={() => openHub(focusP.id)}
@@ -1037,9 +1017,7 @@ const CommandCentre = ({
                 gap: 8,
                 padding: '8px 0',
                 borderBottom:
-                  i < projects.length - 1
-                    ? `1px solid ${C.border}`
-                    : 'none',
+                  i < projects.length - 1 ? `1px solid ${C.border}` : 'none',
                 cursor: 'pointer',
               }}
             >
@@ -1094,8 +1072,7 @@ const CommandCentre = ({
                 <span style={S.badge(C.amber)}>
                   {
                     staging.filter(
-                      (s) =>
-                        s.project === p.id && s.status === 'in-review'
+                      (s) => s.project === p.id && s.status === 'in-review'
                     ).length
                   }
                   ⏳

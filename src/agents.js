@@ -172,11 +172,15 @@ export async function getAgent(agentId, projectId = null) {
 }
 
 /**
+ * Get agent stats from API
+ * @param {string} agentId - Agent ID
+ * @returns {Promise<object>} - Agent stats
+ */
 export async function getAgentStats(agentId) {
   try {
     const result = await agents.getStats(agentId);
     const stats = result?.stats?.[0];
-    
+
     if (!stats) {
       return {
         total_tasks: 0,
@@ -186,7 +190,7 @@ export async function getAgentStats(agentId) {
         success_rate: 0,
       };
     }
-    
+
     return stats;
   } catch (e) {
     console.error('[AgentRegistry] Failed to get agent stats:', e);

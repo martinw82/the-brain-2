@@ -12,7 +12,7 @@ const ProjectHub = ({
   setModal,
   setShowImportModal,
   S,
-  C
+  C,
 }) => {
   return (
     <div>
@@ -30,10 +30,7 @@ const ProjectHub = ({
         >
           + New Project
         </button>
-        <button
-          style={S.btn('ghost')}
-          onClick={() => setShowImportModal(true)}
-        >
+        <button style={S.btn('ghost')} onClick={() => setShowImportModal(true)}>
           ⬆ Import
         </button>
       </div>
@@ -107,9 +104,7 @@ const ProjectHub = ({
           >
             {p.desc}
           </div>
-          <div style={{ fontSize: 10, color: C.green }}>
-            → {p.nextAction}
-          </div>
+          <div style={{ fontSize: 10, color: C.green }}>→ {p.nextAction}</div>
           <QuickTagRow entityType="project" entityId={p.id} />
         </div>
       ))}

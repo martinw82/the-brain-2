@@ -19,19 +19,17 @@ const FileSystem = ({
   dragOver,
   setDragOver,
   S,
-  C
+  C,
 }) => {
   // This component represents the file system portion of the hub view
   // It is a simplified representation of the file tree and related functionality
-  
+
   return (
     <div
       style={{
         display: 'flex',
         gap: isMobile ? 0 : 10,
-        height: isMobile
-          ? 'calc(100vh - 140px)'
-          : 'calc(100vh-160px)',
+        height: isMobile ? 'calc(100vh - 140px)' : 'calc(100vh-160px)',
         minHeight: 500,
         flexDirection: isMobile ? 'column' : 'row',
         position: 'relative',
@@ -99,9 +97,7 @@ const FileSystem = ({
                   borderBottom: `1px solid ${C.border}`,
                 }}
               >
-                <span style={{ fontSize: 12, fontWeight: 700 }}>
-                  📁 Files
-                </span>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>📁 Files</span>
                 <button
                   style={{
                     ...S.btn('ghost'),
@@ -127,14 +123,10 @@ const FileSystem = ({
                 onSelect={(path) => {
                   setProjects((prev) =>
                     prev.map((p) =>
-                      p.id === hubId
-                        ? { ...p, activeFile: path }
-                        : p
+                      p.id === hubId ? { ...p, activeFile: path } : p
                     )
                   );
-                  projectsApi
-                    .setActiveFile(hubId, path)
-                    .catch(() => {});
+                  projectsApi.setActiveFile(hubId, path).catch(() => {});
                   fetchMetadata(hubId, path);
                   if (isMobile) setMobileFileTreeOpen(false);
                 }}
@@ -145,7 +137,7 @@ const FileSystem = ({
           </div>
         </>
       )}
-      
+
       {/* Editor area */}
       <div
         style={{

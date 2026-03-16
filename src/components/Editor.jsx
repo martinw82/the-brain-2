@@ -36,11 +36,11 @@ const Editor = ({
   dragOver,
   handleDrop,
   S,
-  C
+  C,
 }) => {
   // This component represents the editor portion of the hub view
   // It handles displaying different file types based on extension
-  
+
   if (!hub.activeFile) {
     return (
       <div
@@ -67,10 +67,10 @@ const Editor = ({
       </div>
     );
   }
-  
+
   const fileType = getFileType(hub.activeFile);
   const content = (hub.files || {})[hub.activeFile] || '';
-  
+
   return (
     <div
       style={{
@@ -110,7 +110,7 @@ const Editor = ({
           />
         </div>
       )}
-      
+
       <div
         style={{
           flex: 1,
@@ -120,27 +120,15 @@ const Editor = ({
         }}
       >
         {fileType === 'image' ? (
-          <ImageViewer
-            path={hub.activeFile}
-            content={content}
-          />
+          <ImageViewer path={hub.activeFile} content={content} />
         ) : fileType === 'audio' ? (
-          <AudioPlayer
-            path={hub.activeFile}
-            content={content}
-          />
+          <AudioPlayer path={hub.activeFile} content={content} />
         ) : fileType === 'video' ? (
-          <VideoPlayer
-            path={hub.activeFile}
-            content={content}
-          />
-        ) : fileType === 'binary' || 
-           fileType === 'document' || 
-           fileType === 'archive' ? (
-          <BinaryViewer
-            path={hub.activeFile}
-            content={content}
-          />
+          <VideoPlayer path={hub.activeFile} content={content} />
+        ) : fileType === 'binary' ||
+          fileType === 'document' ||
+          fileType === 'archive' ? (
+          <BinaryViewer path={hub.activeFile} content={content} />
         ) : (
           <MarkdownEditor
             path={hub.activeFile}
@@ -152,16 +140,14 @@ const Editor = ({
           />
         )}
       </div>
-      
+
       {/* Metadata panel (right side) - hidden on mobile */}
       {hub.activeFile && !isMobile && (
         <MetadataEditor
           file={hub.activeFile}
           projectId={hubId}
           metadata={fileMetadata}
-          onSave={(data) =>
-            saveMetadata(hubId, hub.activeFile, data)
-          }
+          onSave={(data) => saveMetadata(hubId, hub.activeFile, data)}
           allTags={userTags}
           aiSuggestions={aiSuggestions}
           onRequestSuggestions={requestAiSuggestions}
