@@ -81,8 +81,12 @@ const ProgressTrends = ({ title, data, color = C.blue, unit = '' }) => {
           marginTop: 4,
         }}
       >
-        <span>{min.toFixed(0)} {unit}</span>
-        <span>{max.toFixed(0)} {unit}</span>
+        <span>
+          {min.toFixed(0)} {unit}
+        </span>
+        <span>
+          {max.toFixed(0)} {unit}
+        </span>
       </div>
     </div>
   );

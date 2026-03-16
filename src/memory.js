@@ -3,9 +3,7 @@
  * Client-side module for personal memory management
  */
 
-import { get, post } from './api.js';
-
-const BASE = '';
+import { memories } from './api.js';
 
 export const MEMORY_CATEGORIES = {
   PROFILE: 'profile',
@@ -31,12 +29,7 @@ export const MEMORY_SOURCES = {
  * @returns {Promise<object>} - List of memories
  */
 export async function listMemories(options = {}) {
-  const params = new URLSearchParams({ resource: 'memories' });
-
-  if (options.category) params.append('category', options.category);
-  if (options.active === false) params.append('active', 'false');
-
-  return get(`${BASE}/api/data?${params.toString()}`);
+  return memories.list(options);
 }
 
 /**
@@ -45,7 +38,7 @@ export async function listMemories(options = {}) {
  * @returns {Promise<object>} - Created memory
  */
 export async function createMemory(memory) {
-  return post(`${BASE}/api/data?resource=memories`, memory);
+  return memories.create(memory);
 }
 
 /**
@@ -55,10 +48,13 @@ export async function createMemory(memory) {
  * @returns {Promise<object>} - Extracted memories
  */
 export async function extractMemories(sourceType, sourceId) {
-  return post(`${BASE}/api/data?resource=extract-memories`, {
-    source_type: sourceType,
-    source_id: sourceId,
+  // Use the API directly via fetch
+  const response = await fetch('/api/data?resource=extract-memories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source_type: sourceType, source_id: sourceId }),
   });
+  return response.json();
 }
 
 /**
@@ -66,7 +62,9 @@ export async function extractMemories(sourceType, sourceId) {
  * @returns {Promise<object>} - Memory insights
  */
 export async function getMemoryInsights() {
-  return get(`${BASE}/api/data?resource=memory-insights`);
+  // Use the API directly via fetch
+  const response = await fetch('/api/data?resource=memory-insights');
+  return response.json();
 }
 
 /**
@@ -76,13 +74,13 @@ export async function getMemoryInsights() {
  */
 export async function getMemoryContext(maxMemories = 10) {
   const result = await listMemories({ active: true });
-  const memories = result.memories || [];
+  const memoryList = result.memories || [];
 
-  if (memories.length === 0) {
+  if (memoryList.length === 0) {
     return '';
   }
 
-  const sorted = memories
+  const sorted = memoryList
     .sort((a, b) => b.accessed_count - a.accessed_count)
     .slice(0, maxMemories);
 

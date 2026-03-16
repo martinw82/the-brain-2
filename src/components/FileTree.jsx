@@ -60,8 +60,8 @@ const FileTree = ({
                             : ['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(ext)
                               ? '🎥'
                               : ['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(
-                                  ext
-                                )
+                                    ext
+                                  )
                                 ? '🎵'
                                 : '📄';
         if (key === '.gitkeep') return null;
@@ -94,7 +94,7 @@ const FileTree = ({
               }
               onMouseLeave={(e) =>
                 !isActive && (e.currentTarget.style.background = 'transparent')
-              }}
+              }
             >
               <span style={{ fontSize: 12 }}>{icon}</span>
               <span
@@ -126,7 +126,8 @@ const FileTree = ({
                     e.stopPropagation();
                     e.currentTarget.style.opacity = 1;
                   }}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = 0)}>
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = 0)}
+                >
                   ✕
                 </span>
               )}

@@ -408,6 +408,10 @@ export const links = {
 export const settings = {
   get: () => get(`${BASE}/api/data?resource=settings`),
   put: (data) => put(`${BASE}/api/data?resource=settings`, data),
+  wipeUserData: () =>
+    post(`${BASE}/api/data?resource=wipe-user`, {
+      confirm: 'DELETE_ALL_MY_DATA',
+    }),
 };
 
 // ── DAILY CHECKINS (Phase 2.5) ────────────────────────────────
@@ -779,6 +783,15 @@ export const agentExecution = {
       project_id: projectId,
       context,
     }),
+};
+
+// ── AGENT STATS (Phase 5.3) ───────────────────────────────────
+export const agents = {
+  getStats: (agentId) =>
+    get(
+      `${BASE}/api/data?resource=agent-stats${agentId ? '\&agent_id=' + agentId : ''}`
+    ),
+  getAllStats: () => get(`${BASE}/api/data?resource=agent-stats`),
 };
 
 // ── IMPORT PARSERS ────────────────────────────────────────────

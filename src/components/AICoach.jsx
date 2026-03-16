@@ -39,11 +39,7 @@ const AICoach = ({
               'Rank by revenue potential',
               'Which project is dying?',
             ].map((p) => (
-              <button
-                key={p}
-                style={S.btn('ghost')}
-                onClick={() => askAI(p)}
-              >
+              <button key={p} style={S.btn('ghost')} onClick={() => askAI(p)}>
                 {p}
               </button>
             ))}

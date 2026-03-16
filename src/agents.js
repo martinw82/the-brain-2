@@ -10,7 +10,7 @@
  * - Stats derived from tasks table (no persistent agent state)
  */
 
-import { tasks as tasksApi } from './api.js';
+import { tasks as tasksApi, agents } from './api.js';
 
 // Cache for parsed agents
 let agentCache = null;
@@ -172,23 +172,28 @@ export async function getAgent(agentId, projectId = null) {
 }
 
 /**
- * Get agent execution stats from tasks table
+ * Get agent stats from API
  * @param {string} agentId - Agent ID
- * @returns {Promise<object>} - Stats object
+ * @returns {Promise<object>} - Agent stats
  */
 export async function getAgentStats(agentId) {
   try {
-    // This would need a backend endpoint to aggregate
-    // For now, return placeholder
-    // In real implementation: tasks.getAgentHistory(agentId)
-    return {
-      total_tasks: 0,
-      completed_tasks: 0,
-      avg_cost: 0,
-      avg_duration_minutes: 0,
-      success_rate: 0,
-    };
+    const result = await agents.getStats(agentId);
+    const stats = result?.stats?.[0];
+
+    if (!stats) {
+      return {
+        total_tasks: 0,
+        completed_tasks: 0,
+        avg_cost: 0,
+        avg_duration_minutes: 0,
+        success_rate: 0,
+      };
+    }
+
+    return stats;
   } catch (e) {
+    console.error('[AgentRegistry] Failed to get agent stats:', e);
     return {
       total_tasks: 0,
       completed_tasks: 0,
