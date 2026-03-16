@@ -5156,6 +5156,50 @@ Provide metadata suggestions as JSON.`;
         throw e;
       }
     }
+
+    // ── WIPE USER DATA ─────────────────────────────────────────────
+    if (resource === 'wipe-user') {
+      if (req.method !== 'POST') return err(res, 'Method not allowed', 405);
+
+      const { confirm } = req.body || {};
+
+      if (confirm !== 'DELETE_ALL_MY_DATA') {
+        return err(res, 'Please send { "confirm": "DELETE_ALL_MY_DATA" } to confirm');
+      }
+
+      try {
+        // Delete all user data in correct order (respecting foreign keys)
+        await db.execute('DELETE FROM sessions WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM comments WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM project_files WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM tags WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM links WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM daily_checkins WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM training_logs WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM outreach_log WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM memories WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM tasks WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM workflow_instances WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM workflow_templates WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM community_workflows WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM user_integrations WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM notifications WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM file_summaries WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM goals WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM staging WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM ideas WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM parts WHERE user_id = ?', [auth.userId]);
+        await db.execute('DELETE FROM projects WHERE user_id = ?', [auth.userId]);
+        
+        // Keep the user account but clear settings
+        await db.execute('DELETE FROM user_ai_settings WHERE user_id = ?', [auth.userId]);
+
+        return ok(res, { success: true, message: 'All user data deleted' });
+      } catch (e) {
+        console.error('Wipe error:', e);
+        return err(res, `Failed to delete data: ${e.message}`);
+      }
+    }
     return err(res, 'Not found', 404);
   } catch (e) {
     console.error('Data error:', e.message, e.stack);
