@@ -308,8 +308,19 @@ brain://workflow/product-launch/step-3    → Workflow step
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         PRESENTATION LAYER                           │
 │  React 18 + Vite 5                                                  │
-│  ├─ TheBrain.jsx (single-file app)                                  │
-│  ├─ Mode-aware UI components                                        │
+│  ├─ TheBrain.jsx (orchestrator, ~3,962 lines)                       │
+│  │   ├─ State declarations (59 useState hooks)                      │
+│  │   ├─ Hook wiring (11 domain hooks)                               │
+│  │   └─ Top bar + navigation JSX                                    │
+│  ├─ hooks/ (11 files — business logic)                              │
+│  │   ├─ useProjectCrud, useStagingOps, useSessionOps                │
+│  │   ├─ useNotifications, useTaskOps, useAI, useTagOps              │
+│  │   └─ useMetadata, useDataSync, useUndoRedo, useBreakpoint        │
+│  ├─ components/panels/ (2 files — domain UI)                        │
+│  │   ├─ HubEditorPanel (editor, overview, folders, review, etc.)    │
+│  │   └─ BrainTabsPanel (command, projects, staging, skills, etc.)   │
+│  ├─ components/ (20+ files — modals, viewers, features)             │
+│  ├─ utils/ (4 files — constants, projectFactory, fileHandlers, etc.)│
 │  └─ Inline styles (dark monospace theme)                            │
 ├─────────────────────────────────────────────────────────────────────┤
 │                         ORCHESTRATION LAYER                          │
@@ -336,15 +347,17 @@ brain://workflow/product-launch/step-3    → Workflow step
 
 ### Key Technical Decisions
 
-| Decision             | Rationale                                            |
-| -------------------- | ---------------------------------------------------- |
-| Single-file frontend | Simplicity, fast iteration, fits in context window   |
-| Serverless functions | Scale to zero, no server management, edge deployment |
-| TiDB Serverless      | MySQL-compatible, free tier, global distribution     |
-| Multi-provider AI    | Avoid vendor lock-in, cost optimization              |
-| JWT auth             | Stateless, works with serverless                     |
-| Optimistic updates   | Feels instant, revert on error                       |
-| Soft deletes         | Never lose user data                                 |
+| Decision             | Rationale                                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Modular frontend     | 14k-line monolith refactored into hooks + panels + utils. TheBrain.jsx is orchestrator only (~3,962 lines). |
+| Hook deps pattern    | All hooks accept a single `deps` object — manages 59 state variables cleanly                                |
+| Panel ctx pattern    | Panel components receive a single `ctx` prop with all needed state/callbacks                                |
+| Serverless functions | Scale to zero, no server management, edge deployment                                                        |
+| TiDB Serverless      | MySQL-compatible, free tier, global distribution                                                            |
+| Multi-provider AI    | Avoid vendor lock-in, cost optimization                                                                     |
+| JWT auth             | Stateless, works with serverless                                                                            |
+| Optimistic updates   | Feels instant, revert on error                                                                              |
+| Soft deletes         | Never lose user data                                                                                        |
 
 ---
 
@@ -448,7 +461,72 @@ memories (user_id, category, content, confidence, source_task_id)
 4. **Human override** — AI suggests, human decides
 5. **Start simple** — Measure, iterate, don't over-engineer
 6. **Preserve foundations** — v1.0 features stay working
-7. **Single-file simplicity** — Frontend stays unified
+7. **Modular architecture** — TheBrain.jsx is the orchestrator; business logic lives in hooks, UI in panel components, constants/helpers in utils
+
+---
+
+## Frontend Module Map (for developers / AI agents)
+
+### Where to find things
+
+| Task                                       | File(s)                                      |
+| ------------------------------------------ | -------------------------------------------- |
+| Fix a project CRUD bug                     | `src/hooks/useProjectCrud.js`                |
+| Fix staging pipeline                       | `src/hooks/useStagingOps.js`                 |
+| Fix session/checkin/training               | `src/hooks/useSessionOps.js`                 |
+| Fix notifications                          | `src/hooks/useNotifications.js`              |
+| Fix task management                        | `src/hooks/useTaskOps.js`                    |
+| Fix AI/search                              | `src/hooks/useAI.js`                         |
+| Fix tags                                   | `src/hooks/useTagOps.jsx`                    |
+| Fix file metadata / AI suggestions         | `src/hooks/useMetadata.js`                   |
+| Fix data seeding / offline sync            | `src/hooks/useDataSync.js`                   |
+| Fix hub tab UI (editor, folders, etc.)     | `src/components/panels/HubEditorPanel.jsx`   |
+| Fix brain tab UI (command, projects, etc.) | `src/components/panels/BrainTabsPanel.jsx`   |
+| Fix colors, spacing, breakpoints           | `src/utils/constants.js`                     |
+| Fix project health calculation             | `src/utils/projectFactory.js`                |
+| Fix top bar, navigation, modals            | `src/TheBrain.jsx` (JSX return, ~line 1100+) |
+| Fix state declarations or hook wiring      | `src/TheBrain.jsx` (lines 1-1100)            |
+| Add a new API resource                     | `api/data.js` or new `api/resource.js`       |
+
+### How hooks are wired
+
+```
+TheBrain.jsx
+  │
+  ├── useState declarations (59 state variables)
+  │
+  ├── useTagOps({ entityTags, setEntityTags, ... })
+  │     └─ returns: getEntityTags, attachTag, detachTag, QuickTagRow
+  │
+  ├── useDataSync({ user, areas, setAreas, ... })
+  │     └─ returns: nothing (side-effect only — seeds defaults, syncs cache)
+  │
+  ├── useStagingOps({ staging, setStaging, hubId, ... })
+  │     └─ returns: addStaging, updateStagingStatus, moveToFolder
+  │
+  ├── useProjectCrud({ projects, setProjects, addStaging, ... })
+  │     └─ returns: openHub, saveFile, createFile, deleteFile, createProject, ...
+  │
+  ├── useMetadata({ hubId, hub, projects, ... })
+  │     └─ returns: fetchMetadata, saveMetadata, requestAiSuggestions, ...
+  │
+  ├── useSessionOps({ setIdeas, projects, focusId, ... })
+  │     └─ returns: addIdea, endSession, saveCheckin, saveTraining, ...
+  │
+  ├── useNotifications({ notifications, setNotifications, ... })
+  │     └─ returns: loadNotifications, markNotificationRead, ...
+  │
+  ├── useTaskOps({ tasks, setTasks, ... })
+  │     └─ returns: loadTasks, createTask, completeTask, deleteTask
+  │
+  ├── useAI({ projects, staging, ideas, ... })
+  │     └─ returns: runSearch, buildCtx, buildBrief, copy, askAI
+  │
+  └── JSX return
+        ├── Top bar (session timer, notifications, navigation)
+        ├── <HubEditorPanel ctx={{...}} />    (hub view)
+        └── <BrainTabsPanel ctx={{...}} />    (brain view)
+```
 
 ---
 
@@ -472,4 +550,4 @@ memories (user_id, category, content, confidence, source_task_id)
 
 ---
 
-_THE BRAIN v2.0 Architecture — March 2026_
+_THE BRAIN v2.0 Architecture — March 2026 (updated post-refactoring)_

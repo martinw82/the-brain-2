@@ -4,10 +4,10 @@
 
 **Agent Orchestration Platform with Adaptive Coaching**
 
-**Version:** 8.2 → **v2.0 Vision**  
-**Live URL:** the-brain-2.vercel.app  
-**Last Updated:** 2026-03-15 (Session 046)  
-**Status:** v1.0 Complete | v2.0 FULLY SHIPPED ✅
+**Version:** 8.2 → **v2.0 Vision**
+**Live URL:** the-brain-2.vercel.app
+**Last Updated:** 2026-03-17 (Post-refactoring)
+**Status:** v1.0 Complete | v2.0 FULLY SHIPPED ✅ | Frontend Refactored ✅
 
 ---
 
@@ -40,16 +40,16 @@ The Brain evolves into an **adaptive intelligence system** that:
 
 ## 2. v1.0 Tech Stack (CURRENT)
 
-| Layer      | Technology                       | Notes                                                        |
-| ---------- | -------------------------------- | ------------------------------------------------------------ |
-| Frontend   | React 18 + Vite 5                | Single JSX component (~5,829 lines)                          |
-| Styling    | Inline styles, dark monospace UI | JetBrains Mono / Fira Code                                   |
-| API        | Vercel serverless functions      | `api/ai.js`, `api/auth.js`, `api/data.js`, `api/projects.js` |
-| Database   | TiDB Cloud Serverless (MySQL)    | Free tier, EU-central-1, 32 tables                           |
-| Auth       | JWT + bcrypt                     | Register/login/sessions                                      |
-| AI         | Multi-provider proxy             | Anthropic, Moonshot, DeepSeek, Mistral, OpenAI               |
-| Migrations | `scripts/migrate.js`             | Versioned schema migrations                                  |
-| Deployment | Vercel (primary)                 | Netlify config also present                                  |
+| Layer      | Technology                       | Notes                                                                      |
+| ---------- | -------------------------------- | -------------------------------------------------------------------------- |
+| Frontend   | React 18 + Vite 5                | Modular: orchestrator (3,962 lines) + 11 hooks + 2 panels + 20+ components |
+| Styling    | Inline styles, dark monospace UI | JetBrains Mono / Fira Code                                                 |
+| API        | Vercel serverless functions      | `api/ai.js`, `api/auth.js`, `api/data.js`, `api/projects.js`               |
+| Database   | TiDB Cloud Serverless (MySQL)    | Free tier, EU-central-1, 32 tables                                         |
+| Auth       | JWT + bcrypt                     | Register/login/sessions                                                    |
+| AI         | Multi-provider proxy             | Anthropic, Moonshot, DeepSeek, Mistral, OpenAI                             |
+| Migrations | `scripts/migrate.js`             | Versioned schema migrations                                                |
+| Deployment | Vercel (primary)                 | Netlify config also present                                                |
 
 ---
 
@@ -459,7 +459,7 @@ All phases complete! See `brain-roadmap.md` for the detailed implementation stat
 
 ### v1.0 Principles (Proven)
 
-- **Single-file core** — TheBrain.jsx is the app
+- **Modular orchestrator** — TheBrain.jsx is the orchestrator (3,962 lines), business logic in 11 hooks, UI in panel components
 - **Optimistic updates** — UI updates immediately, DB syncs background
 - **Portable data** — MySQL-compatible, standard schema
 - **Agent-first** — AI isn't bolt-on, it's primary interaction
@@ -473,6 +473,18 @@ All phases complete! See `brain-roadmap.md` for the detailed implementation stat
 - **Explainable AI** — Retrieval traces, assignment reasons
 - **Human override always** — AI suggests, human decides
 - **Start simple, measure, iterate** — No premature optimization
+
+### Frontend Architecture (Post-Refactoring 2026-03-17)
+
+The frontend was refactored from 14,237 lines in a single file to a modular architecture:
+
+- **TheBrain.jsx** (3,962 lines) — State declarations, hook wiring, top bar + navigation JSX
+- **11 hooks** in `src/hooks/` — All business logic (project CRUD, staging, sessions, AI, tags, etc.)
+- **2 panel components** in `src/components/panels/` — HubEditorPanel (hub tabs), BrainTabsPanel (brain tabs)
+- **20+ extracted components** in `src/components/` — Modals, viewers, features
+- **4 utility files** in `src/utils/` — Constants, project factory, file handlers, renderers
+
+See `README.md` and `REFACTOR_TASKS.md` for the full module inventory and architecture diagram.
 
 ---
 

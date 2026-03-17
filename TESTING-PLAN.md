@@ -385,19 +385,63 @@
 
 ---
 
+# PART L: REFACTORING REGRESSION TESTS (2026-03-17)
+
+## L1. Build & Module Loading
+
+- [ ] **L1.1** `npx vite build` succeeds with no errors
+- [ ] **L1.2** All hooks load without import errors
+- [ ] **L1.3** HubEditorPanel renders all 9 hub tabs
+- [ ] **L1.4** BrainTabsPanel renders all 12 brain tabs
+- [ ] **L1.5** No duplicate function definitions (extracted code fully removed from TheBrain.jsx)
+
+## L2. Hook Functionality
+
+- [ ] **L2.1** useProjectCrud: create, update, delete project works
+- [ ] **L2.2** useProjectCrud: file CRUD (create, save, delete) works
+- [ ] **L2.3** useStagingOps: add, update status, move to folder works
+- [ ] **L2.4** useSessionOps: add idea, end session, save checkin works
+- [ ] **L2.5** useNotifications: load, mark read, delete works
+- [ ] **L2.6** useTaskOps: create, complete, delete task works
+- [ ] **L2.7** useAI: search, build context, ask AI works
+- [ ] **L2.8** useTagOps: attach, detach, QuickTagRow renders
+- [ ] **L2.9** useMetadata: fetch, save metadata works
+- [ ] **L2.10** useDataSync: seed defaults, cache sync, online status works
+
+## L3. Panel Component Rendering
+
+- [ ] **L3.1** Hub Editor tab renders file tree and editor
+- [ ] **L3.2** Hub Overview tab renders project stats
+- [ ] **L3.3** Hub Folders tab renders folder list
+- [ ] **L3.4** Hub Review tab renders staging items
+- [ ] **L3.5** Hub Dev Log tab renders entries
+- [ ] **L3.6** Hub Timeline (Gantt) tab renders
+- [ ] **L3.7** Hub Comments tab renders
+- [ ] **L3.8** Hub Links tab renders
+- [ ] **L3.9** Hub Meta tab renders
+- [ ] **L3.10** Brain Command tab renders dashboard
+- [ ] **L3.11** Brain Projects tab renders project list
+- [ ] **L3.12** Brain Staging tab renders pipeline
+- [ ] **L3.13** Brain Ideas tab renders idea bank
+- [ ] **L3.14** Brain AI Coach tab renders
+- [ ] **L3.15** Brain Skills tab renders agent list
+- [ ] **L3.16** Brain Workflows tab renders workflow templates
+
+---
+
 # TEST EXECUTION LOG
 
 | Date | Tester | Area | Tests Run | Pass | Fail | Notes |
-|------|--------|------|-----------|------|------|-------|
+| ---- | ------ | ---- | --------- | ---- | ---- | ----- |
 |      |        |      |           |      |      |       |
 
 ---
 
 # ISSUES FOUND
 
-| # | Date | Severity | Feature | Description | Status |
-|---|------|----------|---------|--------------|--------|
-| 1 |      |          |         |              |        |
+| #   | Date | Severity | Feature | Description | Status |
+| --- | ---- | -------- | ------- | ----------- | ------ |
+| 1   |      |          |         |             |        |
 
 ---
 
@@ -425,6 +469,7 @@ Testing is complete when:
 ## Issues in Source Code:
 
 ### Issue 1: memory.js imports non-existent functions
+
 **File:** `src/memory.js`  
 **Severity:** HIGH  
 **Description:** Line 6 imports `get` and `post` from `./api.js` but these functions don't exist. API uses named exports like `memories.list()`, `memories.create()` etc.  
@@ -432,27 +477,32 @@ Testing is complete when:
 **Fix:** Rewrite to use the `memories` export from api.js
 
 ### Issue 2: Version confusion
+
 **File:** Multiple  
 **Severity:** LOW  
-**Description:** 
+**Description:**
+
 - `package.json` says v6.0.0
 - Header in TheBrain.jsx says "v6 — Wired Edition"
 - Documentation says v2.0
 - Should be unified
 
 ### Issue 3: Agent stats return zeros
+
 **File:** `src/agents.js` line 179-199  
 **Severity:** MEDIUM  
 **Description:** `getAgentStats()` always returns zeros - no backend aggregation implemented  
 **Impact:** Agent selection scoring won't work properly
 
 ### Issue 4: Rate limiting in-memory only
+
 **File:** `api/data.js`  
 **Severity:** MEDIUM  
 **Description:** Rate limiting uses in-memory Map - resets on server restart/redeploy  
 **Impact:** Rate limiting less effective in serverless
 
 ### Issue 5: Missing error handling in workflow
+
 **File:** `src/workflows.js`  
 **Severity:** LOW  
 **Description:** Some async operations don't have error handling  
@@ -460,13 +510,14 @@ Testing is complete when:
 
 ---
 
-*Plan created: 2026-03-15*
+_Plan created: 2026-03-15_
 
 ---
 
 # ISSUES FIXED
 
 ## Issue 1: memory.js - Wrong imports
+
 **Date:** 2026-03-15  
 **File:** `src/memory.js`  
 **Severity:** HIGH  
@@ -474,7 +525,8 @@ Testing is complete when:
 **Fix:** Rewrote to use the `memories` export from api.js  
 **Status:** ✅ FIXED
 
-## Issue 2: Version confusion  
+## Issue 2: Version confusion
+
 **Date:** 2026-03-15  
 **Files:** `package.json`, `src/TheBrain.jsx`  
 **Severity:** LOW  
@@ -483,17 +535,20 @@ Testing is complete when:
 **Status:** ✅ FIXED
 
 ## Issue 3: Agent stats return zeros
+
 **Date:** 2026-03-15  
 **Files:** `src/agents.js`, `src/api.js`, `api/data.js`  
 **Severity:** MEDIUM  
 **Description:** getAgentStats() always returned zeros - no backend aggregation  
-**Fix:** 
+**Fix:**
+
 - Added `/api/data?resource=agent-stats` endpoint in api/data.js
 - Added `agents` API export in src/api.js with getStats() and getAllStats()
 - Updated src/agents.js to use the new API  
-**Status:** ✅ FIXED
+  **Status:** ✅ FIXED
 
 ## Issue 4: Rate limiting in-memory only
+
 **Date:** 2026-03-15  
 **Files:** `api/data.js`, `api/projects.js`, `api/ai.js`  
 **Severity:** MEDIUM  
@@ -502,6 +557,7 @@ Testing is complete when:
 **Status:** 📝 KNOWN LIMITATION (not critical for typical usage)
 
 ## Issue 5: TODO comment in projects.js
+
 **Date:** 2026-03-15  
 **File:** `api/projects.js` line 496  
 **Severity:** LOW  
@@ -520,7 +576,7 @@ Run these commands to verify fixes:
 grep '"version"' package.json
 # Should show: "version": "2.0.0"
 
-# Verify memory.js imports  
+# Verify memory.js imports
 head -10 src/memory.js
 # Should import: import { memories } from './api.js';
 
