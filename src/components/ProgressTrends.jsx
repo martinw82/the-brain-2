@@ -1,4 +1,4 @@
-import { C, S } from '../TheBrain.jsx';
+import { C } from '../utils/constants.js';
 
 const ProgressTrends = ({ title, data, color = C.blue, unit = '' }) => {
   if (!data || data.length < 2) return null;
@@ -19,7 +19,7 @@ const ProgressTrends = ({ title, data, color = C.blue, unit = '' }) => {
       <div
         style={{
           fontSize: 10,
-          color: color,
+          color: C.blue,
           textTransform: 'uppercase',
           letterSpacing: '0.1em',
           marginBottom: 8,
@@ -55,15 +55,17 @@ const ProgressTrends = ({ title, data, color = C.blue, unit = '' }) => {
                   height: `${Math.max(4, height)}%`,
                   background: color,
                   borderRadius: 2,
+                  opacity: 0.7 + (i / data.length) * 0.3,
+                  minHeight: 4,
                 }}
+                title={`${d.label}: ${d.value}${unit}`}
               />
               <div
                 style={{
                   fontSize: 8,
                   color: C.muted,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
+                  transform: 'rotate(-45deg)',
+                  transformOrigin: 'top left',
                 }}
               >
                 {d.label}
@@ -71,22 +73,6 @@ const ProgressTrends = ({ title, data, color = C.blue, unit = '' }) => {
             </div>
           );
         })}
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: 9,
-          color: C.muted,
-          marginTop: 4,
-        }}
-      >
-        <span>
-          {min.toFixed(0)} {unit}
-        </span>
-        <span>
-          {max.toFixed(0)} {unit}
-        </span>
       </div>
     </div>
   );
