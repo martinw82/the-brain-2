@@ -29,12 +29,12 @@ src/
 |------|--------|---------------|--------|
 | Task 0 — Setup | ✅ Done | 0 | `refactor: setup module folders` |
 | Task 1 — Extract utilities | ✅ Done | -540 | `refactor: extract pure utilities` |
-| Step A — Standalone components | 🔲 Pending | ~5,000 est. | — |
-| Step B — Internal hooks | 🔲 Pending | ~1,200 est. | — |
-| Step C — Domain panels | 🔲 Pending | ~2,000 est. | — |
+| Step A — Standalone components | ✅ Done | -5,029 | `refactor: remove 5029 lines of extracted code` |
+| Step B — Internal hooks | 🔄 In Progress | -620 so far | B1+B2 wired, B3-B8 files created |
+| Step C — Domain panels | 🔲 Pending | ~3,400 est. | — |
 | Step D — Cleanup & polish | 🔲 Pending | — | — |
 
-**Current TheBrain.jsx**: 13,697 lines (down from 14,237)
+**Current TheBrain.jsx**: 8,065 lines (down from 14,237)
 
 ---
 
@@ -55,9 +55,11 @@ src/
 
 ---
 
-## Step A — Extract Standalone Components (Tasks 4+5 combined)
+## Step A — Extract Standalone Components (Tasks 4+5 combined) ✅
 
 All components defined OUTSIDE the main TheBrain function (lines 88–5162). Clean cut-and-paste.
+
+**Result:** TheBrain.jsx reduced by 5,029 lines (13,697 → 8,685). Build verified.
 
 ### Hooks
 - `src/hooks/useUndoRedo.js` ← useUndoRedo (lines 89–159)
