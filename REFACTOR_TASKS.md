@@ -31,10 +31,10 @@ src/
 | Task 1 — Extract utilities | ✅ Done | -540 | `refactor: extract pure utilities` |
 | Step A — Standalone components | ✅ Done | -5,029 | `refactor: remove 5029 lines of extracted code` |
 | Step B — Internal hooks | ✅ Done | -1,119 | B1-B8 extracted and wired |
-| Step C — Domain panels | 🔲 Pending | ~3,400 est. | — |
+| Step C — Domain panels | 🔄 In Progress | -1,308 so far | C1 (HubEditorPanel) done |
 | Step D — Cleanup & polish | 🔲 Pending | — | — |
 
-**Current TheBrain.jsx**: 7,566 lines (down from 14,237)
+**Current TheBrain.jsx**: 6,258 lines (down from 14,237)
 
 ---
 
