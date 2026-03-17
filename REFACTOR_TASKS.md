@@ -31,10 +31,10 @@ src/
 | Task 1 — Extract utilities | ✅ Done | -540 | `refactor: extract pure utilities` |
 | Step A — Standalone components | ✅ Done | -5,029 | `refactor: remove 5029 lines of extracted code` |
 | Step B — Internal hooks | ✅ Done | -1,119 | B1-B8 extracted and wired |
-| Step C — Domain panels | 🔄 In Progress | -1,308 so far | C1 (HubEditorPanel) done |
+| Step C — Domain panels | ✅ Done | -3,297 | HubEditorPanel + BrainTabsPanel |
 | Step D — Cleanup & polish | 🔲 Pending | — | — |
 
-**Current TheBrain.jsx**: 6,258 lines (down from 14,237)
+**Current TheBrain.jsx**: 4,269 lines (down from 14,237) — **70% reduction**
 
 ---
 
@@ -118,17 +118,15 @@ Functions inside the main TheBrain component extracted to domain hooks. Each hoo
 
 ---
 
-## Step C — Extract Domain Panels (Task 6)
+## Step C — Extract Domain Panels (Task 6) ✅
 
-Extract JSX blocks from the return statement into prop-receiving components.
+Extracted JSX blocks from the return statement into panel components using ctx prop pattern.
 
-- `src/components/ProjectsPanel.jsx` — project cards, bootstrap, health scores
-- `src/components/StagingPanel.jsx` — staging review UI
-- `src/components/TagCloudPanel.jsx` — tag browser
-- `src/components/AICoachPanel.jsx` — AI coach interface
-- `src/components/HubEditor.jsx` — hub tabs: overview, devlog, gantt, comments, links, meta
+**Files created:**
+- `src/components/panels/HubEditorPanel.jsx` (1480 lines) — all hub tab content (editor, overview, folders, review, devlog, gantt, comments, meta, links)
+- `src/components/panels/BrainTabsPanel.jsx` (2150 lines) — all brain tab content (command, projects, bootstrap, staging, skills, workflows, integrations, ideas, ai, review, export, tags)
 
-**Expected:** ~2,000 lines removed
+**Result:** TheBrain.jsx reduced by 3,297 lines (7,566 → 4,269). Build verified.
 
 ---
 
