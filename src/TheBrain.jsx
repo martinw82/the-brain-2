@@ -90,6 +90,11 @@ import useUndoRedo from './hooks/useUndoRedo.js';
 import useBreakpoint from './hooks/useBreakpoint.js';
 import useProjectCrud from './hooks/useProjectCrud.js';
 import useStagingOps from './hooks/useStagingOps.js';
+import useSessionOps from './hooks/useSessionOps.js';
+import useNotifications from './hooks/useNotifications.js';
+import useTaskOps from './hooks/useTaskOps.js';
+import useAI from './hooks/useAI.js';
+import useTagOps from './hooks/useTagOps.jsx';
 
 // ── Extracted UI components ──────────────────────────────────
 import {
@@ -377,152 +382,16 @@ export default function TheBrain({
 
   const showToast = (msg) => setToast({ msg });
 
-  // ── TAG HELPERS ───────────────────────────────────────────
-  const getEntityTags = (type, id) =>
-    entityTags.filter(
-      (et) => et.entity_type === type && String(et.entity_id) === String(id)
-    );
-
-  const attachTag = async (
-    entityType,
-    entityId,
-    tagName,
-    color = '#3b82f6'
-  ) => {
-    try {
-      const res = await tagsApi.attachByName(
-        tagName.trim(),
-        entityType,
-        entityId,
-        color
-      );
-      setEntityTags((prev) => [
-        ...prev.filter(
-          (et) =>
-            !(
-              et.tag_id === res.tag_id &&
-              et.entity_type === entityType &&
-              String(et.entity_id) === String(entityId)
-            )
-        ),
-        res,
-      ]);
-      setUserTags((prev) =>
-        prev.find((t) => t.id === res.tag_id)
-          ? prev
-          : [...prev, { id: res.tag_id, name: res.name, color: res.color }]
-      );
-    } catch (e) {
-      showToast('Failed to attach tag');
-    }
-  };
-
-  const detachTag = async (entityType, entityId, tagId) => {
-    try {
-      await tagsApi.detach(tagId, entityType, entityId);
-      setEntityTags((prev) =>
-        prev.filter(
-          (et) =>
-            !(
-              et.tag_id === tagId &&
-              et.entity_type === entityType &&
-              String(et.entity_id) === String(entityId)
-            )
-        )
-      );
-    } catch (e) {
-      showToast('Failed to remove tag');
-    }
-  };
-
-  const QuickTagRow = ({ entityType, entityId }) => {
-    const key = `${entityType}:${entityId}`;
-    const tags = getEntityTags(entityType, entityId);
-    const inputVal = tagInput[key] || '';
-    const suggestions =
-      inputVal.length >= 1
-        ? userTags.filter(
-            (t) =>
-              t.name.toLowerCase().includes(inputVal.toLowerCase()) &&
-              !tags.find((et) => et.tag_id === t.id)
-          )
-        : [];
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 3,
-          alignItems: 'center',
-          marginTop: 4,
-        }}
-      >
-        {tags.map((t) => (
-          <TagPill
-            key={t.id}
-            tag={t}
-            onRemove={() => detachTag(entityType, entityId, t.tag_id)}
-          />
-        ))}
-        <div style={{ position: 'relative', display: 'inline-flex' }}>
-          <input
-            style={{
-              ...S.input,
-              width: 90,
-              padding: '1px 5px',
-              fontSize: 9,
-              height: 18,
-            }}
-            placeholder="+ tag"
-            value={inputVal}
-            onChange={(e) =>
-              setTagInput((prev) => ({ ...prev, [key]: e.target.value }))
-            }
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && inputVal.trim()) {
-                attachTag(entityType, entityId, inputVal.trim());
-                setTagInput((prev) => ({ ...prev, [key]: '' }));
-                e.preventDefault();
-              }
-            }}
-          />
-          {suggestions.length > 0 && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 20,
-                left: 0,
-                zIndex: 50,
-                background: C.surface,
-                border: `1px solid ${C.border}`,
-                borderRadius: 4,
-                minWidth: 120,
-              }}
-            >
-              {suggestions.slice(0, 5).map((t) => (
-                <div
-                  key={t.id}
-                  style={{
-                    padding: '3px 8px',
-                    fontSize: 9,
-                    cursor: 'pointer',
-                    color: t.color,
-                  }}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    attachTag(entityType, entityId, t.name, t.color);
-                    setTagInput((prev) => ({ ...prev, [key]: '' }));
-                  }}
-                >
-                  {t.name}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
+  // ── TAG OPS ──────────────────────────────────────────────
+  const { getEntityTags, attachTag, detachTag, QuickTagRow } = useTagOps({
+    entityTags,
+    setEntityTags,
+    userTags,
+    setUserTags,
+    tagInput,
+    setTagInput,
+    showToast,
+  });
 
   // ── SEED DEFAULTS — called if areas, goals or templates are empty ─────────────
   useEffect(() => {
@@ -1134,187 +1003,46 @@ export default function TheBrain({
   }, [user, onboardingCompleted, projects.length, templates.length]);
 
   // ── IDEAS OPS — persisted ──────────────────────────────────
-  const addIdea = async (title) => {
-    if (!title.trim()) return;
-    const tmp = {
-      id: `tmp-${Date.now()}`,
-      title: title.trim(),
-      score: 5,
-      tags: ['new'],
-      added: new Date().toISOString().slice(0, 7),
-    };
-    setIdeas((prev) => [...prev, tmp]);
-    setNewIdea('');
-    try {
-      const res = await ideasApi.create({
-        title: title.trim(),
-        score: 5,
-        tags: ['new'],
-      });
-      setIdeas((prev) =>
-        prev.map((i) => (i.id === tmp.id ? { ...i, id: res.id } : i))
-      );
-    } catch {
-      showToast('⚠ Idea save failed');
-    }
-  };
 
-  // ── SESSION END — persisted ────────────────────────────────
-  const endSession = async () => {
-    const dur = sessionSecs,
-      log = sessionLog;
-    if (log.trim()) {
-      // Save to devlog file
-      const entry = `\n## ${new Date().toISOString().slice(0, 10)} — ${fmtTime(dur)}\n\n${log}\n`;
-      const proj = projects.find((p) => p.id === focusId);
-      if (proj) {
-        const current = (proj.files || {})['DEVLOG.md'] || '';
-        await saveFile(focusId, 'DEVLOG.md', current + entry);
-      }
-    }
-    // Log session to DB
-    await sessionsApi
-      .create({
-        project_id: focusId,
-        duration_s: dur,
-        log,
-        started_at: sessionStart.current?.toISOString(),
-        ended_at: new Date().toISOString(),
-      })
-      .catch(() => {});
-    setSessionOn(false);
-    setSessionSecs(0);
-    setSessionLog('');
-  };
+  // ── IDEAS + SESSION + CHECKIN + TRAINING + OUTREACH ─────
+  const {
+    addIdea,
+    endSession,
+    saveCheckin,
+    loadWeeklyTraining,
+    saveTraining,
+    loadTodayOutreach,
+    saveOutreach,
+  } = useSessionOps({
+    setIdeas,
+    setNewIdea,
+    projects,
+    focusId,
+    sessionSecs,
+    sessionLog,
+    sessionStart,
+    setSessionOn,
+    setSessionSecs,
+    setSessionLog,
+    setTodayCheckin,
+    setCheckinLastDate,
+    setShowCheckinModal,
+    setWeeklyTraining,
+    setShowTrainingModal,
+    todayCheckin,
+    setTodayOutreach,
+    setWeeklyOutreach,
+    setShowOutreachModal,
+    saveFile,
+    fmtTime,
+    showToast,
+  });
 
-  // ── DAILY CHECKIN (Phase 2.5) ────────────────────────────────
-  const saveCheckin = async (checkin) => {
-    try {
-      const res = await fetch(`/api/data?resource=daily-checkins`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token.get()}`,
-        },
-        body: JSON.stringify(checkin),
-      });
-      if (!res.ok) throw new Error('Save failed');
-      const data = await res.json();
-      setTodayCheckin(checkin);
-      const today = new Date().toISOString().split('T')[0];
-      setCheckinLastDate(today);
-      localStorage.setItem('lastCheckinDate', today);
-      setShowCheckinModal(false);
-      showToast('✓ Check-in saved');
-    } catch (e) {
-      console.error('Checkin save error:', e);
-      showToast('⚠ Failed to save check-in');
-    }
-  };
-
-  // ── TRAINING LOG (Phase 2.6) ─────────────────────────────────
-  const loadWeeklyTraining = async () => {
-    try {
-      const res = await fetch(`/api/data?resource=training-logs&days=7`, {
-        headers: { Authorization: `Bearer ${token.get()}` },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      const logs = data.logs || [];
-      setWeeklyTraining({
-        count: logs.length,
-        minutes: logs.reduce((s, l) => s + (l.duration_minutes || 0), 0),
-      });
-    } catch (e) {
-      console.error('Training load error:', e);
-    }
-  };
-
-  const saveTraining = async (log) => {
-    try {
-      const res = await fetch(`/api/data?resource=training-logs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token.get()}`,
-        },
-        body: JSON.stringify(log),
-      });
-      if (!res.ok) throw new Error('Save failed');
-      setShowTrainingModal(false);
-      showToast('🥋 Training logged');
-      loadWeeklyTraining();
-      // Also update today's checkin training_done if we have a checkin
-      if (todayCheckin && !todayCheckin.training_done) {
-        const updated = { ...todayCheckin, training_done: 1 };
-        fetch(`/api/data?resource=daily-checkins`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token.get()}`,
-          },
-          body: JSON.stringify({
-            ...updated,
-            date: new Date().toISOString().split('T')[0],
-          }),
-        }).catch(() => {});
-        setTodayCheckin(updated);
-      }
-    } catch (e) {
-      console.error('Training save error:', e);
-      showToast('⚠ Failed to log training');
-    }
-  };
-
-  // ── OUTREACH LOG (Phase 2.7) ─────────────────────────────────
-  const loadTodayOutreach = async () => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const res = await fetch(`/api/data?resource=outreach-log&date=${today}`, {
-        headers: { Authorization: `Bearer ${token.get()}` },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      setTodayOutreach(data.logs || []);
-      // Also load this week's count
-      const wRes = await fetch(`/api/data?resource=outreach-log&days=7`, {
-        headers: { Authorization: `Bearer ${token.get()}` },
-      });
-      if (wRes.ok) {
-        const wData = await wRes.json();
-        setWeeklyOutreach((wData.logs || []).length);
-      }
-    } catch (e) {
-      console.error('Outreach load error:', e);
-    }
-  };
-
-  const saveOutreach = async (entry) => {
-    try {
-      const res = await fetch(`/api/data?resource=outreach-log`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token.get()}`,
-        },
-        body: JSON.stringify(entry),
-      });
-      if (!res.ok) throw new Error('Save failed');
-      setShowOutreachModal(false);
-      showToast('📣 Outreach logged');
-      loadTodayOutreach();
-    } catch (e) {
-      console.error('Outreach save error:', e);
-      showToast('⚠ Failed to log outreach');
-    }
-  };
-
-  // ── DRIFT DETECTION (Phase 2.10) ──────────────────────────────
+  // ── DRIFT DETECTION ──────────────────────────────────────
   const loadDriftCheck = async () => {
     try {
       const data = await driftApi.check();
       if (data && data.flags) {
-        // Filter out dismissed flags (by type)
         const activeFlags = data.flags.filter(
           (f) => !driftDismissed.includes(f.type)
         );
@@ -1332,269 +1060,46 @@ export default function TheBrain({
     setDriftFlags((prev) => prev.filter((f) => f.type !== type));
   };
 
-  // ── NOTIFICATIONS (Phase 4.4) ─────────────────────────────────
-  const loadNotifications = async () => {
-    try {
-      setNotificationsLoading(true);
-      const data = await notificationsApi.list();
-      if (data && data.notifications) {
-        setNotifications(data.notifications);
-        setUnreadCount(data.unread_count || 0);
-      }
-    } catch (e) {
-      console.error('Notifications load error:', e);
-    } finally {
-      setNotificationsLoading(false);
-    }
-  };
+  // ── NOTIFICATIONS ────────────────────────────────────────
+  const {
+    loadNotifications,
+    checkNotificationTriggers,
+    markNotificationRead,
+    markAllNotificationsRead,
+    deleteNotification,
+  } = useNotifications({
+    notifications,
+    setNotifications,
+    setUnreadCount,
+    setNotificationsLoading,
+  });
 
-  const checkNotificationTriggers = async () => {
-    try {
-      await notificationsApi.checkTriggers();
-      // Reload to get any new notifications
-      await loadNotifications();
-    } catch (e) {
-      console.error('Notification trigger check error:', e);
-    }
-  };
+  // ── TASKS ────────────────────────────────────────────────
+  const { loadTasks, createTask, completeTask, deleteTask } = useTaskOps({
+    tasks,
+    setTasks,
+    setTasksLoading,
+    setShowTaskModal,
+    setTaskForm,
+    setTaskAgents,
+    showToast,
+  });
 
-  const markNotificationRead = async (id) => {
-    try {
-      await notificationsApi.markRead(id);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (e) {
-      console.error('Mark read error:', e);
-    }
-  };
-
-  // ── TASKS (Phase 5.4) ───────────────────────────────────────
-  const loadTasks = async () => {
-    try {
-      setTasksLoading(true);
-      const data = await tasksApi.myTasks();
-      if (data && data.tasks) {
-        setTasks(data.tasks);
-      }
-    } catch (e) {
-      console.error('Tasks load error:', e);
-    } finally {
-      setTasksLoading(false);
-    }
-  };
-
-  // Phase 5.6: Poll executing agent tasks
-  useEffect(() => {
-    const executingTasks = tasks.filter(
-      (t) => t.assignee_type === 'agent' && t.status === 'in_progress'
-    );
-    if (executingTasks.length === 0) return;
-    const interval = setInterval(async () => {
-      for (const t of executingTasks) {
-        try {
-          const result = await agentExecution.status(t.id);
-          if (result.status === 'complete' || result.status === 'blocked') {
-            setTasks((prev) =>
-              prev.map((p) =>
-                p.id === t.id
-                  ? {
-                      ...p,
-                      status: result.status,
-                      result_summary: result.result_summary,
-                    }
-                  : p
-              )
-            );
-          }
-        } catch {
-          /* ignore polling errors */
-        }
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [tasks]);
-
-  const createTask = async (taskData) => {
-    try {
-      const result = await tasksApi.create(taskData);
-      if (result.success) {
-        showToast(
-          `Task created${taskData.assignee_type === 'agent' ? ` → assigned to ${taskData.assignee_id}` : ''}`
-        );
-        loadTasks();
-        setShowTaskModal(false);
-        setTaskForm({
-          title: '',
-          description: '',
-          priority: 'medium',
-          project_id: '',
-          assignee_type: 'human',
-          assignee_id: 'user',
-        });
-        setTaskAgents([]);
-      }
-    } catch (e) {
-      console.error('Create task error:', e);
-      showToast('Failed to create task');
-    }
-  };
-
-  const completeTask = async (id) => {
-    try {
-      await tasksApi.complete(id, 'Completed manually');
-      showToast('Task completed');
-      loadTasks();
-    } catch (e) {
-      console.error('Complete task error:', e);
-      showToast('Failed to complete task');
-    }
-  };
-
-  const deleteTask = async (id) => {
-    try {
-      await tasksApi.delete(id);
-      showToast('Task deleted');
-      loadTasks();
-    } catch (e) {
-      console.error('Delete task error:', e);
-      showToast('Failed to delete task');
-    }
-  };
-
-  const markAllNotificationsRead = async () => {
-    try {
-      await notificationsApi.markAllRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      setUnreadCount(0);
-    } catch (e) {
-      console.error('Mark all read error:', e);
-    }
-  };
-
-  const deleteNotification = async (id) => {
-    try {
-      await notificationsApi.delete(id);
-      const wasUnread = notifications.find((n) => n.id === id && !n.read);
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-      if (wasUnread) setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (e) {
-      console.error('Delete notification error:', e);
-    }
-  };
-
-  // ── SEARCH — uses DB full-text search (Phase 3.3 Enhanced) ──
-  const runSearch = async (q) => {
-    if (!q.trim()) {
-      setSearchRes([]);
-      return;
-    }
-    try {
-      const { results, grouped } = await searchApi.query(q, searchFilters);
-      setSearchRes(results || []);
-      addRecentSearch(q);
-    } catch {
-      // Fallback to in-memory search
-      const res = [];
-      projects.forEach((p) =>
-        Object.entries(p.files || {}).forEach(([path, content]) => {
-          if (
-            typeof content === 'string' &&
-            content.toLowerCase().includes(q.toLowerCase())
-          ) {
-            const idx = content.toLowerCase().indexOf(q.toLowerCase());
-            const excerptStart = Math.max(0, idx - 60);
-            const excerptEnd = Math.min(content.length, idx + q.length + 60);
-            let excerpt = content.slice(excerptStart, excerptEnd);
-            if (excerptStart > 0) excerpt = '...' + excerpt;
-            if (excerptEnd < content.length) excerpt = excerpt + '...';
-            res.push({
-              project_id: p.id,
-              project_name: p.name,
-              emoji: p.emoji,
-              path,
-              excerpt,
-              query: q,
-            });
-          }
-        })
-      );
-      setSearchRes(res.slice(0, 15));
-    }
-  };
-
-  // ── CONTEXT + BRIEFINGS + AI ───────────────────────────────
-  const buildCtx = (projId = null) =>
-    JSON.stringify(
-      {
-        agent_context: 'THE BRAIN v2.0 — Orchestrator Edition',
-        generated: new Date().toISOString(),
-        operator: {
-          name: user?.name || 'Builder',
-          email: user?.email,
-          goal: user?.goal || 'Bootstrap → Thailand',
-          monthly_target: user?.monthly_target || THAILAND_TARGET,
-        },
-        today_focus: focusId,
-        projects: (projId
-          ? projects.filter((p) => p.id === projId)
-          : projects
-        ).map((p) => ({
-          id: p.id,
-          name: p.name,
-          phase: p.phase,
-          status: p.status,
-          priority: p.priority,
-          revenue_ready: p.revenueReady,
-          health: p.health,
-          momentum: p.momentum,
-          next_action: p.nextAction,
-          blockers: p.blockers,
-          tags: p.tags,
-          income_target: p.incomeTarget,
-          skills: p.skills,
-          staging_pending: staging.filter(
-            (s) => s.project === p.id && s.status === 'in-review'
-          ).length,
-        })),
-        global_staging: staging,
-        ideas: ideas.map((i) => ({ title: i.title, score: i.score })),
-      },
-      null,
-      2
-    );
-
-  const buildBrief = (skillId, projId) => {
-    const sk = SKILLS[skillId];
-    const proj = projects.find((p) => p.id === projId);
-    if (!sk || !proj) return '';
-    return `# ${sk.icon} ${sk.label} Briefing — ${proj.emoji} ${proj.name}\n\n## Role\n${sk.description}\n\n## Project\n- **${proj.name}** (${proj.phase}, Priority #${proj.priority})\n- Status: ${proj.status} | Health: ${proj.health}/100\n- Next: ${proj.nextAction}\n- Blockers: ${proj.blockers?.join(', ') || 'None'}\n\n## Prompt Prefix\n> ${sk.prompt_prefix}\n\n## SOP\n${sk.sop.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\n## Permissions\n✅ ${sk.permissions.join(', ')}\n🚫 ${sk.ignore.join(', ')}\n\n## Context\n\`\`\`json\n${buildCtx(projId)}\n\`\`\``;
-  };
-
-  const copy = (text) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Phase 2.8: system prompt is now built server-side from DB (agent-config.json + real data)
-  // Pass system=null for standard questions; skill briefings still pass their own system override
-  const askAI = async (prompt, systemOverride = null) => {
-    setAiLoad(true);
-    setAiOut('');
-    try {
-      const d = await aiApi.ask(prompt, systemOverride);
-      setAiOut(d.content?.map((b) => b.text || '').join('') || 'No response.');
-    } catch (e) {
-      setAiOut(e.message || 'Connection error.');
-    }
-    setAiLoad(false);
-    setTimeout(
-      () => aiRef.current?.scrollIntoView({ behavior: 'smooth' }),
-      100
-    );
-  };
+  // ── SEARCH + CONTEXT + AI ────────────────────────────────
+  const { runSearch, buildCtx, buildBrief, copy, askAI } = useAI({
+    projects,
+    staging,
+    ideas,
+    focusId,
+    user,
+    searchFilters,
+    setSearchRes,
+    addRecentSearch,
+    setCopied,
+    setAiOut,
+    setAiLoad,
+    aiRef,
+  });
 
   // ── INTEGRATIONS (UI only for now) ─────────────────────────
   const [integrations, setIntegrations] = useState([

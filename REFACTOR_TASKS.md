@@ -30,11 +30,11 @@ src/
 | Task 0 — Setup | ✅ Done | 0 | `refactor: setup module folders` |
 | Task 1 — Extract utilities | ✅ Done | -540 | `refactor: extract pure utilities` |
 | Step A — Standalone components | ✅ Done | -5,029 | `refactor: remove 5029 lines of extracted code` |
-| Step B — Internal hooks | 🔄 In Progress | -620 so far | B1+B2 wired, B3-B8 files created |
+| Step B — Internal hooks | ✅ Done | -1,119 | B1-B8 extracted and wired |
 | Step C — Domain panels | 🔲 Pending | ~3,400 est. | — |
 | Step D — Cleanup & polish | 🔲 Pending | — | — |
 
-**Current TheBrain.jsx**: 8,065 lines (down from 14,237)
+**Current TheBrain.jsx**: 7,566 lines (down from 14,237)
 
 ---
 
@@ -101,29 +101,20 @@ All components defined OUTSIDE the main TheBrain function (lines 88–5162). Cle
 
 ---
 
-## Step B — Extract Internal Hooks (Tasks 2+3 combined)
+## Step B — Extract Internal Hooks (Tasks 2+3 combined) ✅
 
-Functions inside the main TheBrain component are coupled to 60+ state variables. Approach: hooks accept a deps object and return operations.
+Functions inside the main TheBrain component extracted to domain hooks. Each hook accepts a deps object and returns operations.
 
-### `src/hooks/useProjectLogic.js`
-- openHub, saveFile, createProject, updateProject, renameProject, deleteProject, importProject, completeBootstrap, exportProject, addCustomFolder, createFile, deleteFile
+**Files created:**
+- `src/hooks/useProjectCrud.js` (677 lines) — openHub, saveFile, createFile, deleteFile, createProject, updateProject, renameProject, deleteProject, importProject, completeBootstrap, onboarding handlers, handleDrop, exportProject
+- `src/hooks/useStagingOps.js` (82 lines) — addStaging, updateStagingStatus, moveToFolder
+- `src/hooks/useSessionOps.js` (191 lines) — addIdea, endSession, saveCheckin, loadWeeklyTraining, saveTraining, loadTodayOutreach, saveOutreach
+- `src/hooks/useNotifications.js` (77 lines) — loadNotifications, checkNotificationTriggers, markNotificationRead, markAllNotificationsRead, deleteNotification
+- `src/hooks/useTaskOps.js` (109 lines) — loadTasks, createTask, completeTask, deleteTask + agent polling useEffect
+- `src/hooks/useAI.js` (148 lines) — runSearch, buildCtx, buildBrief, copy, askAI
+- `src/hooks/useTagOps.jsx` (166 lines) — getEntityTags, attachTag, detachTag, QuickTagRow component
 
-### `src/hooks/useAI.js`
-- askAI, buildCtx, buildBrief + AI state
-
-### `src/hooks/useStaging.js`
-- addStaging, updateStagingStatus, moveToFolder
-
-### `src/hooks/useIdeas.js`
-- addIdea
-
-### `src/hooks/useSession.js`
-- endSession, saveCheckin, saveTraining, saveOutreach + timer state
-
-### `src/hooks/useTasks.js`
-- loadTasks, createTask, completeTask, deleteTask + agent polling
-
-**Expected:** ~1,200 lines removed
+**Result:** TheBrain.jsx reduced by 1,119 lines (8,685 → 7,566). Build verified.
 
 ---
 
