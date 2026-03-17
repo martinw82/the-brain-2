@@ -1,56 +1,18 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   projects as projectsApi,
-  staging as stagingApi,
-  ideas as ideasApi,
-  sessions as sessionsApi,
   comments as commentsApi,
-  search as searchApi,
-  ai as aiApi,
-  areas as areasApi,
   goals as goalsApi,
-  templates as templatesApi,
-  tags as tagsApi,
   links as linksApi,
   settings as settingsApi,
-  fileMetadata,
   token,
   drift as driftApi,
-  aiMetadata as aiMetadataApi,
-  scripts as scriptsApi,
-  integrations as integrationsApi,
-  notifications as notificationsApi,
-  userAISettings,
-  tasks as tasksApi,
-  fileSummaries,
-  agentExecution,
 } from './api.js';
-import { cache } from './cache.js';
 import { sync } from './sync.js';
-import { desktopSync } from './desktop-sync.js';
-import {
-  parseURI,
-  extractURIs,
-  uriToNavigation,
-  resolveLabel,
-  isValidURI,
-  contentHash,
-} from './uri.js';
-import {
-  checkSummaryStatus,
-  storeSummaries,
-  L0_PROMPT,
-  L1_PROMPT,
-} from './summaries.js';
-import FolderSyncSetup from './components/FolderSyncSetup.jsx';
 import SyncReviewModal from './components/SyncReviewModal.jsx';
 import DailyCheckinModal from './components/DailyCheckinModal.jsx';
 import TrainingLogModal from './components/TrainingLogModal.jsx';
 import OutreachLogModal from './components/OutreachLogModal.jsx';
-import WeeklyReviewPanel from './components/WeeklyReviewPanel.jsx';
-import AgentManager from './components/AgentManager.jsx';
-import FileSummaryViewer from './components/FileSummaryViewer.jsx';
-import WorkflowRunner from './components/WorkflowRunner.jsx';
 import { seedSystemWorkflows } from './workflows.js';
 import { getMode, getBehavior, shouldShow, MODE_INFO } from './modeHelper.js';
 import {
@@ -66,17 +28,7 @@ import {
   REVIEW_STATUSES,
   STATUS_MAP,
 } from './utils/constants.js';
-import {
-  makeManifest,
-  calcHealth,
-  makeDefaultFiles,
-  makeProject,
-} from './utils/projectFactory.js';
-import {
-  getFileType,
-  formatFileSize,
-  buildZipExport,
-} from './utils/fileHandlers.js';
+import { calcHealth } from './utils/projectFactory.js';
 
 // ============================================================
 // THE BRAIN v2.0 — Orchestrator Edition
@@ -95,6 +47,8 @@ import useNotifications from './hooks/useNotifications.js';
 import useTaskOps from './hooks/useTaskOps.js';
 import useAI from './hooks/useAI.js';
 import useTagOps from './hooks/useTagOps.jsx';
+import useMetadata from './hooks/useMetadata.js';
+import useDataSync from './hooks/useDataSync.js';
 
 // ── Extracted UI components ──────────────────────────────────
 import {
@@ -106,43 +60,21 @@ import {
   Modal,
   Toast,
 } from './components/UI/SmallComponents.jsx';
-import ProgressTrends from './components/ProgressTrends.jsx';
 
 // ── Extracted modals ─────────────────────────────────────────
 import KeyboardShortcutsModal, {
   SHORTCUTS,
 } from './components/Modals/KeyboardShortcutsModal.jsx';
 import AIProviderSettings from './components/Modals/AIProviderSettings.jsx';
-import MetadataEditor from './components/Modals/MetadataEditor.jsx';
 import SearchModal from './components/Modals/SearchModal.jsx';
 
-// ── Extracted renderers & chart components ────────────────────
-import MermaidRenderer from './components/MermaidRenderer.jsx';
-import URILink, { renderAIResponse } from './components/URILink.jsx';
-import { renderMd, parseTasks } from './utils/renderers.js';
-import GanttChart from './components/GanttChart.jsx';
-import FileTreeInline from './components/FileTreeInline.jsx';
-import MarkdownPreview from './components/MarkdownPreview.jsx';
+// ── Extracted panel components ────────────────────────────────
+import HubEditorPanel from './components/panels/HubEditorPanel.jsx';
+import BrainTabsPanel from './components/panels/BrainTabsPanel.jsx';
 
 // ── Extracted large components ────────────────────────────────
 import OnboardingWizard from './components/OnboardingWizard.jsx';
 import TourTooltip from './components/TourTooltip.jsx';
-import GitHubIntegration from './components/GitHubIntegration.jsx';
-import MarkdownEditor from './components/MarkdownEditor.jsx';
-import ImageViewer from './components/viewers/ImageViewer.jsx';
-import AudioPlayer from './components/viewers/AudioPlayer.jsx';
-import VideoPlayer from './components/viewers/VideoPlayer.jsx';
-import BinaryViewer from './components/viewers/BinaryViewer.jsx';
-import HubEditorPanel from './components/panels/HubEditorPanel.jsx';
-import BrainTabsPanel from './components/panels/BrainTabsPanel.jsx';
-import ScriptRunner from './components/ScriptRunner.jsx';
-import HealthCheck from './components/HealthCheck.jsx';
-import {
-  SKILLS,
-  WORKFLOWS,
-  BOOTSTRAP_STEPS,
-} from './components/SkillsWorkflows.jsx';
-import BootstrapWizard from './components/BootstrapWizard.jsx';
 
 // ══════════════════════════════════════════════════════════════
 // MAIN COMPONENT — accepts props from App.jsx (auth gate)
@@ -395,195 +327,26 @@ export default function TheBrain({
     showToast,
   });
 
-  // ── SEED DEFAULTS — called if areas, goals or templates are empty ─────────────
-  useEffect(() => {
-    if (areas.length === 0 && user) {
-      const defaults = [
-        {
-          name: 'Business / Revenue',
-          color: '#1a4fd6',
-          icon: '💼',
-          description: 'Revenue generating projects',
-          sort_order: 1,
-        },
-        {
-          name: 'Health / Body',
-          color: '#10b981',
-          icon: '🏋️',
-          description: 'Physical health and training',
-          sort_order: 2,
-        },
-        {
-          name: 'Relationships',
-          color: '#ec4899',
-          icon: '❤️',
-          description: 'Friends, family, and networking',
-          sort_order: 3,
-        },
-        {
-          name: 'Creative / Learning',
-          color: '#8b5cf6',
-          icon: '🎨',
-          description: 'Skill building and side projects',
-          sort_order: 4,
-        },
-        {
-          name: 'Personal / Admin',
-          color: '#64748b',
-          icon: '🏠',
-          description: 'Life maintenance and logistics',
-          sort_order: 5,
-        },
-      ];
-      Promise.all(defaults.map((d) => areasApi.create(d))).then(() => {
-        areasApi.list().then((data) => setAreas(data.areas || []));
-      });
-    }
-    if (goals.length === 0 && user) {
-      const defaultGoal = {
-        title: 'Bootstrap → Thailand',
-        target_amount: 3000,
-        currency: 'GBP',
-        category: 'income',
-      };
-      goalsApi.create(defaultGoal).then(() => {
-        goalsApi.list().then((data) => {
-          setGoals(data.goals || []);
-          if (data.goals?.length) setActiveGoalId(data.goals[0].id);
-        });
-      });
-    }
-    if (templates.length === 0 && user) {
-      const defaults = [
-        {
-          name: 'BUIDL Framework',
-          icon: '🚀',
-          category: 'software',
-          description:
-            'The core BUIDL framework with all phases and standard folders.',
-          config: {
-            phases: [
-              'BOOTSTRAP',
-              'UNLEASH',
-              'INNOVATE',
-              'DECENTRALIZE',
-              'LEARN',
-              'SHIP',
-            ],
-            folders: STANDARD_FOLDERS.map((f) => f.id),
-          },
-          is_system: true,
-        },
-        {
-          name: 'Software Project',
-          icon: '🛠',
-          category: 'software',
-          description:
-            'Code-focused project with planning, dev, and testing phases.',
-          config: {
-            phases: ['PLANNING', 'DEVELOPMENT', 'TESTING', 'DEPLOYED'],
-            folders: [
-              'code-modules',
-              'project-artifacts',
-              'qa',
-              'infrastructure',
-              'system',
-            ],
-          },
-          is_system: true,
-        },
-        {
-          name: 'Content Project',
-          icon: '✍️',
-          category: 'creative',
-          description: 'Content creation workflow from research to publishing.',
-          config: {
-            phases: ['RESEARCH', 'DRAFTING', 'REVIEW', 'PUBLISHED'],
-            folders: ['content-assets', 'design-assets', 'marketing', 'system'],
-          },
-          is_system: true,
-        },
-        {
-          name: 'Health & Fitness',
-          icon: '💪',
-          category: 'health',
-          description:
-            'Track training, nutrition, goals, and wellness metrics.',
-          config: {
-            phases: ['ASSESS', 'BUILD', 'MAINTAIN', 'OPTIMIZE'],
-            folders: [
-              'analytics',
-              'project-artifacts',
-              'content-assets',
-              'system',
-            ],
-          },
-          is_system: true,
-        },
-        {
-          name: 'Blank',
-          icon: '📄',
-          category: 'custom',
-          description: 'A minimal starting point with only core files.',
-          config: { phases: [], folders: ['system'] },
-          is_system: true,
-        },
-      ];
-      Promise.all(defaults.map((d) => templatesApi.create(d))).then(() => {
-        templatesApi.list().then((data) => setTemplates(data.templates || []));
-      });
-    }
-  }, [areas.length, goals.length, templates.length, user]);
-
-  // ── OFFLINE MODE (Phase 2.4) ────────────────────────────────
-  // Sync state changes to cache
-  useEffect(() => {
-    cache.setCollection('projects', projects);
-    cache.setCollection('staging', staging);
-    cache.setCollection('ideas', ideas);
-    cache.setCollection('areas', areas);
-    cache.setCollection('goals', goals);
-    cache.setCollection('templates', templates);
-    cache.setCollection('tags', userTags);
-    cache.setCollection('entityTags', entityTags);
-  }, [projects, staging, ideas, areas, goals, templates, userTags, entityTags]);
-
-  // Check online status and listen to sync events
-  useEffect(() => {
-    const checkOnline = async () => {
-      const online = await sync.isOnline();
-      setIsOnline(online);
-      setQueuedWrites(cache.getWriteQueue().length);
-    };
-
-    checkOnline();
-
-    // Register sync event listeners
-    sync.onStatusChange((status) => {
-      setIsOnline(status === 'online');
-      showToast(status === 'online' ? '✓ Back online' : '⚠ Offline mode');
-    });
-
-    sync.onSyncStart(() => {
-      setSyncStatus('syncing');
-      showToast('⟳ Syncing changes...');
-    });
-
-    sync.onSyncComplete((count) => {
-      setSyncStatus(count > 0 ? 'synced' : 'idle');
-      setQueuedWrites(0);
-      if (count > 0) showToast(`✓ Synced ${count} changes`);
-    });
-
-    sync.onSyncError(() => {
-      setSyncStatus('error');
-      showToast('⚠ Sync failed, will retry');
-    });
-
-    // Periodic check every 5 seconds
-    const checkInterval = setInterval(checkOnline, 5000);
-    return () => clearInterval(checkInterval);
-  }, []);
+  // ── SEED DEFAULTS + CACHE SYNC + ONLINE STATUS ─────────────
+  useDataSync({
+    user,
+    areas,
+    setAreas,
+    goals,
+    setGoals,
+    setActiveGoalId,
+    templates,
+    setTemplates,
+    projects,
+    staging,
+    ideas,
+    userTags,
+    entityTags,
+    setIsOnline,
+    setQueuedWrites,
+    setSyncStatus,
+    showToast,
+  });
 
   // ── DERIVED ────────────────────────────────────────────────
   const hub = projects.find((p) => p.id === hubId);
@@ -901,94 +664,24 @@ export default function TheBrain({
   });
 
   // ── METADATA OPS (Roadmap 2.3) ──────────────────────────
-  const fetchMetadata = async (projId, filePath) => {
-    setLoadingMetadata(true);
-    try {
-      const res = await fileMetadata.get(projId, filePath);
-      setFileMetadata(res.metadata || null);
-    } catch (e) {
-      console.error('Failed to fetch metadata:', e);
-      setFileMetadata(null);
-    } finally {
-      setLoadingMetadata(false);
-    }
-  };
-
-  const saveMetadata = async (projId, filePath, data) => {
-    try {
-      if (fileMetadata?.id) {
-        await fileMetadata.update(fileMetadata.id, data);
-      } else {
-        await fileMetadata.create({
-          project_id: projId,
-          file_path: filePath,
-          ...data,
-        });
-      }
-      // Fetch fresh to sync state
-      await fetchMetadata(projId, filePath);
-      showToast('✓ Metadata saved');
-    } catch (e) {
-      console.error('Failed to save metadata:', e);
-      showToast('⚠ Metadata save failed');
-    }
-  };
-
-  // ── AI METADATA SUGGESTIONS (Phase 3.1) ─────────────────
-  const requestAiSuggestions = useCallback(async () => {
-    if (!hubId || !hub?.activeFile) return;
-    const content = hub.files?.[hub.activeFile];
-    if (!content) return;
-
-    setLoadingAiSuggestions(true);
-    try {
-      const project = projects.find((p) => p.id === hubId);
-      const res = await aiMetadataApi.suggest(
-        hubId,
-        hub.activeFile,
-        content,
-        project?.name,
-        project?.phase
-      );
-      setAiSuggestions(res);
-    } catch (e) {
-      console.error('AI suggestions failed:', e);
-      setAiSuggestions({ error: 'Failed to get suggestions' });
-    } finally {
-      setLoadingAiSuggestions(false);
-    }
-  }, [hubId, hub?.activeFile, hub?.files, projects]);
-
-  const acceptAiSuggestion = useCallback(
-    (type, value) => {
-      showToast(`✓ Applied ${type}: ${value}`);
-      // Auto-save after accepting suggestion
-      if (type === 'tag') {
-        // Tag will be attached via the existing tag system
-        const fileEntityId = `${hubId}/${hub.activeFile}`;
-        tagsApi
-          .attachByName(value, 'file', fileEntityId)
-          .then(() => {
-            loadEntityTags();
-          })
-          .catch(() => {});
-      }
-    },
-    [hubId, hub?.activeFile]
-  );
-
-  // Auto-request suggestions when file changes (if enabled)
-  useEffect(() => {
-    if (hubId && hub?.activeFile && userSettings?.aiMetadataAutoSuggest) {
-      const timer = setTimeout(() => requestAiSuggestions(), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [
-    hubId,
-    hub?.activeFile,
+  const {
+    fetchMetadata,
+    saveMetadata,
     requestAiSuggestions,
-    userSettings?.aiMetadataAutoSuggest,
-  ]);
+    acceptAiSuggestion,
+  } = useMetadata({
+    hubId,
+    hub,
+    projects,
+    fileMeta: fileMetadata,
+    setFileMeta: setFileMetadata,
+    setLoadingMetadata,
+    setAiSuggestions,
+    setLoadingAiSuggestions,
+    userSettings,
+    showToast,
+    loadEntityTags: getEntityTags,
+  });
 
   // ── ONBOARDING CHECK (Phase 4.2) ─────────────────────────────
   useEffect(() => {
