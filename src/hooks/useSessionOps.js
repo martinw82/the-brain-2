@@ -65,15 +65,18 @@ export default function useSessionOps(deps) {
         await saveFile(focusId, 'DEVLOG.md', current + entry);
       }
     }
-    await sessionsApi
-      .create({
-        project_id: focusId,
-        duration_s: dur,
-        log,
-        started_at: sessionStart.current?.toISOString(),
-        ended_at: new Date().toISOString(),
-      })
-      .catch(() => {});
+    // Only log session if there was actual time recorded and a project in focus
+    if (dur > 0 && focusId) {
+      await sessionsApi
+        .create({
+          project_id: focusId,
+          duration_s: dur,
+          log,
+          started_at: sessionStart.current?.toISOString(),
+          ended_at: new Date().toISOString(),
+        })
+        .catch(() => {});
+    }
     setSessionOn(false);
     setSessionSecs(0);
     setSessionLog('');
@@ -135,18 +138,22 @@ export default function useSessionOps(deps) {
       loadWeeklyTraining();
       if (todayCheckin && !todayCheckin.training_done) {
         const updated = { ...todayCheckin, training_done: 1 };
-        fetch(`/api/data?resource=daily-checkins`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token.get()}`,
-          },
-          body: JSON.stringify({
-            ...updated,
-            date: new Date().toISOString().split('T')[0],
-          }),
-        }).catch(() => {});
-        setTodayCheckin(updated);
+        try {
+          await fetch(`/api/data?resource=daily-checkins`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token.get()}`,
+            },
+            body: JSON.stringify({
+              ...updated,
+              date: new Date().toISOString().split('T')[0],
+            }),
+          });
+          setTodayCheckin(updated);
+        } catch {
+          // Non-critical: checkin training_done update failed, ignore
+        }
       }
     } catch (e) {
       console.error('Training save error:', e);
