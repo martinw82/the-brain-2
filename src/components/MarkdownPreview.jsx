@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import C from '../utils/constants.js';
+import { C } from '../utils/constants.js';
 import { renderMd } from '../utils/renderers.js';
 import MermaidRenderer from './MermaidRenderer.jsx';
 

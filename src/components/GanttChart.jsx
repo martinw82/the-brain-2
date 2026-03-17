@@ -1,4 +1,4 @@
-import C from '../utils/constants.js';
+import { C } from '../utils/constants.js';
 
 const GanttChart = ({ tasks }) => {
   const rows = tasks.filter((t) => t.start && t.end);
