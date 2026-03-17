@@ -684,4 +684,33 @@ All phases (Phase 0 through Phase 8.4) are complete. The Brain v2.0 is fully shi
 
 ---
 
+# Frontend Refactoring — COMPLETE ✅ (2026-03-17)
+
+**Goal:** Decompose the 14,237-line monolithic TheBrain.jsx into a modular architecture.
+
+**Result:** TheBrain.jsx reduced to 3,962 lines (72% reduction). See `REFACTOR_TASKS.md` for detailed progress.
+
+### New Module Structure
+
+| Category                          | Files | Total Lines |
+| --------------------------------- | ----- | ----------- |
+| Hooks (`src/hooks/`)              | 11    | ~2,100      |
+| Panels (`src/components/panels/`) | 2     | ~3,630      |
+| Components (`src/components/`)    | 20+   | ~7,000+     |
+| Utilities (`src/utils/`)          | 4     | ~800        |
+| Orchestrator (`src/TheBrain.jsx`) | 1     | 3,962       |
+
+### Key Patterns
+
+- **Hook deps pattern:** All hooks accept `deps` object, return operations
+- **Panel ctx pattern:** Panel components accept `ctx` prop with all needed state
+- **Barrel files:** `src/hooks/index.js` and `src/utils/index.js` for clean imports
+- **Build gating:** `npx vite build` verified after every extraction step
+
+### Files Changed / Created
+
+See `REFACTOR_TASKS.md` for the complete inventory of extracted files and their contents.
+
+---
+
 _THE BRAIN v2.0 — From Coach to Orchestrator_

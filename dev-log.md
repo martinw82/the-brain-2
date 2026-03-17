@@ -4,6 +4,87 @@ _Session-based progress tracking for The Brain project_
 
 ---
 
+## Session 054 — 2026-03-17
+
+**Branch:** `claude/plan-refactoring-tasks-jku4n`
+**Task:** Frontend Refactoring — TheBrain.jsx modularization
+**Status:** ✅ Complete
+
+### Summary
+
+Refactored `src/TheBrain.jsx` from a **14,237-line monolith** into a **modular architecture** (3,962 lines orchestrator + 30+ extracted modules). **72% reduction** in the main file.
+
+### Steps Completed
+
+**Step A — Extract standalone components (-5,029 lines)**
+
+- Extracted 20+ components defined outside the main function
+- Created `src/components/UI/SmallComponents.jsx`, `src/components/Modals/`, `src/components/viewers/`
+- Extracted hooks: `useUndoRedo`, `useBreakpoint`
+- Extracted large components: OnboardingWizard, GitHubIntegration, BootstrapWizard, HealthCheck, ScriptRunner, etc.
+
+**Step B — Extract internal hooks (-1,119 lines)**
+
+- Created 7 domain hooks with deps pattern:
+  - `useProjectCrud` (677 lines) — project CRUD, file ops, onboarding, bootstrap
+  - `useStagingOps` (82 lines) — staging pipeline
+  - `useSessionOps` (191 lines) — ideas, sessions, checkins, training, outreach
+  - `useNotifications` (77 lines) — notification CRUD
+  - `useTaskOps` (109 lines) — task management + agent polling
+  - `useAI` (148 lines) — search, AI coach, context builder
+  - `useTagOps` (166 lines) — tag CRUD + QuickTagRow component
+
+**Step C — Extract domain panels (-3,297 lines)**
+
+- `HubEditorPanel.jsx` (1,480 lines) — all 9 hub tab contents
+- `BrainTabsPanel.jsx` (2,150 lines) — all 12 brain tab contents
+- Both use `ctx` prop pattern for passing state/callbacks
+
+**Step D — Cleanup & polish (-307 lines)**
+
+- Extracted `useMetadata` hook (113 lines) — file metadata + AI suggestions
+- Extracted `useDataSync` hook (218 lines) — seed defaults, cache sync, online status
+- Removed 40+ unused imports (components, APIs, utilities)
+- Updated barrel files and documentation
+
+### Key Patterns Established
+
+1. **Hook deps pattern:** `const { fn } = useHook({ state, setState, ... })`
+2. **Panel ctx pattern:** `<Panel ctx={{ state, callbacks, ... }} />`
+3. **File extensions:** `.jsx` for files containing JSX, `.js` for pure logic
+4. **Build verification:** `npx vite build` after every change
+
+### Issues Encountered & Fixed
+
+- Unicode escape sequences (`\u{1F4A1}`) caused Prettier errors → converted to actual Unicode
+- Wrong default imports → fixed to named imports for `constants.js`
+- Hook call ordering → `useStagingOps` must be called before `useProjectCrud` (dependency)
+- JSX in `.js` file → renamed `useTagOps.js` to `.jsx` (Vite requires .jsx for JSX)
+- Stale closing `</div>` after panel extraction → removed
+
+### Metrics
+
+| Metric               | Before       | After       |
+| -------------------- | ------------ | ----------- |
+| TheBrain.jsx         | 14,237 lines | 3,962 lines |
+| Hook files           | 2            | 11          |
+| Panel components     | 0            | 2           |
+| Extracted components | 0            | 20+         |
+| Utility files        | 0            | 4           |
+| Build size           | 464 KB       | 458 KB      |
+
+### Documentation Updated
+
+- `REFACTOR_TASKS.md` — Full progress tracking with final summary
+- `README.md` — New architecture section, module map, developer guide
+- `ARCHITECTURE-v2.md` — Updated stack diagram, added module map
+- `brain-status.md` — Updated line counts, architecture principles
+- `agent-brief.md` — New codebase map, updated rules for modular architecture
+- `brain-roadmap.md` — Added refactoring note
+- `TESTING-PLAN.md` — Added refactoring regression tests
+
+---
+
 ## Session 053 — 2026-03-15
 
 **Branch:** `grok-fixes-everything`
