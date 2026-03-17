@@ -1,89 +1,159 @@
-workflow: one focused task per session → update dev-log.md with what was done, line-count reduction, any issues → close session → next. This keeps full codebase + task list + devlog in every new context.
-Recommended folder structure to create first (standard React pattern):
-textsrc/
+# The Brain — Refactoring Task List
+
+_Systematic decomposition of TheBrain.jsx (14,237 lines) into a modular architecture._
+
+---
+
+## Workflow
+
+One focused task per session → update dev-log.md with what was done, line-count reduction, any issues → close session → next.
+
+## Target Folder Structure
+
+```
+src/
 ├── hooks/          # domain logic (useProjectLogic, useAI, etc.)
 ├── components/     # UI panels, modals, viewers
-├── utils/          # pure helpers (projectFactory, renderers, fileHandlers)
-└── TheBrain.jsx    # becomes thin orchestrator + imports
-Detailed Task List for Dev Agent (copy-paste ready)
-Save this as REFACTOR-TASKS.md in the root (next to dev-log.md and brain-roadmap.md). Your dev agent should read:
+│   ├── Modals/     # KeyboardShortcutsModal, SearchModal, AIProviderSettings, MetadataEditor
+│   ├── viewers/    # ImageViewer, AudioPlayer, VideoPlayer, BinaryViewer
+│   └── UI/         # AreaPill, TagPill, Dots, HealthBar, Modal, Toast, etc.
+├── utils/          # pure helpers (projectFactory, renderers, fileHandlers, constants)
+└── TheBrain.jsx    # thin orchestrator + imports
+```
 
-The whole codebase
-This file
-Latest dev-log.md
+---
 
-Session/Task 0 – Setup (quick, 1 session)
+## Progress
 
-Create folders: src/hooks/, src/components/, src/utils/
-Add barrel files if wanted (hooks/index.js, components/index.js)
-Update vite.config.js / imports if needed (usually none)
-Commit: “refactor: setup module folders”
-Dev-log entry: folders created, baseline line count of TheBrain.jsx recorded.
+| Task | Status | Lines Removed | Commit |
+|------|--------|---------------|--------|
+| Task 0 — Setup | ✅ Done | 0 | `refactor: setup module folders` |
+| Task 1 — Extract utilities | ✅ Done | -540 | `refactor: extract pure utilities` |
+| Step A — Standalone components | 🔲 Pending | ~5,000 est. | — |
+| Step B — Internal hooks | 🔲 Pending | ~1,200 est. | — |
+| Step C — Domain panels | 🔲 Pending | ~2,000 est. | — |
+| Step D — Cleanup & polish | 🔲 Pending | — | — |
 
-Session/Task 1 – Extract pure utilities (low risk)
-Target: projectFactory + file utils (makeProject, makeManifest, calcHealth, makeDefaultFiles, getFileType, formatFileSize, buildZipExport, etc.)
-→ New file: src/utils/projectFactory.js (export all)
-→ New file: src/utils/fileHandlers.js
-Remove from TheBrain.jsx, add imports.
-Success: TheBrain.jsx ~200 lines shorter; no behavior change.
-Session/Task 2 – Extract first custom hooks (core logic separation)
+**Current TheBrain.jsx**: 13,697 lines (down from 14,237)
 
-src/hooks/useProjectLogic.js → all project CRUD (createProject, updateProject, deleteProject, renameProject, openHub, saveFile, exportProject, importProject, completeBootstrap) + related state
-src/hooks/useAI.js → askAI, requestAiSuggestions, acceptAiSuggestion, generateSummaryAsync, ai state, renderAIResponse, uriToNavigation
-Update TheBrain.jsx to use the hooks.
-Success: major AI + project logic now reusable; dev agent can now reason about AI workflows in isolation.
+---
 
-Session/Task 3 – Extract more hooks
+## Task 0 — Setup ✅
 
-src/hooks/useTasks.js → tasks state + load/create/complete/delete + agent polling
-src/hooks/useStaging.js → staging queue, addStaging, updateStagingStatus
-src/hooks/useIdeas.js + useTags.js (tag cloud + renderEntity)
-src/hooks/useSession.js → session timer, checkins, training, outreach
-Update main file.
+- Created directories: `src/hooks/`, `src/utils/`, `src/components/Modals/`, `src/components/viewers/`
+- Added barrel files: `src/hooks/index.js`, `src/utils/index.js`
+- Baseline recorded: TheBrain.jsx = 14,237 lines
 
-Session/Task 4 – Extract UI hooks & small components
+## Task 1 — Extract Pure Utilities ✅
 
-src/hooks/useUndoRedo.js + useBreakpoint.js (already partially isolated)
-src/components/Modals/index.js or individual: KeyboardShortcutsModal, SearchModal, AIProviderSettings, MetadataEditor
-src/components/viewers/ → move ImageViewer, AudioPlayer, VideoPlayer, BinaryViewer (already partially external)
+**Files created:**
+- `src/utils/constants.js` — C, S, BREAKPOINTS, BUIDL_VERSION, STANDARD_FOLDERS, STANDARD_FOLDER_IDS, ITEM_TAGS, REVIEW_STATUSES, BUIDL_PHASES, THAILAND_TARGET, STATUS_MAP
+- `src/utils/projectFactory.js` — makeManifest, calcHealth, makeDefaultFiles, makeProject
+- `src/utils/fileHandlers.js` — getFileType, formatFileSize, buildZipExport
 
-Session/Task 5 – Big modal & panel extractions (biggest wins)
+**Result:** TheBrain.jsx reduced by 540 lines (14,237 → 13,697). Build verified.
 
-OnboardingWizard (~300 lines) → src/components/OnboardingWizard.jsx
-GitHubIntegration (~400 lines) → src/components/GitHubIntegration.jsx
-ScriptRunner (~200 lines) → src/components/ScriptRunner.jsx
-HealthCheck, BootstrapWizard, ProgressTrends, FileTree (if still inline)
-Update TheBrain.jsx to import + pass props (use the existing imported pattern).
+---
 
-Session/Task 6 – Domain panels (dashboard + hub views)
+## Step A — Extract Standalone Components (Tasks 4+5 combined)
 
-src/components/ProjectsPanel.jsx (dashboard cards, bootstrap, health scores)
-src/components/StagingPanel.jsx
-src/components/TagCloudPanel.jsx + src/components/AIResponseViewer.jsx
-src/components/HubEditor.jsx (overview, devlog, gantt, comments, links, meta)
-Keep conditional rendering in TheBrain.jsx but now thin.
+All components defined OUTSIDE the main TheBrain function (lines 88–5162). Clean cut-and-paste.
 
-Session/Task 7 – Cleanup & final polish
+### Hooks
+- `src/hooks/useUndoRedo.js` ← useUndoRedo (lines 89–159)
+- `src/hooks/useBreakpoint.js` ← useBreakpoint (lines 333–358)
 
-Extract remaining inline render functions (renderMd, renderEntity, etc.) to src/utils/renderers.js
-Move any leftover constants (BRAIN_TABS, MODE_INFO usage) to appropriate places
-Update all internal imports across new files
-Run lint + manual smoke test of all modes (Coach/Assistant/Silent), AI workflows, project creation, daily checkins
-Final line count check — target <2,000 lines in TheBrain.jsx
+### Small UI → `src/components/UI/SmallComponents.jsx`
+- AreaPill, TagPill, Dots, HealthBar, BadgeStatus, Modal, Toast (lines 361–532)
 
-Session/Task 8 – Optional future-proofing (after core extraction)
+### Modals
+- `src/components/Modals/KeyboardShortcutsModal.jsx` ← lines 161–252
+- `src/components/Modals/AIProviderSettings.jsx` ← lines 534–783
+- `src/components/Modals/MetadataEditor.jsx` ← lines 784–1163
+- `src/components/Modals/SearchModal.jsx` ← lines 1708–2047
 
-Create src/components/BrainView.jsx and src/components/HubView.jsx wrappers
-Add JSDoc to new hooks/components
-Update ROADMAP-v2.md and TESTING-PLAN.md with new structure
+### Renderers & Charts
+- `src/components/MermaidRenderer.jsx` ← lines 1165–1250
+- `src/components/URILink.jsx` ← URILink + renderAIResponse (lines 1251–1310)
+- `src/utils/renderers.js` ← renderMd, parseTasks (lines 1312–1465)
+- `src/components/GanttChart.jsx` ← lines 1383–1453
+- `src/components/FileTreeInline.jsx` ← lines 1466–1636
+- `src/components/MarkdownPreview.jsx` ← lines 1637–1707
+- `src/components/ProgressTrends.jsx` ← lines 254–331
 
-Manager/consultant guidance & tips
+### Large Components
+- `src/components/OnboardingWizard.jsx` ← ~625 lines
+- `src/components/TourTooltip.jsx` ← ~130 lines
+- `src/components/GitHubIntegration.jsx` ← ~553 lines
+- `src/components/MarkdownEditor.jsx` ← ~140 lines
+- `src/components/viewers/ImageViewer.jsx` ← ~55 lines
+- `src/components/viewers/AudioPlayer.jsx` ← ~50 lines
+- `src/components/viewers/VideoPlayer.jsx` ← ~55 lines
+- `src/components/viewers/BinaryViewer.jsx` ← ~78 lines
+- `src/components/ScriptRunner.jsx` ← ~302 lines
+- `src/components/HealthCheck.jsx` ← ~342 lines
+- `src/components/SkillsWorkflows.jsx` ← ~302 lines
+- `src/components/BootstrapWizard.jsx` ← ~474 lines
 
-Order matters: utilities → hooks → components → panels. This way each session’s changes are isolated and testable.
-Context maintenance: At end of every session, dev agent must append to dev-log.md: “Task X completed – TheBrain.jsx reduced by Y lines – new file Z created – issues: none / fixed import X”. Include before/after snippet of key import in TheBrain.jsx.
-Risk mitigation: After each extraction, your dev agent should run the dev server (npm run dev) and verify: project open/save, AI ask/response with URI navigation, daily checkin modal, mode switching, workflow runner.
-Business upside: Once modular, future AI workflow improvements (new agents, memory self-iteration, community workflows) become plug-and-play. Also easier to add unit tests (Jest already configured) and Cypress e2e for critical paths.
-When to stop: After Task 7 you’ll have a clean, maintainable codebase. Stop there unless you want full page-level routing later.
+**Expected:** ~5,000 lines removed from TheBrain.jsx
 
-Copy the task list above into REFACTOR-TASKS.md right now. Feed your dev agent: “Start with Task 0 using the full codebase + dev-log.md + REFACTOR-TASKS.md”.
-Let me know when the first session is done (or if you want me to adjust any task scope) — I’ll review the dev-log update and give the next high-level steering. This refactor is the perfect foundation for scaling The Brain into the ultimate AI Life OS. Ready when you are!
+---
+
+## Step B — Extract Internal Hooks (Tasks 2+3 combined)
+
+Functions inside the main TheBrain component are coupled to 60+ state variables. Approach: hooks accept a deps object and return operations.
+
+### `src/hooks/useProjectLogic.js`
+- openHub, saveFile, createProject, updateProject, renameProject, deleteProject, importProject, completeBootstrap, exportProject, addCustomFolder, createFile, deleteFile
+
+### `src/hooks/useAI.js`
+- askAI, buildCtx, buildBrief + AI state
+
+### `src/hooks/useStaging.js`
+- addStaging, updateStagingStatus, moveToFolder
+
+### `src/hooks/useIdeas.js`
+- addIdea
+
+### `src/hooks/useSession.js`
+- endSession, saveCheckin, saveTraining, saveOutreach + timer state
+
+### `src/hooks/useTasks.js`
+- loadTasks, createTask, completeTask, deleteTask + agent polling
+
+**Expected:** ~1,200 lines removed
+
+---
+
+## Step C — Extract Domain Panels (Task 6)
+
+Extract JSX blocks from the return statement into prop-receiving components.
+
+- `src/components/ProjectsPanel.jsx` — project cards, bootstrap, health scores
+- `src/components/StagingPanel.jsx` — staging review UI
+- `src/components/TagCloudPanel.jsx` — tag browser
+- `src/components/AICoachPanel.jsx` — AI coach interface
+- `src/components/HubEditor.jsx` — hub tabs: overview, devlog, gantt, comments, links, meta
+
+**Expected:** ~2,000 lines removed
+
+---
+
+## Step D — Cleanup & Polish (Task 7)
+
+- Extract remaining inline functions to `src/utils/renderers.js`
+- Move leftover constants to `src/utils/constants.js`
+- Update all imports, ensure barrel files export everything
+- Run lint + prettier
+- Verify build succeeds
+- Final target: TheBrain.jsx < 2,000 lines
+- Update dev-log.md with full summary
+
+---
+
+## Guidance
+
+- **Order matters**: utilities → standalone components → hooks → panels → cleanup
+- **Risk mitigation**: After each step, run `npx vite build` to verify no breakage
+- **Context maintenance**: Update dev-log.md after each step with line counts and issues
+- **Zero behavior change**: This is a pure structural refactoring
