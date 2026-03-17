@@ -220,6 +220,38 @@ The Brain evolves into an **adaptive intelligence system** that:
 
 All Phase 0 bugs **FIXED** as of 2026-03-08.
 
+### Pre-User-Testing Code Review — ✅ FIXED (2026-03-17)
+
+Full code review performed across all hooks and API layer ahead of user testing. 4 bugs confirmed and patched (branch `claude/prepare-user-testing-YAegk`):
+
+1. **`agentExecution.status()` doesn't exist — ✅ FIXED**
+   - File: `src/hooks/useTaskOps.js:41`
+   - `agentExecution` object only has `execute`, `executeTask`, `executeWithMessage` — no `.status()` method
+   - Polling interval silently threw `TypeError` on every tick; agent task statuses never updated
+   - Fix: replaced per-task `.status()` call with a `tasksApi.myTasks()` re-fetch
+
+2. **`endSession` fired with zero duration and null `focusId` — ✅ FIXED**
+   - File: `src/hooks/useSessionOps.js:68`
+   - Session API called unconditionally, creating DB records with `project_id: null` and `duration_s: 0`
+   - Fix: guard — only call `sessionsApi.create()` when `dur > 0 && focusId`
+
+3. **`saveTraining` checkin sync was fire-and-forget — ✅ FIXED**
+   - File: `src/hooks/useSessionOps.js:138`
+   - After logging training, a second fetch updated `daily_checkins.training_done` but was not awaited; UI updated optimistically even if the server call failed
+   - Fix: made the inner fetch `await`-ed inside its own try/catch; UI state only updates on server confirm
+
+4. **`buildCtx` JSON.stringify had no error handling — ✅ FIXED**
+   - File: `src/hooks/useAI.js:63`
+   - Any non-serializable value or circular reference in project data would throw uncaught, breaking AI Coach entirely
+   - Fix: wrapped in try/catch; returns `'{}'` as safe fallback
+
+### Remaining Known Issues (Not Blocking User Testing)
+
+- **`beforeunload` always shows browser "leave page?" prompt** when session timer is active — intentional UX warning, acknowledged in code comment. `navigator.sendBeacon` not suitable due to Bearer token requirement.
+- **Optimistic CRUD updates not rolled back on API failure** — project/file deletes update UI before server confirms; if API fails the state is stale until next reload. Medium priority refactor.
+- **Rapid file-switch metadata race condition** — `useMetadata` fires multiple fetches without AbortController; last response wins and may show stale data. Low frequency for typical users.
+- **Many `.catch(() => {})` silent failures** — acceptable for non-critical secondary calls (active file persistence, hub link caching). Core flows have explicit error toasts.
+
 ### Important
 
 1. **0.9 AI Rate Limiting — PARTIAL**
@@ -578,3 +610,16 @@ _THE BRAIN v2.0 — Orchestrator Edition (COMPLETE)_
 - Migration v28: `user_integrations` and `integration_sync_log` tables
 - API: integrations CRUD, github-sync, calendar-sync, email-sync
 - Updated status: "v2.0 FULLY SHIPPED ✅"
+
+---
+
+**Edit 2026-03-17 (Pre-User-Testing Code Review):**
+
+- Full code review across all hooks (`useTaskOps`, `useSessionOps`, `useAI`, `useProjectCrud`) and API layer
+- 4 bugs identified and fixed (branch `claude/prepare-user-testing-YAegk`):
+  1. `agentExecution.status()` non-existent → agent task polling now uses `tasksApi.myTasks()` re-fetch
+  2. `endSession` guard added — no longer creates zero-duration or null-project DB records
+  3. `saveTraining` checkin sync awaited — training_done UI state tied to server confirmation
+  4. `buildCtx` JSON.stringify wrapped in try/catch — AI Coach no longer crashes on bad project data
+- Section 6 updated with full issue inventory (fixed + remaining)
+- Status: Ready for user testing

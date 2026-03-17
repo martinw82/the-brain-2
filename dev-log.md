@@ -4,6 +4,50 @@ _Session-based progress tracking for The Brain project_
 
 ---
 
+## Session 055 — 2026-03-17
+
+**Branch:** `claude/prepare-user-testing-YAegk`
+**Task:** Pre-User-Testing Code Review & Bug Fixes
+**Status:** ✅ Complete
+
+### Summary
+
+Full code review across all hooks and the API layer in preparation for user testing. Reviewed `useTaskOps`, `useSessionOps`, `useAI`, `useProjectCrud`, `useMetadata`, `api.js`, and cross-referenced against `api/ai.js` and `api/agent-execute.js` to verify integration points. Identified and fixed 4 confirmed bugs.
+
+### Bugs Fixed
+
+**1. `agentExecution.status()` doesn't exist (`useTaskOps.js:41`)**
+- The `agentExecution` export in `api.js` only has `execute`, `executeTask`, `executeWithMessage` — no `.status()` method
+- The polling `setInterval` silently threw `TypeError` every 3 seconds; agent task statuses never progressed from `in_progress`
+- Fix: replaced per-task status call with a full `tasksApi.myTasks()` re-fetch inside the interval
+
+**2. `endSession` unconditionally fires API with null/zero data (`useSessionOps.js:68`)**
+- `sessionsApi.create()` was called regardless of whether the session had actual time or a project in focus
+- Created DB records with `project_id: null` and `duration_s: 0`
+- Fix: added `if (dur > 0 && focusId)` guard before the API call
+
+**3. `saveTraining` checkin update fire-and-forget (`useSessionOps.js:138`)**
+- After logging training, a second fetch marked `daily_checkins.training_done = 1` but was not awaited
+- UI optimistically showed training done even if the server silently rejected the checkin update
+- Fix: made the inner fetch awaited inside a nested try/catch; `setTodayCheckin` only called on success
+
+**4. `buildCtx` `JSON.stringify` no error handling (`useAI.js:63`)**
+- Non-serializable values or circular references in project data would throw uncaught, crashing AI Coach
+- Fix: wrapped in try/catch, returns `'{}'` as a safe fallback
+
+### Remaining Issues (Not Blocking — Documented in brain-status.md §6)
+
+- `beforeunload` prompt always shows when session active (intentional)
+- Optimistic CRUD updates not rolled back on API failure
+- `useMetadata` rapid file-switch race condition (no AbortController)
+- Widespread `.catch(() => {})` on non-critical secondary calls (acceptable)
+
+### Issues Encountered
+
+- None — clean patch, no build issues
+
+---
+
 ## Session 054 — 2026-03-17
 
 **Branch:** `claude/plan-refactoring-tasks-jku4n`
