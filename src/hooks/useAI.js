@@ -60,45 +60,50 @@ export default function useAI(deps) {
     }
   };
 
-  const buildCtx = (projId = null) =>
-    JSON.stringify(
-      {
-        agent_context: 'THE BRAIN v2.0 — Orchestrator Edition',
-        generated: new Date().toISOString(),
-        operator: {
-          name: user?.name || 'Builder',
-          email: user?.email,
-          goal: user?.goal || 'Bootstrap → Thailand',
-          monthly_target: user?.monthly_target || THAILAND_TARGET,
+  const buildCtx = (projId = null) => {
+    try {
+      return JSON.stringify(
+        {
+          agent_context: 'THE BRAIN v2.0 — Orchestrator Edition',
+          generated: new Date().toISOString(),
+          operator: {
+            name: user?.name || 'Builder',
+            email: user?.email,
+            goal: user?.goal || 'Bootstrap → Thailand',
+            monthly_target: user?.monthly_target || THAILAND_TARGET,
+          },
+          today_focus: focusId,
+          projects: (projId
+            ? projects.filter((p) => p.id === projId)
+            : projects
+          ).map((p) => ({
+            id: p.id,
+            name: p.name,
+            phase: p.phase,
+            status: p.status,
+            priority: p.priority,
+            revenue_ready: p.revenueReady,
+            health: p.health,
+            momentum: p.momentum,
+            next_action: p.nextAction,
+            blockers: p.blockers,
+            tags: p.tags,
+            income_target: p.incomeTarget,
+            skills: p.skills,
+            staging_pending: staging.filter(
+              (s) => s.project === p.id && s.status === 'in-review'
+            ).length,
+          })),
+          global_staging: staging,
+          ideas: ideas.map((i) => ({ title: i.title, score: i.score })),
         },
-        today_focus: focusId,
-        projects: (projId
-          ? projects.filter((p) => p.id === projId)
-          : projects
-        ).map((p) => ({
-          id: p.id,
-          name: p.name,
-          phase: p.phase,
-          status: p.status,
-          priority: p.priority,
-          revenue_ready: p.revenueReady,
-          health: p.health,
-          momentum: p.momentum,
-          next_action: p.nextAction,
-          blockers: p.blockers,
-          tags: p.tags,
-          income_target: p.incomeTarget,
-          skills: p.skills,
-          staging_pending: staging.filter(
-            (s) => s.project === p.id && s.status === 'in-review'
-          ).length,
-        })),
-        global_staging: staging,
-        ideas: ideas.map((i) => ({ title: i.title, score: i.score })),
-      },
-      null,
-      2
-    );
+        null,
+        2
+      );
+    } catch {
+      return '{}';
+    }
+  };
 
   const buildBrief = (skillId, projId) => {
     const sk = SKILLS[skillId];

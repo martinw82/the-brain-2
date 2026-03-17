@@ -36,25 +36,14 @@ export default function useTaskOps(deps) {
     );
     if (executingTasks.length === 0) return;
     const interval = setInterval(async () => {
-      for (const t of executingTasks) {
-        try {
-          const result = await agentExecution.status(t.id);
-          if (result.status === 'complete' || result.status === 'blocked') {
-            setTasks((prev) =>
-              prev.map((p) =>
-                p.id === t.id
-                  ? {
-                      ...p,
-                      status: result.status,
-                      result_summary: result.result_summary,
-                    }
-                  : p
-              )
-            );
-          }
-        } catch {
-          /* ignore polling errors */
+      try {
+        // Re-fetch all tasks to get current statuses from the server
+        const data = await tasksApi.myTasks();
+        if (data && data.tasks) {
+          setTasks(data.tasks);
         }
+      } catch {
+        /* ignore polling errors */
       }
     }, 3000);
     return () => clearInterval(interval);
