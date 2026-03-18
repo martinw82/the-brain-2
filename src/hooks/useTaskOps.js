@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { tasks as tasksApi, agentExecution } from '../api.js';
 
 /**
@@ -29,25 +29,44 @@ export default function useTaskOps(deps) {
     }
   };
 
-  // Phase 5.6: Poll executing agent tasks
+  // Phase 5.6: Poll executing agent tasks (with backoff and stable dependency)
+  const hasExecutingTasks = tasks.some(
+    (t) => t.assignee_type === 'agent' && t.status === 'in_progress'
+  );
+  const pollCountRef = useRef(0);
+
   useEffect(() => {
-    const executingTasks = tasks.filter(
-      (t) => t.assignee_type === 'agent' && t.status === 'in_progress'
-    );
-    if (executingTasks.length === 0) return;
-    const interval = setInterval(async () => {
+    if (!hasExecutingTasks) {
+      pollCountRef.current = 0;
+      return;
+    }
+
+    const MAX_POLLS = 60;
+    let timeoutId;
+
+    const poll = async () => {
+      if (pollCountRef.current >= MAX_POLLS) {
+        console.warn('[TaskOps] Max poll count reached, stopping');
+        return;
+      }
+      pollCountRef.current++;
+
       try {
-        // Re-fetch all tasks to get current statuses from the server
         const data = await tasksApi.myTasks();
-        if (data && data.tasks) {
+        if (data?.tasks) {
           setTasks(data.tasks);
         }
-      } catch {
-        /* ignore polling errors */
+      } catch (e) {
+        console.error('[TaskOps] Poll error:', e.message);
       }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [tasks]);
+
+      const delay = Math.min(3000 * Math.pow(1.5, pollCountRef.current - 1), 30000);
+      timeoutId = setTimeout(poll, delay);
+    };
+
+    timeoutId = setTimeout(poll, 3000);
+    return () => clearTimeout(timeoutId);
+  }, [hasExecutingTasks]);
 
   const createTask = async (taskData) => {
     try {

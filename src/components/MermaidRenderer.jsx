@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { sanitizeSvg } from '../utils/sanitize.js';
 
 // ── MERMAID RENDERER (Phase 3.2) ────────────────────────────
 const MermaidRenderer = ({ chart, id }) => {
@@ -81,7 +82,7 @@ const MermaidRenderer = ({ chart, id }) => {
         padding: 12,
         border: '1px solid #1e293b',
       }}
-      dangerouslySetInnerHTML={{ __html: svg }}
+      dangerouslySetInnerHTML={{ __html: sanitizeSvg(svg) }}
     />
   );
 };

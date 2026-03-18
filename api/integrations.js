@@ -4,8 +4,10 @@
 
 import mysql from 'mysql2/promise';
 import jwt from 'jsonwebtoken';
+import { getCorsHeaders } from './_lib/cors.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('FATAL: JWT_SECRET environment variable is not set');
 
 const config = {
   host: process.env.DB_HOST,
@@ -21,7 +23,7 @@ function getUserId(req) {
     const auth = req.headers.authorization || '';
     const token = auth.replace('Bearer ', '');
     const decoded = jwt.verify(token, JWT_SECRET);
-    return decoded.id;
+    return decoded.userId;
   } catch { return null; }
 }
 
@@ -43,9 +45,8 @@ async function githubFetch(path, token) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  const CORS = getCorsHeaders(req);
+  Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   
   if (req.method === 'OPTIONS') return res.status(200).end();
   
@@ -64,11 +65,12 @@ export default async function handler(req, res) {
         return err(res, 'project_id and provider required', 400);
       }
       
-      // Get integration from DB
+      // Get integration from DB (verify project ownership)
       const [rows] = await connection.query(
-        `SELECT * FROM project_integrations 
-         WHERE project_id = ? AND provider = ?`,
-        [project_id, provider]
+        `SELECT pi.* FROM project_integrations pi
+         JOIN projects p ON pi.project_id = p.id
+         WHERE pi.project_id = ? AND pi.provider = ? AND p.user_id = ?`,
+        [project_id, provider, userId]
       );
       
       if (rows.length === 0) {
@@ -136,6 +138,15 @@ export default async function handler(req, res) {
         return err(res, `GitHub connection failed: ${e.message}`, 400);
       }
       
+      // Verify project ownership
+      if (project_id) {
+        const [projCheck] = await connection.query(
+          'SELECT id FROM projects WHERE id = ? AND user_id = ?',
+          [project_id, userId]
+        );
+        if (projCheck.length === 0) return err(res, 'Project not found or access denied', 403);
+      }
+
       // Store integration (upsert)
       const projectId = project_id;
       await connection.query(
@@ -164,12 +175,13 @@ export default async function handler(req, res) {
       const { sync_enabled, branch } = req.body || {};
       
       await connection.query(
-        `UPDATE project_integrations 
-         SET sync_enabled = COALESCE(?, sync_enabled),
-             branch = COALESCE(?, branch),
-             updated_at = NOW()
-         WHERE project_id = ? AND provider = ?`,
-        [sync_enabled, branch, project_id, provider]
+        `UPDATE project_integrations pi
+         JOIN projects p ON pi.project_id = p.id
+         SET pi.sync_enabled = COALESCE(?, pi.sync_enabled),
+             pi.branch = COALESCE(?, pi.branch),
+             pi.updated_at = NOW()
+         WHERE pi.project_id = ? AND pi.provider = ? AND p.user_id = ?`,
+        [sync_enabled, branch, project_id, provider, userId]
       );
       
       return res.status(200).json({ success: true });
@@ -182,9 +194,10 @@ export default async function handler(req, res) {
       }
       
       await connection.query(
-        `DELETE FROM project_integrations 
-         WHERE project_id = ? AND provider = ?`,
-        [project_id, provider]
+        `DELETE pi FROM project_integrations pi
+         JOIN projects p ON pi.project_id = p.id
+         WHERE pi.project_id = ? AND pi.provider = ? AND p.user_id = ?`,
+        [project_id, provider, userId]
       );
       
       return res.status(200).json({ disconnected: true });

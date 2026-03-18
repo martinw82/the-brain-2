@@ -3,18 +3,15 @@
 import jwt from 'jsonwebtoken';
 import mysql from 'mysql2/promise';
 import { createRequire } from 'module';
+import { getCorsHeaders } from './_lib/cors.js';
 
 const require = createRequire(import.meta.url);
 const agentConfig = require('../agent-config.json');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('FATAL: JWT_SECRET environment variable is not set');
 
-const CORS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+// CORS headers are set per-request via getCorsHeaders(req)
 
 function err(res, msg, status = 400) {
   return res.status(status).json({ error: msg });
@@ -396,15 +393,19 @@ async function executeFunction(fn, args, db, userId) {
       const [, projectId, filePath] = match;
 
       const [files] = await db.execute(
-        'SELECT path, content FROM project_files WHERE project_id = ? AND path = ? AND deleted_at IS NULL',
-        [projectId, filePath]
+        `SELECT f.path, f.content FROM project_files f
+         JOIN projects p ON f.project_id = p.id
+         WHERE f.project_id = ? AND f.path = ? AND f.deleted_at IS NULL AND p.user_id = ?`,
+        [projectId, filePath, userId]
       );
 
       if (files.length === 0) {
         // Try with leading slash
         const [files2] = await db.execute(
-          'SELECT path, content FROM project_files WHERE project_id = ? AND path = ? AND deleted_at IS NULL',
-          [projectId, '/' + filePath]
+          `SELECT f.path, f.content FROM project_files f
+           JOIN projects p ON f.project_id = p.id
+           WHERE f.project_id = ? AND f.path = ? AND f.deleted_at IS NULL AND p.user_id = ?`,
+          [projectId, '/' + filePath, userId]
         );
         if (files2.length === 0)
           return { success: false, error: `File not found: ${filePath}` };
@@ -438,6 +439,13 @@ async function executeFunction(fn, args, db, userId) {
         };
       }
 
+      // Verify project ownership
+      const [projCheck] = await db.execute(
+        'SELECT id FROM projects WHERE id = ? AND user_id = ?',
+        [projectId, userId]
+      );
+      if (projCheck.length === 0) return { success: false, error: 'Project not found or access denied' };
+
       // Check if file exists
       const [existing] = await db.execute(
         'SELECT id FROM project_files WHERE project_id = ? AND path = ? AND deleted_at IS NULL',
@@ -466,6 +474,13 @@ async function executeFunction(fn, args, db, userId) {
     }
 
     case 'create_task': {
+      if (args.project_id) {
+        const [projCheck] = await db.execute(
+          'SELECT id FROM projects WHERE id = ? AND user_id = ?',
+          [args.project_id, userId]
+        );
+        if (projCheck.length === 0) return { success: false, error: 'Project not found or access denied' };
+      }
       const [result] = await db.execute(
         `INSERT INTO tasks (user_id, project_id, title, description, priority, assignee_type, assignee_id, status, assigned_by, assignment_reason, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'agent', ?, NOW())`,
@@ -525,8 +540,8 @@ async function executeFunction(fn, args, db, userId) {
 
     case 'mark_complete': {
       await db.execute(
-        'UPDATE tasks SET status = ?, completed_at = NOW(), result_summary = ? WHERE id = ?',
-        ['complete', args.summary, args.task_id]
+        'UPDATE tasks SET status = ?, completed_at = NOW(), result_summary = ? WHERE id = ? AND user_id = ?',
+        ['complete', args.summary, args.task_id, userId]
       );
       return { success: true, task_id: args.task_id, status: 'complete' };
     }
@@ -666,8 +681,10 @@ ${autoMode ? 'AUTO MODE: Functions execute immediately' : 'PREVIEW MODE: write_f
 }
 
 export default async function handler(req, res) {
+  const CORS = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
-    return res.status(200).set(CORS).end();
+    Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(200).end();
   }
 
   const user = getAuth(req);
@@ -859,7 +876,8 @@ export default async function handler(req, res) {
       console.error('[AgentExecute] Failed to log usage:', e);
     }
 
-    return res.status(200).set(CORS).json({
+    Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(200).json({
       success: true,
       content: finalContent,
       iterations,

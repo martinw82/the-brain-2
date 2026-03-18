@@ -92,15 +92,17 @@ async function deleteFileFromDisk(dirHandle, filePath) {
   for (const part of parts) {
     try {
       currentDir = await currentDir.getDirectoryHandle(part);
-    } catch {
+    } catch (e) {
+      console.error('[catch]', e.message);
       return; // Parent dir doesn't exist
     }
   }
 
   try {
     await currentDir.removeEntry(fileName);
-  } catch {
+  } catch (e) {
     // File already deleted
+    console.error('[catch]', e.message);
   }
 }
 
@@ -208,7 +210,8 @@ export const desktopSync = {
 
         dbRequest.onerror = () => resolve(null);
       });
-    } catch {
+    } catch (e) {
+      console.error('[catch]', e.message);
       return null;
     }
   },

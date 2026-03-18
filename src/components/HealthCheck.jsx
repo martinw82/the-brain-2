@@ -103,7 +103,8 @@ const HealthCheck = ({ project, projectFiles, templates, onFix }) => {
             path: 'manifest.json',
           });
         }
-      } catch {
+      } catch (e) {
+        console.error('[catch]', e.message);
         foundIssues.push({
           type: 'invalid_json',
           severity: 'error',

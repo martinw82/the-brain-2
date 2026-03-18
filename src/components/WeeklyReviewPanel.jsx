@@ -251,7 +251,8 @@ export default function WeeklyReviewPanel({ token, onAskAI }) {
       } else {
         setSaveStatus('error');
       }
-    } catch {
+    } catch (e) {
+      console.error('[catch]', e.message);
       setSaveStatus('error');
     }
     setSaving(false);
