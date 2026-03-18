@@ -158,7 +158,7 @@ Panel components receive a single `ctx` prop containing all needed state and cal
 | Brain tab content (command, projects, staging, etc.) | `src/components/panels/BrainTabsPanel.jsx`  |
 | Colors, styles, constants                            | `src/utils/constants.js`                    |
 | API endpoints                                        | `src/api.js` (client) + `api/*.js` (server) |
-| Agent definitions                                    | `agents/system-*.md`                        |
+| Agent definitions                                    | `public/agents/system-*.md`                 |
 | DB schema                                            | `scripts/migrate.js`                        |
 
 ### Making Changes
@@ -209,7 +209,7 @@ node scripts/run-tests.js # Full test suite
 
 - URI-based resource addressing (`brain://project/{id}`)
 - L0/L1/L2 hierarchical file summaries
-- File-based agent registry (5 system agents)
+- File-based agent registry (7 system agents)
 - Universal task queue with delegation
 - Workflow execution engine
 - Agent task execution with function calling
@@ -225,6 +225,7 @@ node scripts/run-tests.js # Full test suite
 | File                             | Purpose                                               |
 | -------------------------------- | ----------------------------------------------------- |
 | `README.md`                      | This file — quick reference + architecture guide      |
+| `WORKFLOWS-AND-AGENTS.md`        | **Start here** — practical guide to using Workflows + Agents/Skills |
 | `REFACTOR_TASKS.md`              | Refactoring progress and module inventory             |
 | `brain-status.md`                | Master status — what's built, what's next             |
 | `brain-roadmap.md`               | Detailed step-by-step roadmap                         |
