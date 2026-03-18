@@ -68,7 +68,7 @@ export default function HubEditorPanel({ ctx }) {
     setTemplates,
     sessionLog,
     setSessionLog,
-    fileMetadataState,
+    fileMetadataState: fileMetadata,
     setFileMetadata,
     loadingMetadata,
     setLoadingMetadata,
