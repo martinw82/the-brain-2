@@ -15,6 +15,7 @@ import {
   BUIDL_VERSION,
 } from '../../utils/constants.js';
 import { calcHealth } from '../../utils/projectFactory.js';
+import { BOOTSTRAP_STEPS } from '../SkillsWorkflows.jsx';
 
 /**
  * BrainTabsPanel — all mainTab content panels.
