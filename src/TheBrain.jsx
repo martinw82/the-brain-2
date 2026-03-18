@@ -3880,6 +3880,8 @@ export default function TheBrain({
               ctx={{
                 mainTab,
                 projects,
+                filteredProjects,
+                hub,
                 staging,
                 ideas,
                 areas,
@@ -3940,6 +3942,8 @@ export default function TheBrain({
                 deleteTask,
                 dismissDriftFlag,
                 QuickTagRow,
+                copied,
+                briefProj,
                 buildCtx,
                 buildBrief,
                 copy,

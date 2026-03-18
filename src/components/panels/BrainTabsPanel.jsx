@@ -24,6 +24,8 @@ export default function BrainTabsPanel({ ctx }) {
   const {
     mainTab,
     projects,
+    filteredProjects,
+    hub,
     staging,
     ideas,
     areas,
@@ -85,6 +87,8 @@ export default function BrainTabsPanel({ ctx }) {
     deleteTask,
     dismissDriftFlag,
     QuickTagRow,
+    copied,
+    briefProj,
     buildCtx,
     buildBrief,
     copy,
