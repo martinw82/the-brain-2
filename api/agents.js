@@ -157,7 +157,7 @@ function parseFrontmatter(content) {
 
 function loadAgentDefinition(agentId, projectId) {
   // Try system agents first, then project agents (forward-compatible)
-  const agentsDir = join(__dirname, '..', 'agents');
+  const agentsDir = join(__dirname, '..', 'public', 'agents');
   const paths = [
     join(agentsDir, `system-${agentId}.md`),
     join(agentsDir, `${agentId}.md`),
