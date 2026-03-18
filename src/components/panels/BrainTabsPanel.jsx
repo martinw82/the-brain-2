@@ -6,7 +6,7 @@ import WeeklyReviewPanel from '../WeeklyReviewPanel.jsx';
 import GitHubIntegration from '../GitHubIntegration.jsx';
 import { renderAIResponse } from '../URILink.jsx';
 import { uriToNavigation } from '../../uri.js';
-import { getBehavior, getMode } from '../../modeHelper.js';
+import { getBehavior, getMode, shouldShow } from '../../modeHelper.js';
 import {
   C,
   S,
