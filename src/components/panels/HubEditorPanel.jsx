@@ -49,6 +49,7 @@ export default function HubEditorPanel({ ctx }) {
     tasks,
     comments,
     commentsLoading,
+    setHubTab,
     newComment,
     setNewComment,
     setComments,

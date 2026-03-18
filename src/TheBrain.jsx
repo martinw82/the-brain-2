@@ -3817,6 +3817,7 @@ export default function TheBrain({
                   tasks,
                   comments,
                   commentsLoading,
+                  setHubTab,
                   newComment,
                   setNewComment,
                   setComments,
