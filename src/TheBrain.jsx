@@ -223,6 +223,7 @@ export default function TheBrain({
   });
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState('');
+  const [showGoalModal, setShowGoalModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importMethod, setImportMethod] = useState('buidl'); // "buidl" | "json" | "folder"
   const [importLoading, setImportLoading] = useState(false);
@@ -2685,8 +2686,8 @@ export default function TheBrain({
         />
       )}
 
-      {modal === 'manage-goals' && (
-        <Modal title="Manage Goals" onClose={() => setModal(null)} width={500}>
+      {(modal === 'manage-goals' || showGoalModal) && (
+        <Modal title="Manage Goals" onClose={() => { setModal(null); setShowGoalModal(false); }} width={500}>
           <div style={{ marginBottom: 16 }}>
             <span style={S.label()}>Active Goal</span>
             <select
