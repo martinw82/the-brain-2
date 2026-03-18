@@ -10,6 +10,7 @@ capabilities:
   - code.debug
   - code.test
   - code.deploy
+  - audit.security
 permissions:
   - read:all
   - write:code-modules
