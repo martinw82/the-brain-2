@@ -30,6 +30,7 @@ export default function BrainTabsPanel({ ctx }) {
     goals,
     templates,
     tasks,
+    tasksLoading,
     userTags,
     entityTags,
     integrations,

@@ -3886,6 +3886,7 @@ export default function TheBrain({
                 goals,
                 templates,
                 tasks,
+                tasksLoading,
                 userTags,
                 entityTags,
                 integrations,
