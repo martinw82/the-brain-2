@@ -4,7 +4,7 @@
 
 **Status:** v2.0 COMPLETE ✅
 **Live URL:** the-brain-2.vercel.app
-**Last Updated:** 2026-03-17
+**Last Updated:** 2026-03-18
 
 ---
 
@@ -39,6 +39,7 @@ The Brain is a **personal operating system** that helps users organize their liv
 | Database | TiDB Cloud Serverless (32 tables)                                  |
 | Auth     | JWT + bcrypt                                                       |
 | AI       | Multi-provider proxy                                               |
+| Testing  | Jest + React Testing Library (175+ tests)                          |
 
 ---
 
@@ -171,13 +172,17 @@ Panel components receive a single `ctx` prop containing all needed state and cal
 ### Build & Verify
 
 ```bash
-npm run dev          # Start dev server (localhost:5173)
-npm run build        # Production build (npx vite build)
-npm run lint         # ESLint
-npm run test         # Jest unit tests
+npm run dev              # Start dev server (localhost:5173)
+npm run build            # Production build (npx vite build)
+npm run lint             # ESLint
+npm run test             # Unit tests (Jest)
+npm run test:coverage    # Tests with coverage report
+npm run test:watch       # Tests in watch mode
+npm run test:critical    # Critical path tests (DB required)
+node scripts/run-tests.js # Full test suite
 ```
 
-**Pre-commit hook:** Prettier check runs automatically via Husky. Run `npx prettier --write src/` to fix formatting.
+**Pre-commit hook:** Prettier + tests run automatically via Husky. Run `npx prettier --write src/` to fix formatting.
 
 ---
 

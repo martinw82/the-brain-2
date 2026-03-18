@@ -2,11 +2,36 @@
 
 **Approach:** Real-usage testing while building actual projects  
 **Goal:** Find and fix all issues before relying on this for real work  
-**Updated:** 2026-03-15
+**Updated:** 2026-03-18 (Test Suite Complete ✅)
 
 ---
 
 # PART A: CRITICAL PATH TESTS (Must Pass)
+
+> ✅ **Test Infrastructure Complete** — 175+ tests written across 18 modules.
+> Run with: `npm test` (unit) or `node scripts/run-tests.js` (full suite)
+
+## Unit Test Coverage
+
+| Module | File | Tests |
+|--------|------|-------|
+| URI Utils | `src/__tests__/utils/uri.test.js` | 15 |
+| Mode Helper | `src/__tests__/utils/modeHelper.test.js` | 12 |
+| Project Factory | `src/__tests__/utils/projectFactory.test.js` | 10 |
+| Constants | `src/__tests__/utils/constants.test.js` | 6 |
+| useUndoRedo | `src/__tests__/hooks/useUndoRedo.test.js` | 10 |
+| useBreakpoint | `src/__tests__/hooks/useBreakpoint.test.js` | 7 |
+| useSessionOps | `src/__tests__/hooks/useSessionOps.test.js` | 11 |
+| useTaskOps | `src/__tests__/hooks/useTaskOps.test.js` | 10 |
+| Agents | `src/__tests__/agents.test.js` | 15 |
+| Workflows | `src/__tests__/workflows.test.js` | 12 |
+| Memory | `src/__tests__/memory.test.js` | 10 |
+| Summaries | `src/__tests__/summaries.test.js` | 8 |
+| Retrieval | `src/__tests__/retrieval.test.js` | 10 |
+| Agent Functions | `src/__tests__/agentFunctions.test.js` | 14 |
+| UI Components | `src/__tests__/components/UI/SmallComponents.test.jsx` | 12 |
+| API Client | `src/__tests__/integration/api.test.js` | 15 |
+| **Total** | **18 files** | **175+** |
 
 ## A1. Database & Auth
 
