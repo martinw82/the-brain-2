@@ -87,6 +87,7 @@ export default function HubEditorPanel({ ctx }) {
     // functions
     saveFile,
     handleHubSave,
+    saving,
     deleteFile,
     handleDrop,
     updateProject,

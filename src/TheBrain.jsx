@@ -3853,6 +3853,7 @@ export default function TheBrain({
                   areaStats,
                   saveFile,
                   handleHubSave,
+                  saving,
                   deleteFile,
                   handleDrop,
                   updateProject,
