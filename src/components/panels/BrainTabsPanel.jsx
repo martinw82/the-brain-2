@@ -16,6 +16,7 @@ import {
 } from '../../utils/constants.js';
 import { calcHealth } from '../../utils/projectFactory.js';
 import { BOOTSTRAP_STEPS } from '../SkillsWorkflows.jsx';
+import { token, ai } from '../../api.js';
 
 /**
  * BrainTabsPanel — all mainTab content panels.
@@ -1766,7 +1767,7 @@ export default function BrainTabsPanel({ ctx }) {
         <WeeklyReviewPanel
           token={token.get()}
           onAskAI={async (prompt) => {
-            const d = await aiApi.ask(prompt);
+            const d = await ai.ask(prompt);
             return d.content?.map((b) => b.text || '').join('') || '';
           }}
         />
