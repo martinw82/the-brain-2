@@ -74,6 +74,7 @@ import BrainTabsPanel from './components/panels/BrainTabsPanel.jsx';
 
 // ── Extracted large components ────────────────────────────────
 import OnboardingWizard from './components/OnboardingWizard.jsx';
+import BootstrapWizard from './components/BootstrapWizard.jsx';
 import TourTooltip from './components/TourTooltip.jsx';
 
 // ══════════════════════════════════════════════════════════════
