@@ -3816,6 +3816,7 @@ export default function TheBrain({
                   templates,
                   tasks,
                   comments,
+                  commentsLoading,
                   newComment,
                   setNewComment,
                   setComments,

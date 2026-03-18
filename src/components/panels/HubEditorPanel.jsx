@@ -48,6 +48,7 @@ export default function HubEditorPanel({ ctx }) {
     templates,
     tasks,
     comments,
+    commentsLoading,
     newComment,
     setNewComment,
     setComments,
