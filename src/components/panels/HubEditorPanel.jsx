@@ -72,6 +72,7 @@ export default function HubEditorPanel({ ctx }) {
     setFileMetadata,
     loadingMetadata,
     setLoadingMetadata,
+    userTags,
     aiSuggestions,
     setAiSuggestions,
     loadingAiSuggestions,
