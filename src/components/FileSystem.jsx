@@ -126,7 +126,7 @@ const FileSystem = ({
                       p.id === hubId ? { ...p, activeFile: path } : p
                     )
                   );
-                  projectsApi.setActiveFile(hubId, path).catch(() => {});
+                  projectsApi.setActiveFile(hubId, path).catch(e => console.error('[sync]', e.message));
                   fetchMetadata(hubId, path);
                   if (isMobile) setMobileFileTreeOpen(false);
                 }}

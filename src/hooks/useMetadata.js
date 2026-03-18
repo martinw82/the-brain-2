@@ -90,7 +90,7 @@ export default function useMetadata(deps) {
           .then(() => {
             loadEntityTags();
           })
-          .catch(() => {});
+          .catch(e => console.error('[sync]', e.message));
       }
     },
     [hubId, hub?.activeFile]
