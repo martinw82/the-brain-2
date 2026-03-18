@@ -74,6 +74,7 @@ import BrainTabsPanel from './components/panels/BrainTabsPanel.jsx';
 
 // ── Extracted large components ────────────────────────────────
 import OnboardingWizard from './components/OnboardingWizard.jsx';
+import BootstrapWizard from './components/BootstrapWizard.jsx';
 import TourTooltip from './components/TourTooltip.jsx';
 
 // ══════════════════════════════════════════════════════════════
@@ -3815,6 +3816,8 @@ export default function TheBrain({
                   templates,
                   tasks,
                   comments,
+                  commentsLoading,
+                  setHubTab,
                   newComment,
                   setNewComment,
                   setComments,
@@ -3853,6 +3856,7 @@ export default function TheBrain({
                   areaStats,
                   saveFile,
                   handleHubSave,
+                  saving,
                   deleteFile,
                   handleDrop,
                   updateProject,
@@ -3880,12 +3884,15 @@ export default function TheBrain({
               ctx={{
                 mainTab,
                 projects,
+                filteredProjects,
+                hub,
                 staging,
                 ideas,
                 areas,
                 goals,
                 templates,
                 tasks,
+                tasksLoading,
                 userTags,
                 entityTags,
                 integrations,
@@ -3902,6 +3909,9 @@ export default function TheBrain({
                 totalIncome,
                 activeGoal,
                 weeklyTraining,
+                currentMode,
+                weeklyOutreach,
+                todayOutreach,
                 modal,
                 setModal,
                 setMainTab,
@@ -3936,6 +3946,8 @@ export default function TheBrain({
                 deleteTask,
                 dismissDriftFlag,
                 QuickTagRow,
+                copied,
+                briefProj,
                 buildCtx,
                 buildBrief,
                 copy,
