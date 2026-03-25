@@ -1,0 +1,156 @@
+{
+  "workflows": [
+    {
+      "id": "video-auto-pipeline",
+      "name": "YouTube Video Production Pipeline",
+      "description": "Full automated pipeline from topic research to upload-ready video package. Includes trust gates for human review at critical checkpoints.",
+      "icon": "🎥",
+      "steps": [
+        {
+          "id": "research",
+          "label": "Topic Research",
+          "capability": "content.research",
+          "agent": "system-youtube-research-v1",
+          "model": "claude-sonnet",
+          "sop": "Research topic using web search, validate with search volume, check competition density, identify unique angle. Output: YT_RESEARCH_{topic}_{date}.md",
+          "auto_assign": true,
+          "outputs": ["YT_RESEARCH_{topic}_{date}.md"]
+        },
+        {
+          "id": "script",
+          "label": "Script Writing",
+          "capability": "content.script",
+          "agent": "system-youtube-script-v1",
+          "model": "claude-sonnet",
+          "depends_on": ["research"],
+          "sop": "Write 4-6 segment script (600-900 words each) following retention-optimized structure. Include B-roll notes and visual cues. Output: YT_SCRIPT_{topic}_{date}.md",
+          "auto_assign": true,
+          "outputs": ["YT_SCRIPT_{topic}_{date}.md"]
+        },
+        {
+          "id": "script_review",
+          "label": "Script Review Gate",
+          "capability": "content.review",
+          "depends_on": ["script"],
+          "sop": "Human reviews script for tone, accuracy, and brand alignment. Approve, request revisions, or kill.",
+          "auto_assign": false,
+          "approval_required": true,
+          "trust_gate": true
+        },
+        {
+          "id": "retention_review",
+          "label": "Retention Analysis",
+          "capability": "content.optimize",
+          "agent": "system-youtube-retention-v1",
+          "model": "claude-sonnet",
+          "depends_on": ["script_review"],
+          "sop": "Analyze script for retention risks. Flag weak hooks, missing pattern interrupts, long exposition. Provide before/after fixes. Output: YT_RETENTION_{topic}_{date}.md",
+          "auto_assign": true,
+          "outputs": ["YT_RETENTION_{topic}_{date}.md"]
+        },
+        {
+          "id": "storyboard",
+          "label": "Storyboard Generation",
+          "capability": "content.storyboard",
+          "agent": "system-youtube-storyboard-v1",
+          "model": "claude-haiku",
+          "depends_on": ["retention_review"],
+          "sop": "Convert script segments into Remotion-compatible storyboard JSON. Each scene: scene_id, text, visual_type, keywords, duration_s, generation_prompt. Output: YT_STORYBOARD_{topic}_{date}.json",
+          "auto_assign": true,
+          "outputs": ["YT_STORYBOARD_{topic}_{date}.json"]
+        },
+        {
+          "id": "storyboard_review",
+          "label": "Storyboard Review Gate",
+          "capability": "content.review",
+          "depends_on": ["storyboard"],
+          "sop": "Human reviews storyboard for visual direction, pacing, and brand consistency. Approve or request changes.",
+          "auto_assign": false,
+          "approval_required": true,
+          "trust_gate": true
+        },
+        {
+          "id": "keywords",
+          "label": "SEO Keyword Optimization",
+          "capability": "seo.keywords",
+          "agent": "system-youtube-keywords-v1",
+          "model": "claude-haiku",
+          "depends_on": ["storyboard_review"],
+          "sop": "Generate optimized title (60 char), description (5000 char), tags (500 char), thumbnail text. Output: YT_SEO_{topic}_{date}.md",
+          "auto_assign": true,
+          "outputs": ["YT_SEO_{topic}_{date}.md"]
+        },
+        {
+          "id": "asset_sourcing",
+          "label": "Asset Sourcing",
+          "capability": "asset.plan",
+          "depends_on": ["storyboard_review"],
+          "sop": "Source stock footage, generate stills, prepare text overlays based on storyboard JSON. Collect all assets into assets/{topic}/ directory.",
+          "auto_assign": true,
+          "outputs": ["assets/{topic}/"]
+        },
+        {
+          "id": "render",
+          "label": "Video Render",
+          "capability": "video.render",
+          "depends_on": ["asset_sourcing", "keywords"],
+          "sop": "Render video using Remotion with storyboard JSON and sourced assets. Apply music, transitions, text overlays. Output: renders/{topic}_{date}.mp4",
+          "auto_assign": true,
+          "outputs": ["renders/{topic}_{date}.mp4"]
+        },
+        {
+          "id": "assessment",
+          "label": "Quality Assessment",
+          "capability": "content.assess",
+          "agent": "system-assessment-v1",
+          "model": "claude-sonnet",
+          "depends_on": ["render"],
+          "sop": "Score pipeline outputs: factual accuracy, narrative engagement, visual variety, SEO potential, production readiness (each 0-10). Provide go/no-go. Output: YT_ASSESSMENT_{topic}_{date}.md",
+          "auto_assign": true,
+          "outputs": ["YT_ASSESSMENT_{topic}_{date}.md"]
+        },
+        {
+          "id": "pre_upload",
+          "label": "Pre-Upload Review Gate",
+          "capability": "content.review",
+          "depends_on": ["assessment"],
+          "sop": "Human reviews final assessment, watches rendered video, approves for upload or sends back for fixes.",
+          "auto_assign": false,
+          "approval_required": true,
+          "trust_gate": true
+        },
+        {
+          "id": "upload_prep",
+          "label": "Upload Preparation",
+          "capability": "content.publish",
+          "depends_on": ["pre_upload"],
+          "sop": "Prepare upload package: video file, thumbnail, title, description, tags, scheduled publish time. Output: upload_ready/{topic}_{date}/",
+          "auto_assign": true,
+          "outputs": ["upload_ready/{topic}_{date}/"]
+        }
+      ],
+      "trust_gates": {
+        "script_review": {
+          "position": "after_script",
+          "required": true,
+          "description": "Human approves script before retention analysis and production"
+        },
+        "storyboard_review": {
+          "position": "after_storyboard",
+          "required": true,
+          "description": "Human approves visual direction before asset sourcing and render"
+        },
+        "pre_upload": {
+          "position": "after_assessment",
+          "required": true,
+          "description": "Human approves final quality assessment before upload preparation"
+        }
+      },
+      "provider_routing": {
+        "claude-sonnet": ["research", "script", "retention_review", "assessment"],
+        "claude-haiku": ["storyboard", "keywords"]
+      },
+      "triggers": ["manual"]
+    }
+  ]
+}

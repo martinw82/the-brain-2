@@ -26,7 +26,7 @@ const AIProviderSettings = () => {
         }
         if (data.providers) setProviders(data.providers);
       })
-      .catch(e => console.error('[sync]', e.message));
+      .catch((e) => console.error('[sync]', e.message));
   }, []);
 
   const handleSave = async () => {

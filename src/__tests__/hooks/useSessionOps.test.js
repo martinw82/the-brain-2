@@ -48,11 +48,15 @@ describe('useSessionOps', () => {
         await result.current.addIdea('New Idea', ['tag1']);
       });
 
-      expect(ideasApi.create).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'New Idea',
-        tags: ['tag1'],
-      }));
-      expect(mockDeps.showToast).toHaveBeenCalledWith(expect.stringContaining('Idea saved'));
+      expect(ideasApi.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'New Idea',
+          tags: ['tag1'],
+        })
+      );
+      expect(mockDeps.showToast).toHaveBeenCalledWith(
+        expect.stringContaining('Idea saved')
+      );
     });
 
     it('should handle API errors', async () => {
@@ -64,7 +68,9 @@ describe('useSessionOps', () => {
         await result.current.addIdea('New Idea');
       });
 
-      expect(mockDeps.showToast).toHaveBeenCalledWith(expect.stringContaining('Failed'));
+      expect(mockDeps.showToast).toHaveBeenCalledWith(
+        expect.stringContaining('Failed')
+      );
     });
   });
 
@@ -108,11 +114,13 @@ describe('useSessionOps', () => {
         await result.current.endSession();
       });
 
-      expect(sessionsApi.create).toHaveBeenCalledWith(expect.objectContaining({
-        project_id: 'project-1',
-        duration_s: expect.any(Number),
-        log: 'Session notes',
-      }));
+      expect(sessionsApi.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          project_id: 'project-1',
+          duration_s: expect.any(Number),
+          log: 'Session notes',
+        })
+      );
 
       expect(mockDeps.setSessionStart).toHaveBeenCalledWith(null);
       expect(mockDeps.setFocusId).toHaveBeenCalledWith(null);

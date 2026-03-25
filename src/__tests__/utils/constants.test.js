@@ -3,7 +3,13 @@
  * Verify design tokens and constants
  */
 
-import { C, S, BREAKPOINTS, THAILAND_TARGET, BUIDL_VERSION } from '../../utils/constants.js';
+import {
+  C,
+  S,
+  BREAKPOINTS,
+  THAILAND_TARGET,
+  BUIDL_VERSION,
+} from '../../utils/constants.js';
 
 describe('Constants', () => {
   describe('Colors (C)', () => {
@@ -25,7 +31,19 @@ describe('Constants', () => {
 
     it('should have valid hex colors', () => {
       const hexPattern = /^#[0-9a-fA-F]{6}$/;
-      ['bg', 'surface', 'border', 'blue', 'green', 'amber', 'red', 'purple', 'text', 'muted', 'dim'].forEach((key) => {
+      [
+        'bg',
+        'surface',
+        'border',
+        'blue',
+        'green',
+        'amber',
+        'red',
+        'purple',
+        'text',
+        'muted',
+        'dim',
+      ].forEach((key) => {
         expect(C[key]).toMatch(hexPattern);
       });
     });

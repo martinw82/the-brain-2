@@ -97,7 +97,9 @@ export default function useProjectCrud(deps) {
       setProjects((prev) =>
         prev.map((p) => (p.id === id ? { ...p, activeFile: targetFile } : p))
       );
-      projectsApi.setActiveFile(id, targetFile).catch(e => console.error('[sync]', e.message));
+      projectsApi
+        .setActiveFile(id, targetFile)
+        .catch((e) => console.error('[sync]', e.message));
     }
   };
 
@@ -194,8 +196,12 @@ export default function useProjectCrud(deps) {
     );
     setModal(null);
     setNewFileName('');
-    await projectsApi.saveFile(projId, path, def).catch(e => console.error('[sync]', e.message));
-    await projectsApi.setActiveFile(projId, path).catch(e => console.error('[sync]', e.message));
+    await projectsApi
+      .saveFile(projId, path, def)
+      .catch((e) => console.error('[sync]', e.message));
+    await projectsApi
+      .setActiveFile(projId, path)
+      .catch((e) => console.error('[sync]', e.message));
   };
 
   const deleteFile = async (projId, path) => {
@@ -212,7 +218,9 @@ export default function useProjectCrud(deps) {
         };
       })
     );
-    await projectsApi.deleteFile(projId, path).catch(e => console.error('[sync]', e.message));
+    await projectsApi
+      .deleteFile(projId, path)
+      .catch((e) => console.error('[sync]', e.message));
   };
 
   // ── CUSTOM FOLDERS ────────────────────────────────────────
@@ -229,10 +237,12 @@ export default function useProjectCrud(deps) {
     );
     setModal(null);
     setCFForm({ id: '', label: '', icon: '📁', desc: '' });
-    await projectsApi.addFolder(projId, folder).catch(e => console.error('[sync]', e.message));
+    await projectsApi
+      .addFolder(projId, folder)
+      .catch((e) => console.error('[sync]', e.message));
     await projectsApi
       .saveFile(projId, `${folder.id}/.gitkeep`, '')
-      .catch(e => console.error('[sync]', e.message));
+      .catch((e) => console.error('[sync]', e.message));
   };
 
   // ── PROJECT CRUD — persisted ───────────────────────────────
@@ -291,7 +301,9 @@ export default function useProjectCrud(deps) {
           : p
       )
     );
-    await projectsApi.update(projId, updates).catch(e => console.error('[sync] Project save failed:', e.message));
+    await projectsApi
+      .update(projId, updates)
+      .catch((e) => console.error('[sync] Project save failed:', e.message));
   };
 
   const renameProject = async (projId, newName) => {
@@ -313,7 +325,9 @@ export default function useProjectCrud(deps) {
       return newProjects;
     });
     setModal(null);
-    await projectsApi.update(projId, { name: newName }).catch(e => console.error('[sync]', e.message));
+    await projectsApi
+      .update(projId, { name: newName })
+      .catch((e) => console.error('[sync]', e.message));
     if (updatedFiles['PROJECT_OVERVIEW.md']) {
       await projectsApi
         .saveFile(
@@ -321,12 +335,12 @@ export default function useProjectCrud(deps) {
           'PROJECT_OVERVIEW.md',
           updatedFiles['PROJECT_OVERVIEW.md']
         )
-        .catch(e => console.error('[sync]', e.message));
+        .catch((e) => console.error('[sync]', e.message));
     }
     if (updatedFiles['manifest.json']) {
       await projectsApi
         .saveFile(projId, 'manifest.json', updatedFiles['manifest.json'])
-        .catch(e => console.error('[sync]', e.message));
+        .catch((e) => console.error('[sync]', e.message));
     }
   };
 
@@ -342,7 +356,9 @@ export default function useProjectCrud(deps) {
       if (rem.length) setFocusId(rem[0].id);
     }
     setModal(null);
-    await projectsApi.delete(projId).catch(e => console.error('[sync] Project save failed:', e.message));
+    await projectsApi
+      .delete(projId)
+      .catch((e) => console.error('[sync] Project save failed:', e.message));
   };
 
   const importProject = async (
@@ -625,7 +641,9 @@ export default function useProjectCrud(deps) {
           notes: `Uploaded ${new Date().toISOString().slice(0, 10)}`,
         };
         await addStaging(s);
-        await projectsApi.saveFile(projId, path, content).catch(e => console.error('[sync]', e.message));
+        await projectsApi
+          .saveFile(projId, path, content)
+          .catch((e) => console.error('[sync]', e.message));
       };
       if (
         file.type.startsWith('text') ||

@@ -75,7 +75,12 @@ describe('Summaries', () => {
       fileSummaries.store.mockResolvedValueOnce({ success: true });
 
       const content = 'file content';
-      const result = await storeSummaries('proj-1', 'test.md', content, summaryData);
+      const result = await storeSummaries(
+        'proj-1',
+        'test.md',
+        content,
+        summaryData
+      );
 
       expect(fileSummaries.store).toHaveBeenCalledWith(
         'proj-1',
@@ -93,8 +98,16 @@ describe('Summaries', () => {
   describe('buildSummaryContext', () => {
     it('should build context from summaries', async () => {
       const mockSummaries = [
-        { file_path: 'README.md', l0_abstract: 'Project readme', token_count: 100 },
-        { file_path: 'src/index.js', l0_abstract: 'Entry point', token_count: 50 },
+        {
+          file_path: 'README.md',
+          l0_abstract: 'Project readme',
+          token_count: 100,
+        },
+        {
+          file_path: 'src/index.js',
+          l0_abstract: 'Entry point',
+          token_count: 50,
+        },
       ];
 
       fileSummaries.list.mockResolvedValueOnce({ summaries: mockSummaries });

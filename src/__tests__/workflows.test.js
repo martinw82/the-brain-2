@@ -55,7 +55,10 @@ describe('Workflow Engine', () => {
 
       const result = await startWorkflow('template-1', 'proj-1');
 
-      expect(workflowInstances.start).toHaveBeenCalledWith('template-1', 'proj-1');
+      expect(workflowInstances.start).toHaveBeenCalledWith(
+        'template-1',
+        'proj-1'
+      );
       expect(result.success).toBe(true);
     });
 
@@ -76,7 +79,12 @@ describe('Workflow Engine', () => {
       id: 'inst-1',
       project_id: 'proj-1',
       template_steps: JSON.stringify([
-        { id: 'step-1', label: 'Security Audit', capability: 'audit.security', auto_assign: true },
+        {
+          id: 'step-1',
+          label: 'Security Audit',
+          capability: 'audit.security',
+          auto_assign: true,
+        },
         { id: 'step-2', label: 'Fix Issues', capability: 'code.fix' },
       ]),
     };
@@ -98,7 +106,9 @@ describe('Workflow Engine', () => {
 
       await executeStep('inst-1', 0);
 
-      expect(selectAgent).toHaveBeenCalledWith('audit.security', { projectId: 'proj-1' });
+      expect(selectAgent).toHaveBeenCalledWith('audit.security', {
+        projectId: 'proj-1',
+      });
       expect(tasks.create).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Security Audit',
@@ -162,7 +172,10 @@ describe('Workflow Engine', () => {
 
       await onTaskComplete('task-1');
 
-      expect(workflowInstances.completeStep).toHaveBeenCalledWith('inst-1', expect.any(Object));
+      expect(workflowInstances.completeStep).toHaveBeenCalledWith(
+        'inst-1',
+        expect.any(Object)
+      );
     });
 
     it('should skip if task not part of workflow', async () => {

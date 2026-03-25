@@ -84,10 +84,13 @@ describe('useBreakpoint', () => {
 
   it('should cleanup event listener on unmount', () => {
     const removeEventListenerSpy = jest.spyOn(window, 'removeEventListener');
-    
+
     const { unmount } = renderHook(() => useBreakpoint());
     unmount();
 
-    expect(removeEventListenerSpy).toHaveBeenCalledWith('resize', expect.any(Function));
+    expect(removeEventListenerSpy).toHaveBeenCalledWith(
+      'resize',
+      expect.any(Function)
+    );
   });
 });

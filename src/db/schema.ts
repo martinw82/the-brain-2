@@ -9,6 +9,9 @@ import {
   unique,
   index,
   primaryKey,
+  float,
+  decimal,
+  boolean,
 } from "drizzle-orm/mysql-core";
 
 // ────────────────────────────────────────────────────────────────
@@ -567,3 +570,134 @@ export const weekly_reviews = mysqlTable("weekly_reviews", {
 (table) => ({
   userWeekIdx: index("idx_weekly_reviews_user_week").on(table.user_id, table.week_start),
 }));
+
+// ────────────────────────────────────────────────────────────────
+// BRAIN OS v2.2 — REL Foundation Tables
+// ────────────────────────────────────────────────────────────────
+
+export const rel_entities = mysqlTable(
+  "rel_entities",
+  {
+    uri: varchar("uri", { length: 255 }).primaryKey(),
+    type: varchar("type", { length: 50 }).notNull(),
+    status: varchar("status", { length: 20 }).default("pending"),
+    checksum: varchar("checksum", { length: 64 }),
+    metadata: json("metadata"),
+    scope: varchar("scope", { length: 20 }),
+    memory_type: varchar("memory_type", { length: 20 }),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    typeStatusIdx: index("idx_rel_type_status").on(table.type, table.status),
+    scopeIdx: index("idx_rel_scope").on(table.scope, table.memory_type),
+  })
+);
+
+export const rel_entity_links = mysqlTable(
+  "rel_entity_links",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
+    source_uri: varchar("source_uri", { length: 255 }).notNull(),
+    target_uri: varchar("target_uri", { length: 255 }).notNull(),
+    relation_type: varchar("relation_type", { length: 30 }).notNull(),
+    confidence: float("confidence").default(1.0),
+    created_at: datetime("created_at").defaultNow(),
+  },
+  (table) => ({
+    sourceIdx: index("idx_rel_source").on(table.source_uri, table.relation_type),
+    targetIdx: index("idx_rel_target").on(table.target_uri, table.relation_type),
+    uniqueLink: unique("unique_rel_link").on(
+      table.source_uri,
+      table.target_uri,
+      table.relation_type
+    ),
+  })
+);
+
+export const rel_entity_tags = mysqlTable(
+  "rel_entity_tags",
+  {
+    uri: varchar("uri", { length: 255 }).notNull(),
+    tag: varchar("tag", { length: 100 }).notNull(),
+    inherited: boolean("inherited").default(false),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.uri, table.tag] }),
+  })
+);
+
+export const worker_capabilities = mysqlTable(
+  "worker_capabilities",
+  {
+    worker_id: varchar("worker_id", { length: 255 }).primaryKey(),
+    type: varchar("type", { length: 20 }).notNull(),
+    capabilities: json("capabilities"),
+    status: varchar("status", { length: 20 }).default("offline"),
+    last_seen: datetime("last_seen"),
+  },
+  (table) => ({
+    statusIdx: index("idx_worker_status").on(table.status),
+  })
+);
+
+export const execution_log = mysqlTable(
+  "execution_log",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
+    run_id: varchar("run_id", { length: 36 }),
+    parent_run_id: varchar("parent_run_id", { length: 36 }),
+    workflow_id: varchar("workflow_id", { length: 255 }),
+    worker_id: varchar("worker_id", { length: 255 }),
+    provider: varchar("provider", { length: 100 }),
+    cost_usd: decimal("cost_usd", { precision: 10, scale: 6 }),
+    tokens_used: int("tokens_used"),
+    duration_ms: int("duration_ms"),
+    quality_score: float("quality_score"),
+    status: varchar("status", { length: 20 }),
+    created_at: datetime("created_at").defaultNow(),
+  },
+  (table) => ({
+    runIdx: unique("unique_run").on(table.run_id),
+    workflowIdx: index("idx_exec_workflow").on(table.workflow_id),
+  })
+);
+
+export const workflow_trust = mysqlTable(
+  "workflow_trust",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
+    workflow_id: varchar("workflow_id", { length: 255 }).notNull(),
+    project_id: varchar("project_id", { length: 255 }),
+    current_tier: int("current_tier").default(1),
+    run_count: int("run_count").default(0),
+    approval_count: int("approval_count").default(0),
+    consecutive_approvals: int("consecutive_approvals").default(0),
+    last_regression_at: datetime("last_regression_at"),
+    promoted_to_tier2_at: datetime("promoted_to_tier2_at"),
+    promoted_to_tier3_at: datetime("promoted_to_tier3_at"),
+    tier_locked: boolean("tier_locked").default(false),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    uniqueWorkflow: unique("unique_workflow_trust").on(table.workflow_id),
+  })
+);
+
+export const trust_events = mysqlTable(
+  "trust_events",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
+    workflow_id: varchar("workflow_id", { length: 255 }).notNull(),
+    run_id: varchar("run_id", { length: 36 }),
+    gate_name: varchar("gate_name", { length: 255 }),
+    decision: varchar("decision", { length: 20 }).notNull(),
+    notes: text("notes"),
+    decided_by: varchar("decided_by", { length: 255 }),
+    decided_at: datetime("decided_at").defaultNow(),
+  },
+  (table) => ({
+    workflowIdx: index("idx_trust_workflow").on(table.workflow_id),
+  })
+);

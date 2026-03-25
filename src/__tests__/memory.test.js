@@ -143,8 +143,18 @@ describe('Memory Module', () => {
   describe('getMemoryContext', () => {
     it('should format memories for AI context', async () => {
       const mockMemories = [
-        { category: 'patterns', title: 'Estimation', content: 'Usually underestimate by 2x', accessed_count: 10 },
-        { category: 'preferences', title: 'Work Time', content: 'Best in morning', accessed_count: 5 },
+        {
+          category: 'patterns',
+          title: 'Estimation',
+          content: 'Usually underestimate by 2x',
+          accessed_count: 10,
+        },
+        {
+          category: 'preferences',
+          title: 'Work Time',
+          content: 'Best in morning',
+          accessed_count: 5,
+        },
       ];
 
       fetch.mockResolvedValueOnce({
@@ -170,12 +180,14 @@ describe('Memory Module', () => {
     });
 
     it('should limit to maxMemories', async () => {
-      const manyMemories = Array(20).fill(null).map((_, i) => ({
-        category: 'patterns',
-        title: `Pattern ${i}`,
-        content: `Content ${i}`,
-        accessed_count: i,
-      }));
+      const manyMemories = Array(20)
+        .fill(null)
+        .map((_, i) => ({
+          category: 'patterns',
+          title: `Pattern ${i}`,
+          content: `Content ${i}`,
+          accessed_count: i,
+        }));
 
       fetch.mockResolvedValueOnce({
         json: async () => ({ memories: manyMemories }),

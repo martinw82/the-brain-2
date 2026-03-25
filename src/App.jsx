@@ -174,18 +174,18 @@ export default function App() {
   // ── AUTHED ────────────────────────────────────────────────
   return (
     <ErrorBoundary>
-    <TheBrain
-      user={user}
-      initialProjects={appData?.projects || []}
-      initialStaging={appData?.staging || []}
-      initialIdeas={appData?.ideas || []}
-      initialAreas={appData?.areas || []}
-      initialGoals={appData?.goals || []}
-      initialTemplates={appData?.templates || []}
-      initialTags={appData?.tags || []}
-      initialEntityTags={appData?.entityTags || []}
-      onLogout={handleLogout}
-    />
+      <TheBrain
+        user={user}
+        initialProjects={appData?.projects || []}
+        initialStaging={appData?.staging || []}
+        initialIdeas={appData?.ideas || []}
+        initialAreas={appData?.areas || []}
+        initialGoals={appData?.goals || []}
+        initialTemplates={appData?.templates || []}
+        initialTags={appData?.tags || []}
+        initialEntityTags={appData?.entityTags || []}
+        onLogout={handleLogout}
+      />
     </ErrorBoundary>
   );
 }

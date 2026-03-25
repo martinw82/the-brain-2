@@ -1,0 +1,122 @@
+{
+  "title": "The Lost City of Dwarka — Remotion PoC",
+  "duration_s": 60,
+  "segments": [
+    {
+      "segment_id": 1,
+      "scenes": [
+        {
+          "scene_id": "s1-01",
+          "text": "Beneath the Arabian Sea lies a mystery that has captivated archaeologists for decades.",
+          "visual_type": "stock_footage",
+          "keywords": ["ocean", "underwater", "ancient ruins"],
+          "duration_s": 5,
+          "generation_prompt": null
+        },
+        {
+          "scene_id": "s1-02",
+          "text": "The legendary city of Dwarka, mentioned in ancient Hindu texts as the kingdom of Lord Krishna.",
+          "visual_type": "generated_still",
+          "keywords": ["ancient city", "golden temples", "mythology"],
+          "duration_s": 6,
+          "generation_prompt": "Ancient golden city with ornate temples emerging from mist, cinematic wide shot"
+        },
+        {
+          "scene_id": "s1-03",
+          "text": "For centuries, scholars dismissed Dwarka as pure mythology. Until 2001.",
+          "visual_type": "text_overlay",
+          "keywords": ["historical", "discovery"],
+          "duration_s": 4,
+          "generation_prompt": null
+        }
+      ]
+    },
+    {
+      "segment_id": 2,
+      "scenes": [
+        {
+          "scene_id": "s2-01",
+          "text": "Marine archaeologists from India's National Institute of Ocean Technology made a stunning discovery.",
+          "visual_type": "stock_footage",
+          "keywords": ["divers", "underwater archaeology", "sonar"],
+          "duration_s": 5,
+          "generation_prompt": null
+        },
+        {
+          "scene_id": "s2-02",
+          "text": "Using side-scan sonar, they found massive stone structures on the ocean floor.",
+          "visual_type": "generated_still",
+          "keywords": ["sonar scan", "underwater structures", "technology"],
+          "duration_s": 5,
+          "generation_prompt": "Side-scan sonar revealing ancient stone walls on ocean floor, blue-green color palette"
+        },
+        {
+          "scene_id": "s2-03",
+          "text": "Walls, pillars, and what appeared to be a planned urban grid — exactly matching the ancient descriptions.",
+          "visual_type": "stock_footage",
+          "keywords": ["underwater ruins", "pillars", "archaeology"],
+          "duration_s": 5,
+          "generation_prompt": null
+        }
+      ]
+    },
+    {
+      "segment_id": 3,
+      "scenes": [
+        {
+          "scene_id": "s3-01",
+          "text": "Carbon dating of artifacts recovered from the site produced dates going back 9,500 years.",
+          "visual_type": "text_overlay",
+          "keywords": ["9500 years", "carbon dating"],
+          "duration_s": 5,
+          "generation_prompt": null
+        },
+        {
+          "scene_id": "s3-02",
+          "text": "If confirmed, this would make Dwarka one of the oldest known urban settlements on Earth.",
+          "visual_type": "generated_still",
+          "keywords": ["ancient civilization", "timeline", "history"],
+          "duration_s": 5,
+          "generation_prompt": "Timeline visualization showing Dwarka at 7500 BCE alongside other ancient civilizations"
+        },
+        {
+          "scene_id": "s3-03",
+          "text": "Older than Mesopotamia. Older than the Egyptian pyramids. A civilization lost to rising seas.",
+          "visual_type": "stock_footage",
+          "keywords": ["ancient civilizations comparison", "pyramids", "mesopotamia"],
+          "duration_s": 5,
+          "generation_prompt": null
+        }
+      ]
+    },
+    {
+      "segment_id": 4,
+      "scenes": [
+        {
+          "scene_id": "s4-01",
+          "text": "Today, the Indian government has designated the underwater site as a protected national monument.",
+          "visual_type": "stock_footage",
+          "keywords": ["india", "coast", "monument"],
+          "duration_s": 5,
+          "generation_prompt": null
+        },
+        {
+          "scene_id": "s4-02",
+          "text": "But the full story of Dwarka remains locked beneath the waves, waiting to be told.",
+          "visual_type": "generated_still",
+          "keywords": ["mystery", "underwater", "light beams"],
+          "duration_s": 5,
+          "generation_prompt": "Sunlight beams penetrating ocean water illuminating ancient stone ruins, ethereal mood"
+        },
+        {
+          "scene_id": "s4-03",
+          "text": "Subscribe for more stories of lost civilizations hidden in plain sight.",
+          "visual_type": "text_overlay",
+          "keywords": ["subscribe", "outro"],
+          "duration_s": 5,
+          "generation_prompt": null
+        }
+      ]
+    }
+  ]
+}

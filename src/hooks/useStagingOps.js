@@ -22,14 +22,17 @@ export default function useStagingOps(deps) {
       setStaging((prev) =>
         prev.map((s) => (s.id === tmp.id ? { ...s, id: res.id } : s))
       );
-    } catch (e) { console.error('[catch]', e.message);
+    } catch (e) {
+      console.error('[catch]', e.message);
       showToast('⚠ Staging save failed');
     }
   };
 
   const updateStagingStatus = async (id, status) => {
     setStaging((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
-    await stagingApi.update(id, { status }).catch(e => console.error('[sync]', e.message));
+    await stagingApi
+      .update(id, { status })
+      .catch((e) => console.error('[sync]', e.message));
   };
 
   const moveToFolder = async (stagingId, folderId) => {
