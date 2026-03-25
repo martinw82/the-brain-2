@@ -1,449 +1,455 @@
 /**
- * Relational Entity Graph (REL) Module
- * Phase 0 Foundation - v2.2 Architecture
- * 
- * Tracks lineage, dependencies, and relationships across all entities.
- * All things must understand all other things.
+ * Relational Entity Graph (REL) — Phase 0 Foundation
+ * Brain OS v2.2
+ *
+ * The 8 core functions that power the relational entity layer.
+ * Every entity (file, task, asset, workflow, agent output) must be
+ * registered here before execution begins. The graph enforces:
+ *   - What created it (generated_by)
+ *   - What it requires (depends_on)
+ *   - What it enables (succeeded_by)
+ *   - What it relates to (relates_to, part_of)
+ *
+ * All functions accept a mysql2 pool/connection as first argument.
  */
 
-import { db } from './db/index.ts';
-import { rel_entities } from './db/schema.ts';
-import { eq, and, or, like, inArray, sql } from 'drizzle-orm';
+import { isValidURI } from './uri.js';
 
 // Valid entity types
-const VALID_TYPES = ['file', 'task', 'asset', 'workflow', 'agent', 'worker', 'email', 'competition', 'video', 'script', 'storyboard'];
+const ENTITY_TYPES = [
+  'file',
+  'task',
+  'asset',
+  'workflow',
+  'agent',
+  'worker',
+  'email',
+  'competition',
+];
 
-// Valid entity statuses
-const VALID_STATUSES = ['pending', 'active', 'complete', 'failed', 'orphaned'];
-
-// Valid memory types
-const VALID_MEMORY_TYPES = ['policy', 'preference', 'fact', 'episodic', 'trace'];
+// Valid statuses
+const ENTITY_STATUSES = ['pending', 'active', 'complete', 'failed', 'orphaned'];
 
 // Valid scopes
-const VALID_SCOPES = ['global', 'project', 'user', 'session'];
+const ENTITY_SCOPES = ['global', 'project', 'user', 'session'];
+
+// Valid memory types
+const MEMORY_TYPES = ['policy', 'preference', 'fact', 'episodic', 'trace'];
+
+// Valid relation types
+const RELATION_TYPES = [
+  'depends_on',
+  'generated_by',
+  'part_of',
+  'succeeded_by',
+  'version_of',
+  'input_to',
+  'output_from',
+  'blocks',
+  'relates_to',
+  'awaits_reply_by',
+  'responds_to',
+];
 
 /**
- * Create a new entity node in the graph
- * @param {string} uri - Unique resource identifier (brain://...)
+ * Register a new entity node in the graph.
+ * Must be called BEFORE execution begins.
+ *
+ * @param {object} db - mysql2 pool or connection
+ * @param {string} uri - brain:// URI (primary key)
  * @param {string} type - Entity type (file, task, asset, etc.)
- * @param {string} scope - Scope (global, project, user, session)
- * @param {string} memoryType - Memory classification
- * @param {Object} meta - Additional metadata
- * @returns {Promise<Object>} - Created entity
+ * @param {string} [scope] - Scope (global, project, user, session)
+ * @param {string} [memType] - Memory type (policy, preference, fact, episodic, trace)
+ * @param {object} [meta] - Arbitrary metadata JSON
+ * @returns {Promise<object>} - The created entity record
  */
-export async function createNode(uri, type, scope = 'project', memoryType = null, meta = {}) {
-  // Validation
-  if (!uri || typeof uri !== 'string') {
-    throw new Error('URI is required and must be a string');
+export async function createNode(
+  db,
+  uri,
+  type,
+  scope = null,
+  memType = null,
+  meta = null
+) {
+  if (!uri || !isValidURI(uri)) {
+    throw new Error(`Invalid URI: ${uri}`);
   }
-  
-  if (!VALID_TYPES.includes(type)) {
-    throw new Error(`Invalid type: ${type}. Must be one of: ${VALID_TYPES.join(', ')}`);
+  if (!ENTITY_TYPES.includes(type)) {
+    throw new Error(
+      `Invalid entity type: ${type}. Must be one of: ${ENTITY_TYPES.join(', ')}`
+    );
   }
-  
-  if (!VALID_SCOPES.includes(scope)) {
-    throw new Error(`Invalid scope: ${scope}. Must be one of: ${VALID_SCOPES.join(', ')}`);
+  if (scope && !ENTITY_SCOPES.includes(scope)) {
+    throw new Error(`Invalid scope: ${scope}`);
   }
-  
-  if (memoryType && !VALID_MEMORY_TYPES.includes(memoryType)) {
-    throw new Error(`Invalid memory_type: ${memoryType}. Must be one of: ${VALID_MEMORY_TYPES.join(', ')}`);
+  if (memType && !MEMORY_TYPES.includes(memType)) {
+    throw new Error(`Invalid memory type: ${memType}`);
   }
-  
-  // Extract project_id from URI if scope is project
-  let projectId = null;
-  if (scope === 'project' && uri.startsWith('brain://project/')) {
-    const match = uri.match(/brain:\/\/project\/([^/]+)/);
-    if (match) projectId = match[1];
-  }
-  
-  const entity = {
+
+  const metaJson = meta ? JSON.stringify(meta) : null;
+
+  await db.execute(
+    `INSERT INTO rel_entities (uri, type, status, scope, memory_type, metadata)
+     VALUES (?, ?, 'pending', ?, ?, ?)`,
+    [uri, type, scope, memType, metaJson]
+  );
+
+  return {
     uri,
     type,
-    scope,
-    memory_type: memoryType,
     status: 'pending',
-    metadata: JSON.stringify(meta),
-    project_id: projectId,
+    scope,
+    memory_type: memType,
+    metadata: meta,
   };
-  
+}
+
+/**
+ * Mark an entity as complete with output artifact and checksum.
+ *
+ * @param {object} db - mysql2 pool or connection
+ * @param {string} uri - brain:// URI of the entity
+ * @param {object} [output] - Output metadata (stored in metadata.output)
+ * @param {string} [checksum] - SHA256 checksum of output artifact
+ * @returns {Promise<object>} - Updated entity
+ */
+export async function realizeNode(db, uri, output = null, checksum = null) {
+  if (!uri || !isValidURI(uri)) {
+    throw new Error(`Invalid URI: ${uri}`);
+  }
+
+  // Merge output into existing metadata
+  const [rows] = await db.execute(
+    'SELECT metadata FROM rel_entities WHERE uri = ?',
+    [uri]
+  );
+
+  if (rows.length === 0) {
+    throw new Error(`Entity not found: ${uri}`);
+  }
+
+  let existingMeta = {};
   try {
-    await db.insert(rel_entities).values(entity);
-    return { ...entity, metadata: meta };
-  } catch (error) {
-    // Handle duplicate URI - update instead
-    if (error.code === 'ER_DUP_ENTRY') {
-      await db.update(rel_entities)
-        .set({ type, scope, memory_type: memoryType, metadata: JSON.stringify(meta), updated_at: new Date() })
-        .where(eq(rel_entities.uri, uri));
-      return { ...entity, metadata: meta, updated: true };
-    }
-    throw error;
+    existingMeta = rows[0].metadata
+      ? typeof rows[0].metadata === 'string'
+        ? JSON.parse(rows[0].metadata)
+        : rows[0].metadata
+      : {};
+  } catch {
+    /* ignore parse errors */
   }
-}
 
-/**
- * Mark an entity as realized (completed) with output
- * @param {string} uri - Entity URI
- * @param {Object} output - Output data
- * @param {string} checksum - Content checksum
- * @returns {Promise<Object>} - Updated entity
- */
-export async function realizeNode(uri, output = null, checksum = null) {
-  if (!uri) throw new Error('URI is required');
-  
-  const updates = {
-    status: 'complete',
-    updated_at: new Date(),
-  };
-  
   if (output) {
-    // Merge with existing metadata
-    const [existing] = await db.select({ metadata: rel_entities.metadata })
-      .from(rel_entities)
-      .where(eq(rel_entities.uri, uri));
-    
-    const meta = existing?.metadata ? JSON.parse(existing.metadata) : {};
-    meta.output = output;
-    updates.metadata = JSON.stringify(meta);
+    existingMeta.output = output;
   }
-  
-  if (checksum) {
-    updates.checksum = checksum;
-  }
-  
-  await db.update(rel_entities)
-    .set(updates)
-    .where(eq(rel_entities.uri, uri));
-  
-  return { uri, status: 'complete', output, checksum };
+
+  await db.execute(
+    `UPDATE rel_entities
+     SET status = 'complete', checksum = ?, metadata = ?, updated_at = NOW()
+     WHERE uri = ?`,
+    [checksum, JSON.stringify(existingMeta), uri]
+  );
+
+  return { uri, status: 'complete', checksum, metadata: existingMeta };
 }
 
 /**
- * Get all upstream dependencies for an entity
- * @param {string} uri - Entity URI
- * @param {string} relationType - Optional specific relation type
- * @returns {Promise<Array>} - Array of dependent entities
+ * Create a directed edge between two entities.
+ *
+ * @param {object} db - mysql2 pool or connection
+ * @param {string} sourceUri - Source entity URI
+ * @param {string} targetUri - Target entity URI
+ * @param {string} relationType - Relation type (depends_on, generated_by, etc.)
+ * @param {number} [confidence=1.0] - Confidence score (0.0–1.0)
+ * @returns {Promise<object>} - The created link
  */
-export async function getDependencies(uri, relationType = null) {
-  if (!uri) throw new Error('URI is required');
-  
-  // Query entity_links table for depends_on relationships where uri is target
-  const conditions = [eq(entity_links.target_uri, uri)];
-  if (relationType) {
-    conditions.push(eq(entity_links.relation_type, relationType));
+export async function linkNodes(
+  db,
+  sourceUri,
+  targetUri,
+  relationType,
+  confidence = 1.0
+) {
+  if (!sourceUri || !isValidURI(sourceUri)) {
+    throw new Error(`Invalid source URI: ${sourceUri}`);
   }
-  
-  const links = await db.select()
-    .from(entity_links)
-    .where(and(...conditions));
-  
-  if (links.length === 0) return [];
-  
-  // Fetch full entity details
-  const sourceUris = links.map(l => l.source_uri);
-  const entities = await db.select()
-    .from(rel_entities)
-    .where(inArray(rel_entities.uri, sourceUris));
-  
-  // Map entities with their relation type
-  return entities.map(e => {
-    const link = links.find(l => l.source_uri === e.uri);
-    return { ...e, relation_type: link?.relation_type, metadata: JSON.parse(e.metadata || '{}') };
-  });
+  if (!targetUri || !isValidURI(targetUri)) {
+    throw new Error(`Invalid target URI: ${targetUri}`);
+  }
+  if (!RELATION_TYPES.includes(relationType)) {
+    throw new Error(
+      `Invalid relation type: ${relationType}. Must be one of: ${RELATION_TYPES.join(', ')}`
+    );
+  }
+
+  await db.execute(
+    `INSERT INTO rel_entity_links (source_uri, target_uri, relation_type, confidence)
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE confidence = VALUES(confidence)`,
+    [sourceUri, targetUri, relationType, confidence]
+  );
+
+  return {
+    source_uri: sourceUri,
+    target_uri: targetUri,
+    relation_type: relationType,
+    confidence,
+  };
 }
 
 /**
- * Get all downstream dependents (entities that depend on this one)
+ * Get all upstream dependencies of an entity.
+ * Returns entities that this entity depends_on.
+ *
+ * @param {object} db - mysql2 pool or connection
  * @param {string} uri - Entity URI
- * @param {string} relationType - Optional specific relation type
- * @returns {Promise<Array>} - Array of dependent entities
+ * @returns {Promise<object[]>} - Array of dependency entities
  */
-export async function getDependents(uri, relationType = null) {
-  if (!uri) throw new Error('URI is required');
-  
-  // Query entity_links table for relationships where uri is source
-  const conditions = [eq(entity_links.source_uri, uri)];
-  if (relationType) {
-    conditions.push(eq(entity_links.relation_type, relationType));
+export async function getDependencies(db, uri) {
+  if (!uri || !isValidURI(uri)) {
+    throw new Error(`Invalid URI: ${uri}`);
   }
-  
-  const links = await db.select()
-    .from(entity_links)
-    .where(and(...conditions));
-  
-  if (links.length === 0) return [];
-  
-  // Fetch full entity details
-  const targetUris = links.map(l => l.target_uri);
-  const entities = await db.select()
-    .from(rel_entities)
-    .where(inArray(rel_entities.uri, targetUris));
-  
-  // Map entities with their relation type
-  return entities.map(e => {
-    const link = links.find(l => l.target_uri === e.uri);
-    return { ...e, relation_type: link?.relation_type, metadata: JSON.parse(e.metadata || '{}') };
-  });
+
+  const [rows] = await db.execute(
+    `SELECT e.*
+     FROM rel_entities e
+     JOIN rel_entity_links l ON e.uri = l.target_uri
+     WHERE l.source_uri = ? AND l.relation_type = 'depends_on'`,
+    [uri]
+  );
+
+  return rows;
 }
 
 /**
- * Propagate tags from an entity to all its children/dependents
+ * Get all downstream entities that depend on this entity.
+ * Returns entities that have depends_on pointing to this URI.
+ *
+ * @param {object} db - mysql2 pool or connection
  * @param {string} uri - Entity URI
- * @param {Array<string>} tags - Tags to propagate (if null, uses entity's tags)
- * @returns {Promise<number>} - Number of entities tagged
+ * @returns {Promise<object[]>} - Array of dependent entities
  */
-export async function propagateTags(uri, tags = null) {
-  if (!uri) throw new Error('URI is required');
-  
-  // Get entity's tags if not provided
-  let tagsToPropagate = tags;
-  if (!tagsToPropagate) {
-    const entityTags = await db.select()
-      .from(entity_tags)
-      .where(eq(entity_tags.uri, uri));
-    tagsToPropagate = entityTags.map(t => t.tag);
+export async function getDependents(db, uri) {
+  if (!uri || !isValidURI(uri)) {
+    throw new Error(`Invalid URI: ${uri}`);
   }
-  
-  if (tagsToPropagate.length === 0) return 0;
-  
-  // Get all dependents
-  const dependents = await getDependents(uri);
-  let propagatedCount = 0;
-  
-  for (const dep of dependents) {
-    for (const tag of tagsToPropagate) {
+
+  const [rows] = await db.execute(
+    `SELECT e.*
+     FROM rel_entities e
+     JOIN rel_entity_links l ON e.uri = l.source_uri
+     WHERE l.target_uri = ? AND l.relation_type = 'depends_on'`,
+    [uri]
+  );
+
+  return rows;
+}
+
+/**
+ * Cascade tags from a parent entity to all its children.
+ * Children are entities linked via part_of, generated_by, or output_from
+ * pointing to the source URI.
+ *
+ * @param {object} db - mysql2 pool or connection
+ * @param {string} uri - Parent entity URI to propagate tags from
+ * @returns {Promise<number>} - Number of tags propagated
+ */
+export async function propagateTags(db, uri) {
+  if (!uri || !isValidURI(uri)) {
+    throw new Error(`Invalid URI: ${uri}`);
+  }
+
+  // Get tags on the source entity
+  const [sourceTags] = await db.execute(
+    'SELECT tag FROM rel_entity_tags WHERE uri = ?',
+    [uri]
+  );
+
+  if (sourceTags.length === 0) return 0;
+
+  // Get child entities (those that reference this URI via part_of, generated_by, output_from)
+  const [children] = await db.execute(
+    `SELECT DISTINCT source_uri AS uri
+     FROM rel_entity_links
+     WHERE target_uri = ? AND relation_type IN ('part_of', 'generated_by', 'output_from')`,
+    [uri]
+  );
+
+  let count = 0;
+  for (const child of children) {
+    for (const { tag } of sourceTags) {
       try {
-        await db.insert(entity_tags).values({
-          uri: dep.uri,
-          tag,
-          inherited: true,
-        });
-        propagatedCount++;
-      } catch (error) {
-        // Ignore duplicate tag errors
-        if (error.code !== 'ER_DUP_ENTRY') throw error;
+        await db.execute(
+          `INSERT INTO rel_entity_tags (uri, tag, inherited)
+           VALUES (?, ?, TRUE)
+           ON DUPLICATE KEY UPDATE inherited = TRUE`,
+          [child.uri, tag]
+        );
+        count++;
+      } catch {
+        // Skip duplicates
       }
     }
   }
-  
-  return propagatedCount;
+
+  return count;
 }
 
 /**
- * Get full lineage (provenance chain) from an entity back to its root
- * @param {string} uri - Entity URI
- * @param {number} maxDepth - Maximum depth to traverse
- * @returns {Promise<Array>} - Array of entities from root to this entity
+ * Trace full provenance chain from entity to root.
+ * Walks generated_by edges recursively.
+ *
+ * @param {object} db - mysql2 pool or connection
+ * @param {string} uri - Starting entity URI
+ * @param {number} [maxDepth=10] - Maximum traversal depth
+ * @returns {Promise<object[]>} - Ordered array from entity to root ancestor
  */
-export async function getLineage(uri, maxDepth = 10) {
-  if (!uri) throw new Error('URI is required');
-  
-  const lineage = [];
-  const visited = new Set();
-  let currentUri = uri;
-  let depth = 0;
-  
-  while (currentUri && depth < maxDepth) {
-    if (visited.has(currentUri)) {
-      throw new Error(`Circular dependency detected at ${currentUri}`);
-    }
-    visited.add(currentUri);
-    
-    // Get entity details
-    const [entity] = await db.select()
-      .from(rel_entities)
-      .where(eq(rel_entities.uri, currentUri));
-    
-    if (!entity) break;
-    
-    lineage.unshift({ ...entity, metadata: JSON.parse(entity.metadata || '{}') });
-    
-    // Find generated_by or depends_on relationships (upstream)
-    const parents = await db.select()
-      .from(entity_links)
-      .where(and(
-        eq(entity_links.target_uri, currentUri),
-        or(
-          eq(entity_links.relation_type, 'generated_by'),
-          eq(entity_links.relation_type, 'depends_on')
-        )
-      ));
-    
-    // Move to parent (prefer generated_by over depends_on)
-    const generatedBy = parents.find(p => p.relation_type === 'generated_by');
-    const dependsOn = parents.find(p => p.relation_type === 'depends_on');
-    currentUri = generatedBy?.source_uri || dependsOn?.source_uri || null;
-    
-    depth++;
+export async function getLineage(db, uri, maxDepth = 10) {
+  if (!uri || !isValidURI(uri)) {
+    throw new Error(`Invalid URI: ${uri}`);
   }
-  
+
+  const lineage = [];
+  let currentUri = uri;
+  const visited = new Set();
+
+  for (let depth = 0; depth < maxDepth; depth++) {
+    if (visited.has(currentUri)) break; // Circular reference protection
+    visited.add(currentUri);
+
+    const [rows] = await db.execute(
+      'SELECT * FROM rel_entities WHERE uri = ?',
+      [currentUri]
+    );
+
+    if (rows.length === 0) break;
+    lineage.push(rows[0]);
+
+    // Follow generated_by edge to parent
+    const [parents] = await db.execute(
+      `SELECT target_uri
+       FROM rel_entity_links
+       WHERE source_uri = ? AND relation_type = 'generated_by'
+       LIMIT 1`,
+      [currentUri]
+    );
+
+    if (parents.length === 0) break;
+    currentUri = parents[0].target_uri;
+  }
+
   return lineage;
 }
 
 /**
- * Find and mark orphaned entities (entities with no relations after 48h)
- * @returns {Promise<Array>} - Array of orphaned entities
+ * Detect and flag entities with no relations after a threshold period.
+ *
+ * @param {object} db - mysql2 pool or connection
+ * @param {number} [maxAgeHours=48] - Hours before an unlinked entity is flagged
+ * @returns {Promise<string[]>} - Array of orphaned entity URIs
  */
-export async function pruneOrphans() {
-  const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-  
-  // Find entities older than 48h with no relations
-  const orphans = await db.select({
-    uri: rel_entities.uri,
-    type: rel_entities.type,
-    created_at: rel_entities.created_at,
-  })
-    .from(rel_entities)
-    .leftJoin(entity_links, or(
-      eq(rel_entities.uri, entity_links.source_uri),
-      eq(rel_entities.uri, entity_links.target_uri)
-    ))
-    .where(and(
-      sql`${rel_entities.created_at} < ${fortyEightHoursAgo}`,
-      sql`${entity_links.id} IS NULL`,
-      ne(rel_entities.status, 'orphaned')
-    ));
-  
-  // Mark as orphaned
-  for (const orphan of orphans) {
-    await db.update(rel_entities)
-      .set({ status: 'orphaned', updated_at: new Date() })
-      .where(eq(rel_entities.uri, orphan.uri));
+export async function pruneOrphans(db, maxAgeHours = 48) {
+  // Find entities with no incoming or outgoing links, older than threshold
+  const [orphans] = await db.execute(
+    `SELECT e.uri
+     FROM rel_entities e
+     LEFT JOIN rel_entity_links ls ON e.uri = ls.source_uri
+     LEFT JOIN rel_entity_links lt ON e.uri = lt.target_uri
+     WHERE ls.id IS NULL AND lt.id IS NULL
+       AND e.status != 'orphaned'
+       AND e.created_at < DATE_SUB(NOW(), INTERVAL ? HOUR)`,
+    [maxAgeHours]
+  );
+
+  const orphanUris = orphans.map((r) => r.uri);
+
+  if (orphanUris.length > 0) {
+    // Flag as orphaned
+    const placeholders = orphanUris.map(() => '?').join(',');
+    await db.execute(
+      `UPDATE rel_entities SET status = 'orphaned', updated_at = NOW()
+       WHERE uri IN (${placeholders})`,
+      orphanUris
+    );
   }
-  
-  return orphans;
+
+  return orphanUris;
 }
 
 /**
- * Query the graph with flexible filters
- * @param {Object} filters - Query filters
- * @param {string} filters.type - Entity type
- * @param {string} filters.scope - Entity scope
- * @param {string} filters.status - Entity status
- * @param {string} filters.projectId - Project ID
- * @param {string} filters.tag - Entity tag
- * @param {number} filters.limit - Max results
- * @returns {Promise<Array>} - Matching entities
+ * Flexible search across the entity graph.
+ *
+ * @param {object} db - mysql2 pool or connection
+ * @param {object} filters - Query filters
+ * @param {string} [filters.type] - Entity type
+ * @param {string} [filters.status] - Entity status
+ * @param {string} [filters.scope] - Entity scope
+ * @param {string} [filters.memory_type] - Memory type
+ * @param {string} [filters.uriPattern] - LIKE pattern for URI
+ * @param {number} [filters.limit=50] - Max results
+ * @param {number} [filters.offset=0] - Offset for pagination
+ * @returns {Promise<object[]>} - Matching entities
  */
-export async function queryGraph(filters = {}) {
+export async function queryGraph(db, filters = {}) {
   const conditions = [];
-  
+  const params = [];
+
   if (filters.type) {
-    conditions.push(eq(rel_entities.type, filters.type));
+    conditions.push('type = ?');
+    params.push(filters.type);
   }
-  
-  if (filters.scope) {
-    conditions.push(eq(rel_entities.scope, filters.scope));
-  }
-  
   if (filters.status) {
-    conditions.push(eq(rel_entities.status, filters.status));
+    conditions.push('status = ?');
+    params.push(filters.status);
   }
-  
-  if (filters.projectId) {
-    conditions.push(eq(rel_entities.project_id, filters.projectId));
+  if (filters.scope) {
+    conditions.push('scope = ?');
+    params.push(filters.scope);
   }
-  
-  let query = db.select().from(rel_entities);
-  
-  if (conditions.length > 0) {
-    query = query.where(and(...conditions));
+  if (filters.memory_type) {
+    conditions.push('memory_type = ?');
+    params.push(filters.memory_type);
   }
-  
-  if (filters.limit) {
-    query = query.limit(filters.limit);
+  if (filters.uriPattern) {
+    conditions.push('uri LIKE ?');
+    params.push(filters.uriPattern);
   }
-  
-  const results = await query;
-  
-  // Parse metadata
-  return results.map(e => ({
-    ...e,
-    metadata: JSON.parse(e.metadata || '{}')
-  }));
+
+  const where =
+    conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const limit = Math.min(filters.limit || 50, 200);
+  const offset = filters.offset || 0;
+
+  const [rows] = await db.execute(
+    `SELECT * FROM rel_entities ${where} ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+
+  return rows;
 }
 
-/**
- * Create a relationship between two entities
- * @param {string} sourceUri - Source entity URI
- * @param {string} targetUri - Target entity URI  
- * @param {string} relationType - Type of relationship
- * @param {number} confidence - Confidence score (0-1)
- * @param {string} userId - User creating the link
- * @returns {Promise<Object>} - Created link
- */
-export async function createLink(sourceUri, targetUri, relationType, confidence = 1.0, userId = null) {
-  if (!sourceUri || !targetUri) {
-    throw new Error('Source and target URIs are required');
-  }
-  
-  const link = {
-    id: crypto.randomUUID(),
-    user_id: userId,
-    source_uri: sourceUri,
-    source_type: 'entity',
-    source_id: sourceUri,
-    target_uri: targetUri,
-    target_type: 'entity',
-    target_id: targetUri,
-    relationship: relationType,
-    confidence,
-    created_at: new Date(),
-    updated_at: new Date(),
-  };
-  
-  await db.insert(entity_links).values(link);
-  
-  return link;
-}
+// Constants exported for validation in other modules
+export {
+  ENTITY_TYPES,
+  ENTITY_STATUSES,
+  ENTITY_SCOPES,
+  MEMORY_TYPES,
+  RELATION_TYPES,
+};
 
-/**
- * Check if an entity has circular dependencies
- * @param {string} uri - Entity to check
- * @param {string} newDependency - Potential new dependency to add
- * @returns {Promise<boolean>} - True if circular dependency would be created
- */
-export async function checkCircularDependency(uri, newDependency) {
-  const visited = new Set();
-  const toVisit = [newDependency];
-  
-  while (toVisit.length > 0) {
-    const current = toVisit.pop();
-    
-    if (current === uri) {
-      return true; // Circular!
-    }
-    
-    if (visited.has(current)) continue;
-    visited.add(current);
-    
-    // Get dependencies of current
-    const deps = await db.select({ target_uri: entity_links.target_uri })
-      .from(entity_links)
-      .where(eq(entity_links.source_uri, current));
-    
-    for (const dep of deps) {
-      toVisit.push(dep.target_uri);
-    }
-  }
-  
-  return false;
-}
-
-// Import entity_links and entity_tags at the end to avoid circular issues
-import { entity_links, entity_tags } from './db/schema.ts';
-import { ne } from 'drizzle-orm';
-
-// Default export
 export default {
   createNode,
   realizeNode,
+  linkNodes,
   getDependencies,
   getDependents,
   propagateTags,
   getLineage,
   pruneOrphans,
   queryGraph,
-  createLink,
-  checkCircularDependency,
+  ENTITY_TYPES,
+  ENTITY_STATUSES,
+  ENTITY_SCOPES,
+  MEMORY_TYPES,
+  RELATION_TYPES,
 };

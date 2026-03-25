@@ -1,175 +1,91 @@
 /**
- * Trust Ladder Configuration
- * Phase 1 - v2.2 Architecture
- * 
- * Three-tier trust system with explicit promotion thresholds.
+ * Trust Ladder Configuration — Phase 1
+ * Brain OS v2.2
+ *
+ * Constants for trust tier thresholds, regression rules,
+ * and per-project gate maps.
  */
 
-// Promotion thresholds
-export const TRUST_THRESHOLDS = {
-  TIER1_TO_TIER2: {
+// ── Tier Definitions ────────────────────────────────────────────
+
+export const TIERS = {
+  FULL_APPROVAL: 1, // Every action reviewed individually
+  BATCH_DIGEST: 2, // Batch approval, routine items grouped
+  AUTOPILOT: 3, // Full autonomy, human override only
+};
+
+// ── Promotion Thresholds ────────────────────────────────────────
+
+export const PROMOTION_THRESHOLDS = {
+  // Tier 1 → Tier 2
+  TIER_1_TO_2: {
     min_runs: 20,
-    min_approval_rate: 0.90,
-    min_consecutive: 5,
+    min_approval_rate: 0.9,
+    min_consecutive_approvals: 5,
   },
-  TIER2_TO_TIER3: {
+  // Tier 2 → Tier 3
+  TIER_2_TO_3: {
     min_runs: 40,
     min_approval_rate: 0.95,
-    min_consecutive: 10,
-  },
-  REGRESSION: {
-    error_rate_threshold: 0.15, // 15% error rate triggers regression
-    cooldown_hours: 24,
+    min_consecutive_approvals: 10,
   },
 };
 
-// Trust gates by project type
-export const TRUST_GATES = {
-  YOUTUBE: {
-    gates: ['approve_script', 'approve_storyboard', 'pre_upload_review'],
-    descriptions: {
-      approve_script: 'Review and approve video script before production',
-      approve_storyboard: 'Review visual storyboard before rendering',
-      pre_upload_review: 'Final review before YouTube upload',
-    },
+// ── Regression Rules ────────────────────────────────────────────
+
+export const REGRESSION_RULES = {
+  // Tier 3 → Tier 2 (auto)
+  error_rate_threshold: 0.15, // ≥15% error/rejection in last 10 runs
+  lookback_window: 10, // Number of recent runs to check
+  cooldown_hours: 24, // Minimum time before re-promotion
+};
+
+// ── Per-Project Gate Maps ───────────────────────────────────────
+// Each project defines named gates and their positions in the pipeline.
+
+export const PROJECT_GATES = {
+  'youtube-longform-documentary': {
+    gates: [
+      { name: 'approve_script', label: 'Approve Script', position: 6 },
+      { name: 'approve_storyboard', label: 'Approve Storyboard', position: 10 },
+      { name: 'pre_upload_review', label: 'Pre-Upload Review', position: 12 },
+    ],
   },
-  B2B_OUTREACH: {
-    gates: ['approve_email', 'approve_social_posts'],
-    descriptions: {
-      approve_email: 'Review cold outreach email (Tier 1: every email)',
-      approve_social_posts: 'Review social media content batch',
-    },
+  'b2b-outreach': {
+    gates: [
+      { name: 'approve_email', label: 'Approve Email', position: 1 },
+      { name: 'approve_social', label: 'Approve Social Posts', position: 2 },
+    ],
   },
-  COMPETITIONS: {
-    gates: ['approve_batch_queue'],
-    descriptions: {
-      approve_batch_queue: 'Review daily competition batch',
-    },
+  'competition-batch-submit': {
+    gates: [
+      {
+        name: 'approve_batch',
+        label: 'Approve Competition Batch',
+        position: 4,
+      },
+      {
+        name: 'approve_creative',
+        label: 'Approve Creative (high-value)',
+        position: 7,
+        condition: 'prize_value > 500',
+      },
+    ],
   },
 };
 
-// Tier descriptions
-export const TIER_DESCRIPTIONS = {
-  1: {
-    name: 'Full Approval',
-    description: 'Every execution requires explicit human approval',
-    auto_approve: false,
-    batch_approve: false,
-    approval_required: true,
-  },
-  2: {
-    name: 'Batch Digest',
-    description: 'Daily batch approval for routine executions',
-    auto_approve: false,
-    batch_approve: true,
-    approval_required: true,
-  },
-  3: {
-    name: 'Autopilot',
-    description: 'Full autonomy with exception reporting',
-    auto_approve: true,
-    batch_approve: false,
-    approval_required: false,
-  },
+// ── Trust Tier Labels ───────────────────────────────────────────
+
+export const TIER_LABELS = {
+  1: 'Full Approval',
+  2: 'Batch Digest',
+  3: 'Autopilot',
 };
-
-// Decision types
-export const DECISION_TYPES = {
-  APPROVED: 'approved',
-  REJECTED: 'rejected',
-  MODIFIED: 'modified',
-};
-
-// Gate status
-export const GATE_STATUS = {
-  PENDING: 'pending',
-  PASSED: 'passed',
-  BLOCKED: 'blocked',
-  SKIPPED: 'skipped',
-};
-
-// Helper: Calculate if workflow should be promoted
-export function shouldPromote(trustRecord, targetTier) {
-  const { run_count, approval_count, consecutive_approvals } = trustRecord;
-  
-  if (targetTier === 2) {
-    const rate = run_count > 0 ? approval_count / run_count : 0;
-    return (
-      run_count >= TRUST_THRESHOLDS.TIER1_TO_TIER2.min_runs &&
-      rate >= TRUST_THRESHOLDS.TIER1_TO_TIER2.min_approval_rate &&
-      consecutive_approvals >= TRUST_THRESHOLDS.TIER1_TO_TIER2.min_consecutive
-    );
-  }
-  
-  if (targetTier === 3) {
-    const rate = run_count > 0 ? approval_count / run_count : 0;
-    return (
-      run_count >= TRUST_THRESHOLDS.TIER2_TO_TIER3.min_runs &&
-      rate >= TRUST_THRESHOLDS.TIER2_TO_TIER3.min_approval_rate &&
-      consecutive_approvals >= TRUST_THRESHOLDS.TIER2_TO_TIER3.min_consecutive
-    );
-  }
-  
-  return false;
-}
-
-// Helper: Check if workflow should be regressed
-export function shouldRegress(trustRecord, recentEvents) {
-  if (trustRecord.current_tier <= 1) return false;
-  if (trustRecord.tier_locked) return false;
-  
-  // Check cooldown
-  if (trustRecord.last_regression_at) {
-    const hoursSince = (Date.now() - new Date(trustRecord.last_regression_at).getTime()) / (1000 * 60 * 60);
-    if (hoursSince < TRUST_THRESHOLDS.REGRESSION.cooldown_hours) return false;
-  }
-  
-  // Check recent error rate
-  const recentDecisions = recentEvents.slice(-10);
-  if (recentDecisions.length < 5) return false; // Need minimum sample
-  
-  const rejections = recentDecisions.filter(e => e.decision === DECISION_TYPES.REJECTED).length;
-  const errorRate = rejections / recentDecisions.length;
-  
-  return errorRate >= TRUST_THRESHOLDS.REGRESSION.error_rate_threshold;
-}
-
-// Helper: Get gates for a project type
-export function getGatesForProject(projectType) {
-  const config = TRUST_GATES[projectType.toUpperCase()];
-  return config ? config.gates : [];
-}
-
-// Helper: Check if gate requires approval at given tier
-export function gateRequiresApproval(gateName, tier, projectType) {
-  const gates = getGatesForProject(projectType);
-  const gateIndex = gates.indexOf(gateName);
-  
-  if (gateIndex === -1) return true; // Unknown gate = require approval
-  
-  // Tier 1: All gates require approval
-  if (tier === 1) return true;
-  
-  // Tier 2: First gate often requires approval, later gates may be batched
-  if (tier === 2) {
-    // First gate usually still requires individual approval
-    if (gateIndex === 0) return true;
-    // Later gates may be batched (depends on project)
-    return projectType.toUpperCase() !== 'COMPETITIONS';
-  }
-  
-  // Tier 3: No approval required (except high-value exceptions)
-  return false;
-}
 
 export default {
-  TRUST_THRESHOLDS,
-  TRUST_GATES,
-  TIER_DESCRIPTIONS,
-  DECISION_TYPES,
-  GATE_STATUS,
-  shouldPromote,
-  shouldRegress,
-  getGatesForProject,
-  gateRequiresApproval,
+  TIERS,
+  PROMOTION_THRESHOLDS,
+  REGRESSION_RULES,
+  PROJECT_GATES,
+  TIER_LABELS,
 };

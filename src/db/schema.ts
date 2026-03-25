@@ -9,9 +9,10 @@ import {
   unique,
   index,
   primaryKey,
+  float,
   decimal,
+  boolean,
 } from "drizzle-orm/mysql-core";
-import { sql } from "drizzle-orm";
 
 // ────────────────────────────────────────────────────────────────
 // USERS
@@ -27,8 +28,8 @@ export const users = mysqlTable(
     monthly_target: int("monthly_target").default(3000),
     currency: varchar("currency", { length: 8 }).default("GBP"),
     timezone: varchar("timezone", { length: 64 }).default("Europe/London"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     emailIdx: index("idx_email").on(table.email),
@@ -61,8 +62,8 @@ export const projects = mysqlTable(
     integrations: json("integrations"),
     active_file: varchar("active_file", { length: 512 }).default("PROJECT_OVERVIEW.md"),
     health: int("health").default(100),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     userIdx: index("idx_user_projects").on(table.user_id, table.priority),
@@ -101,10 +102,10 @@ export const project_files = mysqlTable(
     project_id: varchar("project_id", { length: 64 }).notNull(),
     user_id: varchar("user_id", { length: 36 }).notNull(),
     path: varchar("path", { length: 512 }).notNull(),
-    content: text("content"),
+    content: text("content", { mode: "string" }),
     deleted_at: datetime("deleted_at"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     projectIdx: index("idx_project_files").on(table.project_id),
@@ -126,8 +127,8 @@ export const file_metadata = mysqlTable(
     category: varchar("category", { length: 64 }),
     status: varchar("status", { length: 32 }).default("draft"),
     metadata_json: json("metadata_json"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     projectIdx: index("idx_project_metadata").on(
@@ -159,8 +160,8 @@ export const staging = mysqlTable(
     folder_path: varchar("folder_path", { length: 512 }),
     filed_at: datetime("filed_at"),
     added: varchar("added", { length: 8 }),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     userIdx: index("idx_user_staging").on(table.user_id, table.status),
@@ -184,8 +185,8 @@ export const ideas = mysqlTable(
     score: int("score").default(5),
     tags: json("tags"),
     added: varchar("added", { length: 8 }),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     userIdx: index("idx_user_ideas").on(table.user_id),
@@ -205,8 +206,8 @@ export const sessions = mysqlTable(
     log: text("log"),
     started_at: datetime("started_at"),
     ended_at: datetime("ended_at"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     userIdx: index("idx_user_sessions").on(table.user_id, table.created_at),
@@ -225,8 +226,8 @@ export const comments = mysqlTable(
     file_path: varchar("file_path", { length: 512 }).notNull(),
     text: text("text").notNull(),
     resolved: tinyint("resolved").default(0),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     commentsIdx: index("idx_comments").on(table.project_id, table.file_path),
@@ -243,8 +244,8 @@ export const refresh_tokens = mysqlTable(
     user_id: varchar("user_id", { length: 36 }).notNull(),
     token_hash: varchar("token_hash", { length: 255 }).notNull(),
     expires_at: datetime("expires_at").notNull(),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     tokenIdx: index("idx_token").on(table.token_hash),
@@ -276,8 +277,8 @@ export const life_areas = mysqlTable(
     target_hours_weekly: int("target_hours_weekly"),
     health_score: int("health_score").default(100),
     sort_order: int("sort_order").default(0),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     userIdx: index("idx_user_areas").on(table.user_id, table.sort_order),
@@ -299,8 +300,8 @@ export const goals = mysqlTable(
     timeframe: varchar("timeframe", { length: 32 }).default("monthly"),
     category: varchar("category", { length: 32 }).default("income"),
     status: varchar("status", { length: 32 }).default("active"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     userIdx: index("idx_user_goals").on(table.user_id, table.status),
@@ -321,8 +322,8 @@ export const goal_contributions = mysqlTable(
     amount: int("amount").notNull(),
     date: varchar("date", { length: 10 }),
     notes: text("notes"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     goalIdx: index("idx_goal_contributions").on(table.goal_id, table.date),
@@ -340,8 +341,8 @@ export const tags = mysqlTable(
     name: varchar("name", { length: 128 }).notNull(),
     color: varchar("color", { length: 16 }).default("#3b82f6"),
     category: varchar("category", { length: 32 }).default("custom"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     userIdx: index("idx_user_tags").on(table.user_id),
@@ -360,8 +361,8 @@ export const entity_tags = mysqlTable(
     user_id: varchar("user_id", { length: 36 }).notNull(),
     entity_type: varchar("entity_type", { length: 32 }).notNull(),
     entity_id: varchar("entity_id", { length: 64 }).notNull(),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     entityIdx: index("idx_entity_tags").on(
@@ -390,8 +391,8 @@ export const entity_links = mysqlTable(
     target_type: varchar("target_type", { length: 32 }).notNull(),
     target_id: varchar("target_id", { length: 64 }).notNull(),
     relationship: varchar("relationship", { length: 32 }).default("related"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     sourceIdx: index("idx_entity_links_source").on(
@@ -428,8 +429,8 @@ export const templates = mysqlTable(
     category: varchar("category", { length: 32 }).default("custom"),
     config: json("config").notNull(),
     is_system: tinyint("is_system").default(0),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     userIdx: index("idx_user_templates").on(table.user_id, table.category),
@@ -449,8 +450,8 @@ export const sync_state = mysqlTable(
     folder_handle_key: varchar("folder_handle_key", { length: 255 }),
     last_sync_at: datetime("last_sync_at"),
     sync_status: varchar("sync_status", { length: 32 }).default("idle"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     userProjectIdx: unique("unique_user_project_sync").on(
@@ -476,8 +477,8 @@ export const sync_file_state = mysqlTable(
     last_desktop_modified: datetime("last_desktop_modified"),
     last_cloud_modified: datetime("last_cloud_modified"),
     sync_status: varchar("sync_status", { length: 32 }).default("synced"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     syncStateIdx: index("idx_sync_file_status").on(
@@ -502,8 +503,8 @@ export const daily_checkins = mysqlTable(
     gut_symptoms: int("gut_symptoms"),
     training_done: tinyint("training_done").default(0),
     notes: text("notes"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     uniqueCheckin: unique("unique_user_date").on(table.user_id, table.date),
@@ -525,8 +526,8 @@ export const training_logs = mysqlTable(
     type: varchar("type", { length: 32 }).notNull().default("solo"),
     notes: text("notes"),
     energy_after: int("energy_after"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
     userDateIdx: index("idx_training_user_date").on(table.user_id, table.date),
@@ -571,63 +572,94 @@ export const weekly_reviews = mysqlTable("weekly_reviews", {
 }));
 
 // ────────────────────────────────────────────────────────────────
-// REL FOUNDATION (Phase 0 - v2.2)
-// Relational Entity Graph tables
+// BRAIN OS v2.2 — REL Foundation Tables
 // ────────────────────────────────────────────────────────────────
 
 export const rel_entities = mysqlTable(
   "rel_entities",
   {
-    uri: varchar("uri", { length: 512 }).primaryKey(),
-    type: varchar("type", { length: 50 }).notNull(), // file, task, asset, workflow, agent, worker, email, competition
-    status: varchar("status", { length: 20 }).default("pending"), // pending, active, complete, failed, orphaned
+    uri: varchar("uri", { length: 255 }).primaryKey(),
+    type: varchar("type", { length: 50 }).notNull(),
+    status: varchar("status", { length: 20 }).default("pending"),
     checksum: varchar("checksum", { length: 64 }),
     metadata: json("metadata"),
-    scope: varchar("scope", { length: 20 }).default("project"), // global, project, user, session
-    memory_type: varchar("memory_type", { length: 20 }), // policy, preference, fact, episodic, trace
-    project_id: varchar("project_id", { length: 64 }),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    scope: varchar("scope", { length: 20 }),
+    memory_type: varchar("memory_type", { length: 20 }),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
-    typeIdx: index("idx_rel_entity_type").on(table.type, table.status),
-    scopeIdx: index("idx_rel_entity_scope").on(table.scope, table.type),
-    projectIdx: index("idx_rel_entity_project").on(table.project_id),
+    typeStatusIdx: index("idx_rel_type_status").on(table.type, table.status),
+    scopeIdx: index("idx_rel_scope").on(table.scope, table.memory_type),
+  })
+);
+
+export const rel_entity_links = mysqlTable(
+  "rel_entity_links",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
+    source_uri: varchar("source_uri", { length: 255 }).notNull(),
+    target_uri: varchar("target_uri", { length: 255 }).notNull(),
+    relation_type: varchar("relation_type", { length: 30 }).notNull(),
+    confidence: float("confidence").default(1.0),
+    created_at: datetime("created_at").defaultNow(),
+  },
+  (table) => ({
+    sourceIdx: index("idx_rel_source").on(table.source_uri, table.relation_type),
+    targetIdx: index("idx_rel_target").on(table.target_uri, table.relation_type),
+    uniqueLink: unique("unique_rel_link").on(
+      table.source_uri,
+      table.target_uri,
+      table.relation_type
+    ),
+  })
+);
+
+export const rel_entity_tags = mysqlTable(
+  "rel_entity_tags",
+  {
+    uri: varchar("uri", { length: 255 }).notNull(),
+    tag: varchar("tag", { length: 100 }).notNull(),
+    inherited: boolean("inherited").default(false),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.uri, table.tag] }),
   })
 );
 
 export const worker_capabilities = mysqlTable(
   "worker_capabilities",
   {
-    worker_id: varchar("worker_id", { length: 36 }).primaryKey(),
-    type: varchar("type", { length: 20 }).notNull(), // cli_subprocess, websocket, mcp
-    capabilities: json("capabilities").notNull(),
-    status: varchar("status", { length: 20 }).default("offline"), // online, offline, degraded
+    worker_id: varchar("worker_id", { length: 255 }).primaryKey(),
+    type: varchar("type", { length: 20 }).notNull(),
+    capabilities: json("capabilities"),
+    status: varchar("status", { length: 20 }).default("offline"),
     last_seen: datetime("last_seen"),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
-  }
+  },
+  (table) => ({
+    statusIdx: index("idx_worker_status").on(table.status),
+  })
 );
 
 export const execution_log = mysqlTable(
   "execution_log",
   {
     id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
-    run_id: varchar("run_id", { length: 36 }).unique(),
+    run_id: varchar("run_id", { length: 36 }),
     parent_run_id: varchar("parent_run_id", { length: 36 }),
     workflow_id: varchar("workflow_id", { length: 255 }),
-    worker_id: varchar("worker_id", { length: 36 }),
+    worker_id: varchar("worker_id", { length: 255 }),
     provider: varchar("provider", { length: 100 }),
     cost_usd: decimal("cost_usd", { precision: 10, scale: 6 }),
     tokens_used: int("tokens_used"),
     duration_ms: int("duration_ms"),
-    quality_score: decimal("quality_score", { precision: 3, scale: 2 }),
+    quality_score: float("quality_score"),
     status: varchar("status", { length: 20 }),
     created_at: datetime("created_at").defaultNow(),
   },
   (table) => ({
-    runIdx: index("idx_execution_run").on(table.run_id),
-    workflowIdx: index("idx_execution_workflow").on(table.workflow_id),
+    runIdx: unique("unique_run").on(table.run_id),
+    workflowIdx: index("idx_exec_workflow").on(table.workflow_id),
   })
 );
 
@@ -635,8 +667,8 @@ export const workflow_trust = mysqlTable(
   "workflow_trust",
   {
     id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
-    workflow_id: varchar("workflow_id", { length: 255 }).unique(),
-    project_id: varchar("project_id", { length: 64 }),
+    workflow_id: varchar("workflow_id", { length: 255 }).notNull(),
+    project_id: varchar("project_id", { length: 255 }),
     current_tier: int("current_tier").default(1),
     run_count: int("run_count").default(0),
     approval_count: int("approval_count").default(0),
@@ -644,13 +676,12 @@ export const workflow_trust = mysqlTable(
     last_regression_at: datetime("last_regression_at"),
     promoted_to_tier2_at: datetime("promoted_to_tier2_at"),
     promoted_to_tier3_at: datetime("promoted_to_tier3_at"),
-    tier_locked: tinyint("tier_locked").default(0),
-    created_at: datetime("created_at").default(sql`CURRENT_TIMESTAMP`),
-    updated_at: datetime("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+    tier_locked: boolean("tier_locked").default(false),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
-    workflowIdx: index("idx_workflow_trust_workflow").on(table.workflow_id),
-    projectIdx: index("idx_workflow_trust_project").on(table.project_id),
+    uniqueWorkflow: unique("unique_workflow_trust").on(table.workflow_id),
   })
 );
 
@@ -658,16 +689,15 @@ export const trust_events = mysqlTable(
   "trust_events",
   {
     id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
-    workflow_id: varchar("workflow_id", { length: 255 }),
+    workflow_id: varchar("workflow_id", { length: 255 }).notNull(),
     run_id: varchar("run_id", { length: 36 }),
     gate_name: varchar("gate_name", { length: 255 }),
-    decision: varchar("decision", { length: 20 }), // approved, rejected, modified
+    decision: varchar("decision", { length: 20 }).notNull(),
     notes: text("notes"),
     decided_by: varchar("decided_by", { length: 255 }),
     decided_at: datetime("decided_at").defaultNow(),
   },
   (table) => ({
-    workflowIdx: index("idx_trust_events_workflow").on(table.workflow_id),
-    runIdx: index("idx_trust_events_run").on(table.run_id),
+    workflowIdx: index("idx_trust_workflow").on(table.workflow_id),
   })
 );

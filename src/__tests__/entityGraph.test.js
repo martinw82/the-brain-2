@@ -1,402 +1,787 @@
 /**
- * Entity Graph Module Tests
- * Phase 0 Foundation - v2.2 Architecture
+ * Entity Graph Unit Tests — Phase 0 Gate
+ * Brain OS v2.2
+ *
+ * 5-node fixture graph:
+ *
+ *   research.json ──depends_on──▶ script.md ──depends_on──▶ storyboard.json
+ *        │                              │
+ *        generated_by                   generated_by
+ *        │                              │
+ *        ▼                              ▼
+ *     topic-task                    script-task
+ *
+ * All tests use a mocked mysql2 pool.
  */
 
 import {
   createNode,
   realizeNode,
+  linkNodes,
   getDependencies,
   getDependents,
   propagateTags,
   getLineage,
   pruneOrphans,
   queryGraph,
-  createLink,
-  checkCircularDependency,
 } from '../entityGraph.js';
 
-// Mock the database
-jest.mock('../db/index.ts', () => ({
-  db: {
-    insert: jest.fn(),
-    select: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-  },
-}));
+// ── Mock DB ─────────────────────────────────────────────────────
+// In-memory store that simulates mysql2 execute() responses
+function createMockDb() {
+  const entities = new Map();
+  const links = [];
+  const tags = [];
+  let linkIdCounter = 0;
 
-import { db } from '../db/index.ts';
-import { rel_entities, entity_links, entity_tags } from '../db/schema.ts';
+  const db = {
+    execute: jest.fn(async (sql, params = []) => {
+      const sqlNorm = sql.replace(/\s+/g, ' ').trim();
 
-describe('Entity Graph Module', () => {
+      // INSERT INTO rel_entities
+      if (sqlNorm.startsWith('INSERT INTO rel_entities')) {
+        const [uri, type, status, scope, memType, metaJson] = sqlNorm.includes(
+          "'pending'"
+        )
+          ? [params[0], params[1], 'pending', params[2], params[3], params[4]]
+          : params;
+        const meta = metaJson ? JSON.parse(metaJson) : null;
+        if (entities.has(uri)) {
+          throw new Error(`Duplicate entry '${uri}' for key 'PRIMARY'`);
+        }
+        entities.set(uri, {
+          uri,
+          type,
+          status: status || 'pending',
+          scope,
+          memory_type: memType,
+          metadata: meta,
+          checksum: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+        });
+        return [{ affectedRows: 1 }];
+      }
+
+      // SELECT metadata FROM rel_entities WHERE uri = ?
+      if (sqlNorm.includes('SELECT metadata FROM rel_entities WHERE uri')) {
+        const entity = entities.get(params[0]);
+        return [entity ? [{ metadata: entity.metadata }] : []];
+      }
+
+      // UPDATE rel_entities SET status = 'complete'
+      if (sqlNorm.includes("SET status = 'complete'")) {
+        const checksum = params[0];
+        const metaJson = params[1];
+        const uri = params[2];
+        const entity = entities.get(uri);
+        if (entity) {
+          entity.status = 'complete';
+          entity.checksum = checksum;
+          entity.metadata = metaJson ? JSON.parse(metaJson) : entity.metadata;
+          entity.updated_at = new Date();
+        }
+        return [{ affectedRows: entity ? 1 : 0 }];
+      }
+
+      // INSERT INTO rel_entity_links
+      if (sqlNorm.startsWith('INSERT INTO rel_entity_links')) {
+        const [sourceUri, targetUri, relationType, confidence] = params;
+        const existing = links.find(
+          (l) =>
+            l.source_uri === sourceUri &&
+            l.target_uri === targetUri &&
+            l.relation_type === relationType
+        );
+        if (existing) {
+          existing.confidence = confidence;
+          return [{ affectedRows: 1 }];
+        }
+        links.push({
+          id: String(++linkIdCounter),
+          source_uri: sourceUri,
+          target_uri: targetUri,
+          relation_type: relationType,
+          confidence,
+          created_at: new Date(),
+        });
+        return [{ affectedRows: 1 }];
+      }
+
+      // getDependencies: SELECT e.* FROM rel_entities e JOIN rel_entity_links l ON e.uri = l.target_uri WHERE l.source_uri = ? AND l.relation_type = 'depends_on'
+      if (
+        sqlNorm.includes('e.uri = l.target_uri') &&
+        sqlNorm.includes("'depends_on'")
+      ) {
+        const sourceUri = params[0];
+        const deps = links
+          .filter(
+            (l) =>
+              l.source_uri === sourceUri && l.relation_type === 'depends_on'
+          )
+          .map((l) => entities.get(l.target_uri))
+          .filter(Boolean);
+        return [deps];
+      }
+
+      // getDependents: SELECT e.* FROM rel_entities e JOIN rel_entity_links l ON e.uri = l.source_uri WHERE l.target_uri = ? AND l.relation_type = 'depends_on'
+      if (
+        sqlNorm.includes('e.uri = l.source_uri') &&
+        sqlNorm.includes("'depends_on'")
+      ) {
+        const targetUri = params[0];
+        const deps = links
+          .filter(
+            (l) =>
+              l.target_uri === targetUri && l.relation_type === 'depends_on'
+          )
+          .map((l) => entities.get(l.source_uri))
+          .filter(Boolean);
+        return [deps];
+      }
+
+      // SELECT tag FROM rel_entity_tags WHERE uri = ?
+      if (sqlNorm.includes('SELECT tag FROM rel_entity_tags WHERE uri')) {
+        const uri = params[0];
+        const entityTags = tags
+          .filter((t) => t.uri === uri)
+          .map((t) => ({ tag: t.tag }));
+        return [entityTags];
+      }
+
+      // SELECT DISTINCT source_uri ... part_of, generated_by, output_from
+      if (
+        sqlNorm.includes('source_uri AS uri') &&
+        sqlNorm.includes('part_of')
+      ) {
+        const targetUri = params[0];
+        const children = links
+          .filter(
+            (l) =>
+              l.target_uri === targetUri &&
+              ['part_of', 'generated_by', 'output_from'].includes(
+                l.relation_type
+              )
+          )
+          .map((l) => ({ uri: l.source_uri }));
+        return [children];
+      }
+
+      // INSERT INTO rel_entity_tags
+      if (sqlNorm.startsWith('INSERT INTO rel_entity_tags')) {
+        const [uri, tag] = params;
+        // TRUE is hardcoded in the SQL, not a param
+        const isInherited = sqlNorm.includes('TRUE');
+        const existing = tags.find((t) => t.uri === uri && t.tag === tag);
+        if (existing) {
+          existing.inherited = true;
+          return [{ affectedRows: 1 }];
+        }
+        tags.push({ uri, tag, inherited: isInherited });
+        return [{ affectedRows: 1 }];
+      }
+
+      // SELECT * FROM rel_entities WHERE uri = ? (for getLineage)
+      if (sqlNorm.includes('SELECT * FROM rel_entities WHERE uri =')) {
+        const entity = entities.get(params[0]);
+        return [entity ? [entity] : []];
+      }
+
+      // SELECT target_uri FROM rel_entity_links WHERE source_uri = ? AND relation_type = 'generated_by'
+      if (
+        sqlNorm.includes('target_uri') &&
+        sqlNorm.includes("'generated_by'") &&
+        sqlNorm.includes('LIMIT 1')
+      ) {
+        const sourceUri = params[0];
+        const parent = links.find(
+          (l) =>
+            l.source_uri === sourceUri && l.relation_type === 'generated_by'
+        );
+        return [parent ? [{ target_uri: parent.target_uri }] : []];
+      }
+
+      // pruneOrphans: SELECT e.uri FROM rel_entities e LEFT JOIN...
+      if (
+        sqlNorm.includes('LEFT JOIN rel_entity_links ls') &&
+        sqlNorm.includes('ls.id IS NULL')
+      ) {
+        const orphans = [];
+        for (const [uri, entity] of entities) {
+          if (entity.status === 'orphaned') continue;
+          const hasSource = links.some((l) => l.source_uri === uri);
+          const hasTarget = links.some((l) => l.target_uri === uri);
+          if (!hasSource && !hasTarget) {
+            // Check age (mock: always consider old enough)
+            orphans.push({ uri });
+          }
+        }
+        return [orphans];
+      }
+
+      // UPDATE rel_entities SET status = 'orphaned'
+      if (
+        sqlNorm.includes("status = 'orphaned'") &&
+        sqlNorm.includes('WHERE uri IN')
+      ) {
+        for (const uri of params) {
+          const entity = entities.get(uri);
+          if (entity) entity.status = 'orphaned';
+        }
+        return [{ affectedRows: params.length }];
+      }
+
+      // queryGraph: SELECT * FROM rel_entities ... ORDER BY ... LIMIT
+      if (
+        sqlNorm.includes('FROM rel_entities') &&
+        sqlNorm.includes('ORDER BY') &&
+        sqlNorm.includes('LIMIT ?')
+      ) {
+        let results = Array.from(entities.values());
+
+        // Parse the WHERE clause to figure out which filters are applied
+        // Use regex with space-boundary to avoid 'memory_type' matching 'type'
+        const qFilterFields = [];
+        if (/ type = \?/.test(sqlNorm)) qFilterFields.push('type');
+        if (/ status = \?/.test(sqlNorm)) qFilterFields.push('status');
+        if (/ scope = \?/.test(sqlNorm)) qFilterFields.push('scope');
+        if (/memory_type = \?/.test(sqlNorm)) qFilterFields.push('memory_type');
+        if (/uri LIKE \?/.test(sqlNorm)) qFilterFields.push('uriPattern');
+
+        let pi = 0;
+        for (const field of qFilterFields) {
+          const val = params[pi++];
+          if (field === 'uriPattern') {
+            const pattern = val.replace(/%/g, '.*');
+            results = results.filter((e) => new RegExp(pattern).test(e.uri));
+          } else {
+            results = results.filter((e) => e[field] === val);
+          }
+        }
+
+        // Last two params are always limit and offset
+        const qLimit = params[pi] || 50;
+        const qOffset = params[pi + 1] || 0;
+        results = results.slice(qOffset, qOffset + qLimit);
+
+        return [results];
+      }
+
+      return [[]];
+    }),
+
+    // Expose internals for test assertions
+    _entities: entities,
+    _links: links,
+    _tags: tags,
+  };
+
+  return db;
+}
+
+// ── Fixture Setup ───────────────────────────────────────────────
+async function setupFixtureGraph(db) {
+  // Create 5 nodes
+  await createNode(
+    db,
+    'brain://project/yt1/file/research.json',
+    'file',
+    'project',
+    'fact'
+  );
+  await createNode(
+    db,
+    'brain://project/yt1/file/script.md',
+    'file',
+    'project',
+    'episodic'
+  );
+  await createNode(
+    db,
+    'brain://project/yt1/file/storyboard.json',
+    'file',
+    'project',
+    'episodic'
+  );
+  await createNode(
+    db,
+    'brain://project/yt1/task/topic-research',
+    'task',
+    'project',
+    'trace'
+  );
+  await createNode(
+    db,
+    'brain://project/yt1/task/script-writing',
+    'task',
+    'project',
+    'trace'
+  );
+
+  // Link: script depends_on research
+  await linkNodes(
+    db,
+    'brain://project/yt1/file/script.md',
+    'brain://project/yt1/file/research.json',
+    'depends_on'
+  );
+
+  // Link: storyboard depends_on script
+  await linkNodes(
+    db,
+    'brain://project/yt1/file/storyboard.json',
+    'brain://project/yt1/file/script.md',
+    'depends_on'
+  );
+
+  // Link: research generated_by topic-task
+  await linkNodes(
+    db,
+    'brain://project/yt1/file/research.json',
+    'brain://project/yt1/task/topic-research',
+    'generated_by'
+  );
+
+  // Link: script generated_by script-task
+  await linkNodes(
+    db,
+    'brain://project/yt1/file/script.md',
+    'brain://project/yt1/task/script-writing',
+    'generated_by'
+  );
+}
+
+// ── Tests ───────────────────────────────────────────────────────
+
+describe('Entity Graph (REL Foundation)', () => {
+  let db;
+
   beforeEach(() => {
-    jest.clearAllMocks();
+    db = createMockDb();
   });
 
   describe('createNode', () => {
-    it('should create a valid entity node', async () => {
-      const mockInsert = jest.fn().mockReturnValue({ values: jest.fn().mockResolvedValue(undefined) });
-      db.insert = mockInsert;
-
+    it('should create a new entity with pending status', async () => {
       const result = await createNode(
-        'brain://project/test/task/1',
-        'task',
+        db,
+        'brain://project/test/file/readme.md',
+        'file',
         'project',
-        'episodic',
-        { priority: 'high' }
+        'fact',
+        { title: 'README' }
       );
 
-      expect(mockInsert).toHaveBeenCalledWith(rel_entities);
-      expect(result.uri).toBe('brain://project/test/task/1');
-      expect(result.type).toBe('task');
+      expect(result.uri).toBe('brain://project/test/file/readme.md');
+      expect(result.type).toBe('file');
       expect(result.status).toBe('pending');
+      expect(result.scope).toBe('project');
+      expect(result.memory_type).toBe('fact');
+      expect(result.metadata).toEqual({ title: 'README' });
+      expect(db._entities.has('brain://project/test/file/readme.md')).toBe(
+        true
+      );
     });
 
-    it('should extract project_id from URI', async () => {
-      const mockInsert = jest.fn().mockReturnValue({ values: jest.fn().mockResolvedValue(undefined) });
-      db.insert = mockInsert;
-
-      await createNode('brain://project/my-project/file/test.js', 'file');
-
-      const callArg = mockInsert().values.mock.calls[0][0];
-      expect(callArg.project_id).toBe('my-project');
+    it('should reject invalid URI', async () => {
+      await expect(createNode(db, 'invalid', 'file')).rejects.toThrow(
+        'Invalid URI'
+      );
     });
 
-    it('should reject invalid types', async () => {
-      await expect(createNode('brain://test', 'invalid_type'))
-        .rejects.toThrow('Invalid type');
+    it('should reject invalid entity type', async () => {
+      await expect(
+        createNode(db, 'brain://project/x/file/a.md', 'invalid_type')
+      ).rejects.toThrow('Invalid entity type');
     });
 
-    it('should reject invalid scopes', async () => {
-      await expect(createNode('brain://test', 'task', 'invalid_scope'))
-        .rejects.toThrow('Invalid scope');
+    it('should reject invalid scope', async () => {
+      await expect(
+        createNode(db, 'brain://project/x/file/a.md', 'file', 'invalid_scope')
+      ).rejects.toThrow('Invalid scope');
     });
 
-    it('should reject invalid memory types', async () => {
-      await expect(createNode('brain://test', 'task', 'project', 'invalid_memory'))
-        .rejects.toThrow('Invalid memory_type');
+    it('should reject invalid memory type', async () => {
+      await expect(
+        createNode(
+          db,
+          'brain://project/x/file/a.md',
+          'file',
+          'project',
+          'invalid_mem'
+        )
+      ).rejects.toThrow('Invalid memory type');
     });
   });
 
   describe('realizeNode', () => {
-    it('should mark entity as complete with output', async () => {
-      const mockSelect = jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([{ metadata: '{}' }]),
-        }),
-      });
-      const mockUpdate = jest.fn().mockReturnValue({
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue(undefined),
-        }),
-      });
-      db.select = mockSelect;
-      db.update = mockUpdate;
-
+    it('should mark entity as complete with checksum', async () => {
+      await createNode(
+        db,
+        'brain://project/test/file/out.mp4',
+        'asset',
+        'project'
+      );
       const result = await realizeNode(
-        'brain://project/test/task/1',
-        { result: 'success' },
+        db,
+        'brain://project/test/file/out.mp4',
+        { path: '/tmp/out.mp4' },
         'sha256:abc123'
       );
 
       expect(result.status).toBe('complete');
       expect(result.checksum).toBe('sha256:abc123');
+      expect(result.metadata.output).toEqual({ path: '/tmp/out.mp4' });
+    });
+
+    it('should throw if entity not found', async () => {
+      await expect(
+        realizeNode(db, 'brain://project/x/file/missing.md')
+      ).rejects.toThrow('Entity not found');
+    });
+
+    it('should reject invalid URI', async () => {
+      await expect(realizeNode(db, 'bad-uri')).rejects.toThrow('Invalid URI');
+    });
+  });
+
+  describe('linkNodes', () => {
+    it('should create a directed edge between entities', async () => {
+      await createNode(db, 'brain://project/x/file/a.md', 'file');
+      await createNode(db, 'brain://project/x/file/b.md', 'file');
+      const result = await linkNodes(
+        db,
+        'brain://project/x/file/a.md',
+        'brain://project/x/file/b.md',
+        'depends_on'
+      );
+
+      expect(result.source_uri).toBe('brain://project/x/file/a.md');
+      expect(result.target_uri).toBe('brain://project/x/file/b.md');
+      expect(result.relation_type).toBe('depends_on');
+      expect(result.confidence).toBe(1.0);
+      expect(db._links).toHaveLength(1);
+    });
+
+    it('should reject invalid relation type', async () => {
+      await expect(
+        linkNodes(
+          db,
+          'brain://project/x/file/a.md',
+          'brain://project/x/file/b.md',
+          'invalid_rel'
+        )
+      ).rejects.toThrow('Invalid relation type');
+    });
+
+    it('should update confidence on duplicate link', async () => {
+      await createNode(db, 'brain://project/x/file/a.md', 'file');
+      await createNode(db, 'brain://project/x/file/b.md', 'file');
+      await linkNodes(
+        db,
+        'brain://project/x/file/a.md',
+        'brain://project/x/file/b.md',
+        'depends_on',
+        0.5
+      );
+      await linkNodes(
+        db,
+        'brain://project/x/file/a.md',
+        'brain://project/x/file/b.md',
+        'depends_on',
+        0.9
+      );
+
+      expect(db._links[0].confidence).toBe(0.9);
     });
   });
 
   describe('getDependencies', () => {
     it('should return upstream dependencies', async () => {
-      const mockLinks = [
-        { source_uri: 'brain://project/test/script/1', relation_type: 'depends_on' },
-      ];
-      const mockEntities = [
-        { uri: 'brain://project/test/script/1', type: 'script', metadata: '{}' },
-      ];
+      await setupFixtureGraph(db);
 
-      db.select = jest.fn()
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue(mockLinks) }) })
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue(mockEntities) }) });
+      const deps = await getDependencies(
+        db,
+        'brain://project/yt1/file/script.md'
+      );
 
-      const result = await getDependencies('brain://project/test/video/1');
-
-      expect(result).toHaveLength(1);
-      expect(result[0].uri).toBe('brain://project/test/script/1');
-      expect(result[0].relation_type).toBe('depends_on');
+      expect(deps).toHaveLength(1);
+      expect(deps[0].uri).toBe('brain://project/yt1/file/research.json');
     });
 
-    it('should filter by relation type', async () => {
-      const mockLinks = [
-        { source_uri: 'brain://test/1', relation_type: 'generated_by' },
-        { source_uri: 'brain://test/2', relation_type: 'depends_on' },
-      ];
+    it('should return empty array for root entities', async () => {
+      await setupFixtureGraph(db);
 
-      db.select = jest.fn()
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([mockLinks[0]]) }) })
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([]) }) });
+      const deps = await getDependencies(
+        db,
+        'brain://project/yt1/file/research.json'
+      );
+      expect(deps).toHaveLength(0);
+    });
 
-      await getDependencies('brain://test', 'generated_by');
-
-      // Should only query for generated_by relation
+    it('should reject invalid URI', async () => {
+      await expect(getDependencies(db, 'not-a-uri')).rejects.toThrow(
+        'Invalid URI'
+      );
     });
   });
 
   describe('getDependents', () => {
     it('should return downstream dependents', async () => {
-      const mockLinks = [
-        { target_uri: 'brain://project/test/video/1', relation_type: 'succeeded_by' },
-      ];
-      const mockEntities = [
-        { uri: 'brain://project/test/video/1', type: 'video', metadata: '{}' },
-      ];
+      await setupFixtureGraph(db);
 
-      db.select = jest.fn()
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue(mockLinks) }) })
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue(mockEntities) }) });
+      const deps = await getDependents(
+        db,
+        'brain://project/yt1/file/script.md'
+      );
 
-      const result = await getDependents('brain://project/test/script/1');
+      expect(deps).toHaveLength(1);
+      expect(deps[0].uri).toBe('brain://project/yt1/file/storyboard.json');
+    });
 
-      expect(result).toHaveLength(1);
-      expect(result[0].type).toBe('video');
+    it('should return empty array for leaf entities', async () => {
+      await setupFixtureGraph(db);
+
+      const deps = await getDependents(
+        db,
+        'brain://project/yt1/file/storyboard.json'
+      );
+      expect(deps).toHaveLength(0);
     });
   });
 
   describe('getLineage', () => {
     it('should trace full provenance chain', async () => {
-      const entities = [
-        { uri: 'brain://project/test/video/1', type: 'video', metadata: '{}' },
-        { uri: 'brain://project/test/script/1', type: 'script', metadata: '{}' },
-        { uri: 'brain://project/test/research/1', type: 'research', metadata: '{}' },
-      ];
+      await setupFixtureGraph(db);
 
-      const mockLinks = [
-        { source_uri: 'brain://project/test/script/1', target_uri: 'brain://project/test/video/1', relation_type: 'generated_by' },
-        { source_uri: 'brain://project/test/research/1', target_uri: 'brain://project/test/script/1', relation_type: 'depends_on' },
-      ];
+      const lineage = await getLineage(
+        db,
+        'brain://project/yt1/file/research.json'
+      );
 
-      db.select = jest.fn()
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([entities[0]]) }) }) // video
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([mockLinks[0]]) }) }) // video parents
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([entities[1]]) }) }) // script
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([mockLinks[1]]) }) }) // script parents
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([entities[2]]) }) }) // research
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([]) }) }); // no more parents
-
-      const result = await getLineage('brain://project/test/video/1');
-
-      expect(result).toHaveLength(3);
-      expect(result[0].type).toBe('research');
-      expect(result[1].type).toBe('script');
-      expect(result[2].type).toBe('video');
+      // research.json → topic-research (via generated_by)
+      expect(lineage).toHaveLength(2);
+      expect(lineage[0].uri).toBe('brain://project/yt1/file/research.json');
+      expect(lineage[1].uri).toBe('brain://project/yt1/task/topic-research');
     });
 
-    it('should detect circular dependencies', async () => {
-      db.select = jest.fn()
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([{ type: 'task', metadata: '{}' }]) }) })
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([{ source_uri: 'brain://circular' }]) }) })
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([{ type: 'task', metadata: '{}' }]) }) })
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([{ source_uri: 'brain://original' }]) }) });
+    it('should return single node for root entity', async () => {
+      await setupFixtureGraph(db);
 
-      await expect(getLineage('brain://original'))
-        .rejects.toThrow('Circular dependency detected');
+      const lineage = await getLineage(
+        db,
+        'brain://project/yt1/task/topic-research'
+      );
+
+      expect(lineage).toHaveLength(1);
+      expect(lineage[0].uri).toBe('brain://project/yt1/task/topic-research');
     });
 
-    it('should respect maxDepth', async () => {
-      db.select = jest.fn()
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([{ type: 'task', metadata: '{}' }]) }) })
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([{ source_uri: 'brain://parent' }]) }) })
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([{ type: 'task', metadata: '{}' }]) }) })
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([{ source_uri: 'brain://grandparent' }]) }) });
+    it('should handle circular references gracefully', async () => {
+      await createNode(db, 'brain://project/x/file/a.md', 'file');
+      await createNode(db, 'brain://project/x/file/b.md', 'file');
+      await linkNodes(
+        db,
+        'brain://project/x/file/a.md',
+        'brain://project/x/file/b.md',
+        'generated_by'
+      );
+      await linkNodes(
+        db,
+        'brain://project/x/file/b.md',
+        'brain://project/x/file/a.md',
+        'generated_by'
+      );
 
-      const result = await getLineage('brain://child', 2);
+      const lineage = await getLineage(db, 'brain://project/x/file/a.md');
 
-      expect(result.length).toBeLessThanOrEqual(2);
+      // Should terminate, not infinite loop
+      expect(lineage.length).toBeLessThanOrEqual(2);
+    });
+  });
+
+  describe('propagateTags', () => {
+    it('should cascade tags to child entities', async () => {
+      await setupFixtureGraph(db);
+
+      // Add tags to topic-research task
+      db._tags.push({
+        uri: 'brain://project/yt1/task/topic-research',
+        tag: 'youtube',
+        inherited: false,
+      });
+      db._tags.push({
+        uri: 'brain://project/yt1/task/topic-research',
+        tag: 'documentary',
+        inherited: false,
+      });
+
+      // research.json has generated_by pointing to topic-research
+      // So propagating from topic-research should cascade tags to research.json
+      const count = await propagateTags(
+        db,
+        'brain://project/yt1/task/topic-research'
+      );
+
+      expect(count).toBe(2); // 2 tags × 1 child
+      const researchTags = db._tags.filter(
+        (t) => t.uri === 'brain://project/yt1/file/research.json'
+      );
+      expect(researchTags).toHaveLength(2);
+      expect(researchTags.every((t) => t.inherited === true)).toBe(true);
+    });
+
+    it('should return 0 if entity has no tags', async () => {
+      await setupFixtureGraph(db);
+      const count = await propagateTags(
+        db,
+        'brain://project/yt1/task/topic-research'
+      );
+      expect(count).toBe(0);
+    });
+  });
+
+  describe('pruneOrphans', () => {
+    it('should flag entities with no links', async () => {
+      // Create an orphan entity (no links)
+      await createNode(
+        db,
+        'brain://project/x/file/orphan.md',
+        'file',
+        'project'
+      );
+
+      const orphaned = await pruneOrphans(db, 48);
+
+      expect(orphaned).toContain('brain://project/x/file/orphan.md');
+      expect(db._entities.get('brain://project/x/file/orphan.md').status).toBe(
+        'orphaned'
+      );
+    });
+
+    it('should not flag linked entities', async () => {
+      await setupFixtureGraph(db);
+
+      const orphaned = await pruneOrphans(db, 48);
+
+      // All 5 nodes are linked, none should be orphaned
+      expect(orphaned).toHaveLength(0);
     });
   });
 
   describe('queryGraph', () => {
     it('should filter by type', async () => {
-      const mockEntities = [
-        { uri: 'brain://test/1', type: 'video', metadata: '{}' },
-        { uri: 'brain://test/2', type: 'video', metadata: '{}' },
-      ];
+      await setupFixtureGraph(db);
 
-      db.select = jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue(mockEntities),
-          }),
-        }),
-      });
+      const files = await queryGraph(db, { type: 'file' });
 
-      const result = await queryGraph({ type: 'video', limit: 10 });
+      expect(files).toHaveLength(3);
+      files.forEach((e) => expect(e.type).toBe('file'));
+    });
 
-      expect(result).toHaveLength(2);
-      expect(result[0].type).toBe('video');
+    it('should filter by scope', async () => {
+      await setupFixtureGraph(db);
+
+      const projectEntities = await queryGraph(db, { scope: 'project' });
+
+      expect(projectEntities).toHaveLength(5);
     });
 
     it('should filter by status', async () => {
-      db.select = jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([]),
-          }),
-        }),
-      });
-
-      await queryGraph({ status: 'complete' });
-
-      expect(db.select).toHaveBeenCalled();
-    });
-  });
-
-  describe('createLink', () => {
-    it('should create a relationship between entities', async () => {
-      const mockInsert = jest.fn().mockReturnValue({ values: jest.fn().mockResolvedValue(undefined) });
-      db.insert = mockInsert;
-
-      const result = await createLink(
-        'brain://source',
-        'brain://target',
-        'generated_by',
-        0.95,
-        'user-123'
+      await setupFixtureGraph(db);
+      await realizeNode(
+        db,
+        'brain://project/yt1/file/research.json',
+        { done: true },
+        'sha256:abc'
       );
 
-      expect(mockInsert).toHaveBeenCalledWith(entity_links);
-      expect(result.source_uri).toBe('brain://source');
-      expect(result.target_uri).toBe('brain://target');
-      expect(result.relationship).toBe('generated_by');
-      expect(result.confidence).toBe(0.95);
+      const completed = await queryGraph(db, { status: 'complete' });
+
+      expect(completed).toHaveLength(1);
+      expect(completed[0].uri).toBe('brain://project/yt1/file/research.json');
     });
 
-    it('should reject missing URIs', async () => {
-      await expect(createLink(null, 'brain://target', 'depends_on'))
-        .rejects.toThrow('Source and target URIs are required');
-    });
-  });
+    it('should return empty for no matches', async () => {
+      await setupFixtureGraph(db);
 
-  describe('checkCircularDependency', () => {
-    it('should detect circular dependencies', async () => {
-      // A -> B -> C -> A (circular)
-      db.select = jest.fn()
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([{ target_uri: 'brain://C' }]) }) })
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([{ target_uri: 'brain://A' }]) }) })
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([]) }) });
+      const results = await queryGraph(db, { type: 'competition' });
 
-      const result = await checkCircularDependency('brain://A', 'brain://B');
-      expect(result).toBe(true);
+      expect(results).toHaveLength(0);
     });
 
-    it('should allow non-circular dependencies', async () => {
-      db.select = jest.fn()
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([{ target_uri: 'brain://C' }]) }) })
-        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([]) }) });
+    it('should filter by memory_type', async () => {
+      await setupFixtureGraph(db);
 
-      const result = await checkCircularDependency('brain://A', 'brain://B');
-      expect(result).toBe(false);
-    });
-  });
+      // Verify the entities exist with the right memory_type
+      const topicTask = db._entities.get(
+        'brain://project/yt1/task/topic-research'
+      );
+      const scriptTask = db._entities.get(
+        'brain://project/yt1/task/script-writing'
+      );
+      expect(topicTask.memory_type).toBe('trace');
+      expect(scriptTask.memory_type).toBe('trace');
 
-  describe('Performance Requirements', () => {
-    it('should complete lineage query in under 100ms for depth 3', async () => {
-      const entities = Array(5).fill(null).map((_, i) => ({
-        uri: `brain://test/${i}`,
-        type: 'task',
-        metadata: '{}',
-      }));
+      // Verify filtering works at the data level
+      const allEntities = Array.from(db._entities.values());
+      const traceEntities = allEntities.filter(
+        (e) => e.memory_type === 'trace'
+      );
+      expect(traceEntities).toHaveLength(2);
 
-      const links = Array(4).fill(null).map((_, i) => ({
-        source_uri: `brain://test/${i}`,
-        target_uri: `brain://test/${i + 1}`,
-        relation_type: 'depends_on',
-      }));
+      const traces = await queryGraph(db, { memory_type: 'trace' });
 
-      let selectCount = 0;
-      db.select = jest.fn(() => {
-        const idx = Math.floor(selectCount / 2);
-        const isEntity = selectCount % 2 === 0;
-        selectCount++;
-        
-        const result = isEntity 
-          ? (idx < entities.length ? [entities[idx]] : [])
-          : (idx < links.length ? [links[idx]] : []);
-        
-        return {
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockResolvedValue(result),
-          }),
-        };
-      });
-
-      const start = Date.now();
-      await getLineage('brain://test/4', 3);
-      const duration = Date.now() - start;
-
-      expect(duration).toBeLessThan(100);
-    });
-  });
-});
-
-// Integration test with 5-node fixture graph
-describe('5-Node Fixture Graph', () => {
-  const fixtureData = {
-    entities: [
-      { uri: 'brain://project/demo/research/1', type: 'research', scope: 'project' },
-      { uri: 'brain://project/demo/outline/1', type: 'outline', scope: 'project' },
-      { uri: 'brain://project/demo/script/1', type: 'script', scope: 'project' },
-      { uri: 'brain://project/demo/storyboard/1', type: 'storyboard', scope: 'project' },
-      { uri: 'brain://project/demo/video/1', type: 'video', scope: 'project' },
-    ],
-    links: [
-      // Research -> Outline (depends_on)
-      { source: 'brain://project/demo/research/1', target: 'brain://project/demo/outline/1', type: 'depends_on' },
-      // Outline -> Script (depends_on)
-      { source: 'brain://project/demo/outline/1', target: 'brain://project/demo/script/1', type: 'depends_on' },
-      // Script -> Storyboard (succeeded_by)
-      { source: 'brain://project/demo/script/1', target: 'brain://project/demo/storyboard/1', type: 'succeeded_by' },
-      // Storyboard -> Video (generated_by)
-      { source: 'brain://project/demo/storyboard/1', target: 'brain://project/demo/video/1', type: 'generated_by' },
-      // Script -> Video (part_of - the script is part of the video)
-      { source: 'brain://project/demo/script/1', target: 'brain://project/demo/video/1', type: 'part_of' },
-    ],
-  };
-
-  beforeEach(() => {
-    // Setup fixture data in mocks
-    let selectCall = 0;
-    db.select = jest.fn(() => {
-      selectCall++;
-      return {
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockImplementation(() => {
-            // Return appropriate data based on query
-            return Promise.resolve([]);
-          }),
-        }),
-      };
+      expect(traces).toHaveLength(2); // topic-research and script-writing tasks
     });
   });
 
-  it('should create all 5 fixture entities', async () => {
-    const mockInsert = jest.fn().mockReturnValue({ values: jest.fn().mockResolvedValue(undefined) });
-    db.insert = mockInsert;
+  describe('5-node fixture graph integrity', () => {
+    it('should create 5 entities and 4 links', async () => {
+      await setupFixtureGraph(db);
 
-    for (const entity of fixtureData.entities) {
-      await createNode(entity.uri, entity.type, entity.scope);
-    }
+      expect(db._entities.size).toBe(5);
+      expect(db._links).toHaveLength(4);
+    });
 
-    expect(mockInsert).toHaveBeenCalledTimes(5);
-  });
+    it('should have correct dependency chain: storyboard → script → research', async () => {
+      await setupFixtureGraph(db);
 
-  it('should create all fixture relationships', async () => {
-    const mockInsert = jest.fn().mockReturnValue({ values: jest.fn().mockResolvedValue(undefined) });
-    db.insert = mockInsert;
+      // storyboard depends on script
+      const sbDeps = await getDependencies(
+        db,
+        'brain://project/yt1/file/storyboard.json'
+      );
+      expect(sbDeps).toHaveLength(1);
+      expect(sbDeps[0].uri).toBe('brain://project/yt1/file/script.md');
 
-    for (const link of fixtureData.links) {
-      await createLink(link.source, link.target, link.type);
-    }
+      // script depends on research
+      const scriptDeps = await getDependencies(
+        db,
+        'brain://project/yt1/file/script.md'
+      );
+      expect(scriptDeps).toHaveLength(1);
+      expect(scriptDeps[0].uri).toBe('brain://project/yt1/file/research.json');
 
-    expect(mockInsert).toHaveBeenCalledTimes(5);
+      // research has no dependencies
+      const resDeps = await getDependencies(
+        db,
+        'brain://project/yt1/file/research.json'
+      );
+      expect(resDeps).toHaveLength(0);
+    });
+
+    it('should trace lineage through generated_by edges', async () => {
+      await setupFixtureGraph(db);
+
+      // script.md → script-writing (via generated_by)
+      const scriptLineage = await getLineage(
+        db,
+        'brain://project/yt1/file/script.md'
+      );
+      expect(scriptLineage).toHaveLength(2);
+      expect(scriptLineage[1].uri).toBe(
+        'brain://project/yt1/task/script-writing'
+      );
+    });
   });
 });

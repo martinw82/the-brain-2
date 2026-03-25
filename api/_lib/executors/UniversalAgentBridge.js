@@ -1,163 +1,188 @@
-/**
- * Universal Agent Bridge (UAB)
- * Routes Execution Packages to capable workers.
- */
+// api/executors/UniversalAgentBridge.js — Universal Agent Bridge (Phase 1)
+// Brain OS v2.2
+//
+// Routes Execution Packages to capable workers.
+// Creates/updates REL nodes on every handoff.
+// Pre-execute: createNode pending
+// Post-execute: realizeNode with output + generated_by edge
 
-import { db } from '../../../src/db/index.ts';
-import { worker_capabilities, execution_log } from '../../../src/db/schema.ts';
-// Note: These imports use relative paths from api/_lib/executors/ to src/
-import { eq, and, inArray } from 'drizzle-orm';
+import { createNode, realizeNode, linkNodes } from '../../src/entityGraph.js';
+import { checkGate } from '../trustLadder.js';
+import { ClaudeCodeAdapter } from './ClaudeCodeAdapter.js';
+import { OpenClawAdapter } from './OpenClawAdapter.js';
 
+// Worker adapter registry
 const ADAPTERS = {
-  cli_subprocess: null, // Lazy load to avoid circular deps
-  websocket: null,
-  mcp: null,
+  cli_subprocess: ClaudeCodeAdapter,
+  websocket: OpenClawAdapter,
+  // mcp: MCPAdapter, // Future
 };
 
-function validateExecutionPackage(pkg) {
-  const errors = [];
-  if (!pkg.execution_id) errors.push('execution_id is required');
-  if (!pkg.brain_context?.task_uri) errors.push('brain_context.task_uri is required');
-  if (!pkg.execution_package?.capabilities_required) errors.push('execution_package.capabilities_required is required');
-  if (!pkg.execution_package?.main_command) errors.push('execution_package.main_command is required');
-  return { valid: errors.length === 0, errors };
-}
+/**
+ * Validate that the worker has the required capabilities.
+ */
+function validateCapabilities(workerCapabilities, requiredCapabilities) {
+  if (!requiredCapabilities || requiredCapabilities.length === 0) return true;
 
-async function findCapableWorker(requiredCapabilities) {
-  const workers = await db.select()
-    .from(worker_capabilities)
-    .where(eq(worker_capabilities.status, 'online'));
-  
-  if (workers.length === 0) return null;
-  
-  const scored = workers.map(worker => {
-    const caps = worker.capabilities || {};
-    let score = 0;
-    let allRequired = true;
-    
-    for (const req of requiredCapabilities) {
-      if (caps[req] === true || typeof caps[req] === 'object') {
-        score += 1;
-      } else {
-        allRequired = false;
-      }
+  const caps = workerCapabilities || {};
+  return requiredCapabilities.every(req => {
+    if (typeof req === 'string') {
+      return caps[req] === true || caps[req] !== undefined;
     }
-    
-    return { worker, score, allRequired };
+    return true;
   });
-  
-  const capable = scored
-    .filter(s => s.allRequired)
-    .sort((a, b) => b.score - a.score);
-  
-  return capable[0]?.worker || null;
 }
 
-export async function routeExecution(executionPackage) {
-  const startTime = Date.now();
-  
-  const validation = validateExecutionPackage(executionPackage);
-  if (!validation.valid) {
-    throw new Error(`Invalid execution package: ${validation.errors.join(', ')}`);
+/**
+ * Validate the execution package has a policy_id (MAPL stub).
+ * In Phase 1, we only check presence. Full signing in Phase 6.
+ */
+function validatePolicy(executionPackage) {
+  const policyId = executionPackage?.security?.policy_id;
+  if (!policyId) {
+    console.warn('[UAB] Warning: Execution package missing policy_id. Allowing in Phase 1 (stub).');
   }
-  
-  const { execution_id, brain_context, execution_package, trace_envelope } = executionPackage;
-  
-  const worker = await findCapableWorker(execution_package.capabilities_required);
-  
+  return true; // Phase 1: always allow, just warn
+}
+
+/**
+ * Select the best available worker for the execution package.
+ */
+async function selectWorker(db, requiredCapabilities) {
+  const [workers] = await db.execute(
+    "SELECT * FROM worker_capabilities WHERE status = 'online' ORDER BY last_seen DESC"
+  );
+
+  for (const worker of workers) {
+    const caps = typeof worker.capabilities === 'string'
+      ? JSON.parse(worker.capabilities)
+      : worker.capabilities;
+
+    if (validateCapabilities(caps, requiredCapabilities)) {
+      return { ...worker, capabilities: caps };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Execute a task through the Universal Agent Bridge.
+ *
+ * @param {object} db - Database connection
+ * @param {object} executionPackage - Full execution package (PRD format)
+ * @returns {object} - Execution result with callback data
+ */
+export async function executeViaUAB(db, executionPackage) {
+  const {
+    execution_id,
+    brain_context,
+    execution_package: execPkg,
+  } = executionPackage;
+
+  const taskUri = brain_context?.task_uri;
+  const dependsOn = brain_context?.depends_on || [];
+  const outputUris = brain_context?.output_uris || [];
+  const trustTier = brain_context?.trust_tier || 1;
+  const traceEnvelope = brain_context?.trace_envelope || {};
+
+  // 1. Validate policy (MAPL stub)
+  validatePolicy(executionPackage);
+
+  // 2. Create pending REL node for the task
+  if (taskUri) {
+    try {
+      await createNode(db, taskUri, 'task', 'project', 'trace', {
+        execution_id,
+        trace_envelope: traceEnvelope,
+      });
+
+      // Create depends_on edges
+      for (const depUri of dependsOn) {
+        try {
+          await linkNodes(db, taskUri, depUri, 'depends_on');
+        } catch { /* dependency node may not exist yet */ }
+      }
+    } catch (e) {
+      // Node may already exist — that's OK
+      if (!e.message.includes('Duplicate')) throw e;
+    }
+  }
+
+  // 3. Select a capable worker
+  const requiredCaps = execPkg?.capabilities_required || [];
+  const worker = await selectWorker(db, requiredCaps);
+
   if (!worker) {
-    await db.insert(execution_log).values({
-      id: crypto.randomUUID(),
-      run_id: execution_id,
-      parent_run_id: trace_envelope?.parent_run_id,
-      workflow_id: trace_envelope?.workflow_id,
-      status: 'failed',
-      duration_ms: Date.now() - startTime,
-    });
-    
-    throw new Error('No capable worker available');
+    const error = `No online worker with capabilities: ${requiredCaps.join(', ')}`;
+    return { status: 'failed', error, execution_id };
   }
-  
-  // Lazy load adapter
-  if (!ADAPTERS.cli_subprocess) {
-    const { ClaudeCodeAdapter } = await import('./ClaudeCodeAdapter.js');
-    ADAPTERS.cli_subprocess = ClaudeCodeAdapter;
+
+  // 4. Get the adapter for this worker type
+  const AdapterClass = ADAPTERS[worker.type];
+  if (!AdapterClass) {
+    return { status: 'failed', error: `No adapter for worker type: ${worker.type}`, execution_id };
   }
-  
-  const AdapterClass = ADAPTERS[worker.type] || ADAPTERS.cli_subprocess;
+
+  // 5. Execute via adapter
   const adapter = new AdapterClass(worker);
-  
+  const startTime = Date.now();
+
+  let result;
   try {
-    const result = await adapter.execute(executionPackage, { timeout: executionPackage.timeout });
-    
-    await db.insert(execution_log).values({
-      id: crypto.randomUUID(),
-      run_id: execution_id,
-      parent_run_id: trace_envelope?.parent_run_id,
-      workflow_id: trace_envelope?.workflow_id,
-      worker_id: worker.worker_id,
-      provider: result.provider,
-      cost_usd: result.cost_usd,
-      tokens_used: result.tokens_used,
-      duration_ms: result.duration_ms || Date.now() - startTime,
-      status: result.status,
-    });
-    
-    return {
-      execution_id,
-      status: result.status,
-      worker_id: worker.worker_id,
-      output: result.output,
-      duration_ms: result.duration_ms || Date.now() - startTime,
-    };
-    
-  } catch (error) {
-    await db.insert(execution_log).values({
-      id: crypto.randomUUID(),
-      run_id: execution_id,
-      parent_run_id: trace_envelope?.parent_run_id,
-      workflow_id: trace_envelope?.workflow_id,
-      worker_id: worker.worker_id,
-      status: 'failed',
-      duration_ms: Date.now() - startTime,
-    });
-    throw error;
+    result = await adapter.execute(execPkg);
+  } catch (e) {
+    result = { status: 'failed', error: e.message };
   }
-}
 
-export async function registerWorker(workerConfig) {
-  const { worker_id, type, capabilities } = workerConfig;
-  
-  const worker = {
-    worker_id,
-    type,
-    capabilities: JSON.stringify(capabilities),
-    status: 'online',
-    last_seen: new Date(),
-    created_at: new Date(),
-    updated_at: new Date(),
+  const durationMs = Date.now() - startTime;
+
+  // 6. Log execution
+  await db.execute(
+    `INSERT INTO execution_log (run_id, parent_run_id, workflow_id, worker_id, provider, cost_usd, tokens_used, duration_ms, quality_score, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      traceEnvelope.run_id || execution_id,
+      traceEnvelope.parent_run_id || null,
+      brain_context?.workflow_id || null,
+      worker.worker_id,
+      result.provider || null,
+      result.cost_usd || null,
+      result.tokens_used || null,
+      durationMs,
+      result.quality_score || null,
+      result.status || 'unknown',
+    ]
+  );
+
+  // 7. Realize the REL node if successful
+  if (result.status === 'success' && taskUri) {
+    const checksum = result.output?.checksum || null;
+    await realizeNode(db, taskUri, result.output, checksum);
+
+    // Create output entities and generated_by edges
+    for (const outUri of outputUris) {
+      try {
+        await createNode(db, outUri, 'asset', 'project', 'episodic', {
+          generated_from: taskUri,
+        });
+        await linkNodes(db, outUri, taskUri, 'generated_by');
+      } catch { /* may already exist */ }
+    }
+  }
+
+  // 8. Return callback-format result
+  return {
+    task_id: taskUri,
+    run_id: traceEnvelope.run_id || execution_id,
+    status: result.status || 'failed',
+    output: result.output || null,
+    cost_usd: result.cost_usd || 0,
+    tokens_used: result.tokens_used || 0,
+    duration_ms: durationMs,
+    quality_score: result.quality_score || null,
+    worker_id: worker.worker_id,
   };
-  
-  await db.insert(worker_capabilities).values(worker);
-  return { ...worker, capabilities };
 }
 
-export async function workerHeartbeat(workerId, status = 'online') {
-  await db.update(worker_capabilities)
-    .set({ status, last_seen: new Date(), updated_at: new Date() })
-    .where(eq(worker_capabilities.worker_id, workerId));
-  
-  return { worker_id: workerId, status, timestamp: new Date() };
-}
-
-export async function listWorkers() {
-  const workers = await db.select().from(worker_capabilities);
-  return workers.map(w => ({ ...w, capabilities: JSON.parse(w.capabilities || '{}') }));
-}
-
-export default {
-  routeExecution,
-  registerWorker,
-  workerHeartbeat,
-  listWorkers,
-};
+export default { executeViaUAB };
