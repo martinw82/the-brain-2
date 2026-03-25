@@ -9,7 +9,7 @@
 import {
   PROMOTION_THRESHOLDS,
   REGRESSION_RULES,
-} from '../src/config/trustLadder.js';
+} from '../../src/config/trustLadder.js';
 
 /**
  * Register a new workflow in the Trust Ladder at Tier 1.

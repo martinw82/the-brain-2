@@ -371,7 +371,7 @@ const migrations = [
           user_id VARCHAR(36) NOT NULL,
           status ENUM('pending', 'running', 'paused', 'completed', 'failed', 'aborted') DEFAULT 'pending',
           current_step_index INT DEFAULT 0,
-          step_results JSON DEFAULT '{}',
+          step_results JSON,
           execution_log TEXT,
           started_by ENUM('user', 'ai', 'trigger') DEFAULT 'user',
           started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
