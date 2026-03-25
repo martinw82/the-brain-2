@@ -1,0 +1,161 @@
+{
+  "pipeline_id": "competition-batch-submit",
+  "version": "1.0",
+  "name": "Competition Hunter & Submitter",
+  "description": "Discover, score, and submit competition entries with deduplication",
+  "project_type": "COMPETITIONS",
+  "variant": "hybrid",
+  "created": "2026-03-25",
+  
+  "stages": [
+    {
+      "stage_id": "discovery",
+      "name": "Browser Discovery",
+      "agent": "system-competition-research",
+      "worker_type": "websocket",
+      "capabilities_required": ["browser", "playwright"],
+      "inputs": {},
+      "outputs": [
+        "competition_entities"
+      ],
+      "success_criteria": "10+ competitions discovered per run"
+    },
+    {
+      "stage_id": "scoring",
+      "name": "Scoring Agent",
+      "agent": "system-competition-research",
+      "worker_type": "cli_subprocess",
+      "capabilities_required": ["shell"],
+      "inputs": [
+        "competition_entities"
+      ],
+      "outputs": [
+        "scored_competitions"
+      ],
+      "success_criteria": "Priority score calculated for each competition"
+    },
+    {
+      "stage_id": "deduplication",
+      "name": "Deduplication Check",
+      "agent": "system-relation-maintainer",
+      "worker_type": "cli_subprocess",
+      "capabilities_required": ["shell"],
+      "inputs": [
+        "scored_competitions"
+      ],
+      "outputs": [
+        "unique_competitions"
+      ],
+      "logic": "Check entity_links for existing competition_id",
+      "success_criteria": "Zero duplicates in final queue"
+    },
+    {
+      "stage_id": "gate_1",
+      "name": "Trust Gate: Batch Approval",
+      "type": "trust_gate",
+      "gate_name": "approve_batch_queue",
+      "tier": 1,
+      "inputs": [
+        "unique_competitions"
+      ],
+      "approval_type": "batch",
+      "auto_approve_at_tier": 2,
+      "success_criteria": "Operator selects competitions to enter"
+    },
+    {
+      "stage_id": "style_detection",
+      "name": "Style Detection",
+      "agent": "system-competition-research",
+      "worker_type": "cli_subprocess",
+      "capabilities_required": ["shell"],
+      "inputs": [
+        "approved_competitions"
+      ],
+      "outputs": [
+        "competitions_with_style_tags"
+      ],
+      "success_criteria": "Each competition tagged with style"
+    },
+    {
+      "stage_id": "writer_routing",
+      "name": "Dynamic Writer Routing",
+      "type": "router",
+      "routing_table": {
+        "humorous": "system-content-humorous",
+        "professional": "system-content-professional",
+        "fiction": "system-content-fiction",
+        "sad": "system-content-sad",
+        "persuasive": "system-content-persuasive",
+        "narrative": "system-content-narrative"
+      },
+      "inputs": [
+        "competitions_with_style_tags"
+      ],
+      "outputs": [
+        "entry_drafts"
+      ],
+      "success_criteria": "Each competition has matching entry draft"
+    },
+    {
+      "stage_id": "gate_2",
+      "name": "Optional Gate: High-Value Approval",
+      "type": "trust_gate",
+      "gate_name": "approve_high_value_creative",
+      "tier": 1,
+      "condition": "prize_value > 500 OR requires_creative == true",
+      "inputs": [
+        "entry_drafts"
+      ],
+      "success_criteria": "Creative direction approved for high-value items"
+    },
+    {
+      "stage_id": "submission",
+      "name": "Form Submission",
+      "agent": "system-competition-submitter",
+      "worker_type": "websocket",
+      "capabilities_required": ["browser", "playwright"],
+      "inputs": [
+        "approved_entries"
+      ],
+      "outputs": [
+        "submission_proofs"
+      ],
+      "personal_data": {
+        "encrypted_fields": ["address", "phone", "dob"],
+        "decryption": "worker_side_only"
+      },
+      "success_criteria": "Screenshot proof captured for each submission"
+    },
+    {
+      "stage_id": "logging",
+      "name": "Result Logging",
+      "type": "rel_update",
+      "actions": [
+        "create submission entities",
+        "link to competition",
+        "link to entry draft",
+        "tag: submitted"
+      ],
+      "success_criteria": "Full lineage traceable in REL"
+    }
+  ],
+  
+  "trust_ladder": {
+    "tier_1_gates": ["approve_batch_queue", "approve_high_value_creative"],
+    "tier_2_gates": ["approve_high_value_creative"],
+    "tier_3_gates": [],
+    "target_tier": 3,
+    "target_timeline": "2 months for standard forms"
+  },
+  
+  "cost_controls": {
+    "per_submission_estimate_gbp": 0.15,
+    "monthly_budget_gbp": 50,
+    "alert_threshold": 0.8
+  },
+  
+  "schedule": {
+    "discovery": "daily 09:00",
+    "submission_batch": "daily 14:00"
+  }
+}

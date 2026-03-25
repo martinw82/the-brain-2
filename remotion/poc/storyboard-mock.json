@@ -1,0 +1,120 @@
+{
+  "composition_id": "test-documentary",
+  "title": "The History of Coffee",
+  "duration_seconds": 60,
+  "resolution": {
+    "width": 1920,
+    "height": 1080
+  },
+  "fps": 30,
+  "segments": [
+    {
+      "segment_id": "intro",
+      "title": "Introduction",
+      "duration_seconds": 15,
+      "scenes": [
+        {
+          "scene_id": "intro-1",
+          "text": "Coffee. The world's favorite drink.",
+          "visual_type": "ken_burns",
+          "image_url": "https://images.pexels.com/photos/1695052/pexels-photo-1695052.jpeg",
+          "duration_s": 5,
+          "zoom_direction": "in"
+        },
+        {
+          "scene_id": "intro-2",
+          "text": "But where did it all begin?",
+          "visual_type": "text_overlay",
+          "background_color": "#1a1a1a",
+          "duration_s": 5
+        },
+        {
+          "scene_id": "intro-3",
+          "text": "Join us on a journey through time.",
+          "visual_type": "ken_burns",
+          "image_url": "https://images.pexels.com/photos/894695/pexels-photo-894695.jpeg",
+          "duration_s": 5,
+          "zoom_direction": "out"
+        }
+      ]
+    },
+    {
+      "segment_id": "discovery",
+      "title": "The Discovery",
+      "duration_seconds": 20,
+      "scenes": [
+        {
+          "scene_id": "discovery-1",
+          "text": "Ethiopia, 9th century",
+          "visual_type": "map_marker",
+          "location": "Ethiopia",
+          "duration_s": 4
+        },
+        {
+          "scene_id": "discovery-2",
+          "text": "A shepherd named Kaldi noticed his goats dancing after eating berries.",
+          "visual_type": "illustration",
+          "duration_s": 8
+        },
+        {
+          "scene_id": "discovery-3",
+          "text": "The first coffee drinker was born.",
+          "visual_type": "ken_burns",
+          "image_url": "https://images.pexels.com/photos/1235717/pexels-photo-1235717.jpeg",
+          "duration_s": 8,
+          "zoom_direction": "in"
+        }
+      ]
+    },
+    {
+      "segment_id": "spread",
+      "title": "Global Spread",
+      "duration_seconds": 25,
+      "scenes": [
+        {
+          "scene_id": "spread-1",
+          "text": "From Ethiopia to Yemen...",
+          "visual_type": "map_route",
+          "from": "Ethiopia",
+          "to": "Yemen",
+          "duration_s": 5
+        },
+        {
+          "scene_id": "spread-2",
+          "text": "Coffee houses emerged in Constantinople, Venice, and London.",
+          "visual_type": "image_grid",
+          "images": [
+            "https://images.pexels.com/photos/2186568/pexels-photo-2186568.jpeg",
+            "https://images.pexels.com/photos/2159065/pexels-photo-2159065.jpeg"
+          ],
+          "duration_s": 8
+        },
+        {
+          "scene_id": "spread-3",
+          "text": "The drink that fueled the Enlightenment.",
+          "visual_type": "ken_burns",
+          "image_url": "https://images.pexels.com/photos/302899/pexels-photo-302899.jpeg",
+          "duration_s": 6,
+          "zoom_direction": "in"
+        },
+        {
+          "scene_id": "spread-4",
+          "text": "Today, we consume 2 billion cups daily.",
+          "visual_type": "text_overlay",
+          "background_color": "#2c1810",
+          "duration_s": 6
+        }
+      ]
+    }
+  ],
+  "audio": {
+    "voiceover": true,
+    "background_music": "ambient",
+    "music_volume": 0.3
+  },
+  "captions": {
+    "enabled": true,
+    "style": "lower-third",
+    "font": "Inter"
+  }
+}
