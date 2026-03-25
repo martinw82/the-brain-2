@@ -9,6 +9,7 @@ import {
   unique,
   index,
   primaryKey,
+  decimal,
 } from "drizzle-orm/mysql-core";
 
 // ────────────────────────────────────────────────────────────────
@@ -567,3 +568,105 @@ export const weekly_reviews = mysqlTable("weekly_reviews", {
 (table) => ({
   userWeekIdx: index("idx_weekly_reviews_user_week").on(table.user_id, table.week_start),
 }));
+
+// ────────────────────────────────────────────────────────────────
+// REL FOUNDATION (Phase 0 - v2.2)
+// Relational Entity Graph tables
+// ────────────────────────────────────────────────────────────────
+
+export const rel_entities = mysqlTable(
+  "rel_entities",
+  {
+    uri: varchar("uri", { length: 512 }).primaryKey(),
+    type: varchar("type", { length: 50 }).notNull(), // file, task, asset, workflow, agent, worker, email, competition
+    status: varchar("status", { length: 20 }).default("pending"), // pending, active, complete, failed, orphaned
+    checksum: varchar("checksum", { length: 64 }),
+    metadata: json("metadata"),
+    scope: varchar("scope", { length: 20 }).default("project"), // global, project, user, session
+    memory_type: varchar("memory_type", { length: 20 }), // policy, preference, fact, episodic, trace
+    project_id: varchar("project_id", { length: 64 }),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    typeIdx: index("idx_rel_entity_type").on(table.type, table.status),
+    scopeIdx: index("idx_rel_entity_scope").on(table.scope, table.type),
+    projectIdx: index("idx_rel_entity_project").on(table.project_id),
+  })
+);
+
+export const worker_capabilities = mysqlTable(
+  "worker_capabilities",
+  {
+    worker_id: varchar("worker_id", { length: 36 }).primaryKey(),
+    type: varchar("type", { length: 20 }).notNull(), // cli_subprocess, websocket, mcp
+    capabilities: json("capabilities").notNull(),
+    status: varchar("status", { length: 20 }).default("offline"), // online, offline, degraded
+    last_seen: datetime("last_seen"),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
+  }
+);
+
+export const execution_log = mysqlTable(
+  "execution_log",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
+    run_id: varchar("run_id", { length: 36 }).unique(),
+    parent_run_id: varchar("parent_run_id", { length: 36 }),
+    workflow_id: varchar("workflow_id", { length: 255 }),
+    worker_id: varchar("worker_id", { length: 36 }),
+    provider: varchar("provider", { length: 100 }),
+    cost_usd: decimal("cost_usd", { precision: 10, scale: 6 }),
+    tokens_used: int("tokens_used"),
+    duration_ms: int("duration_ms"),
+    quality_score: decimal("quality_score", { precision: 3, scale: 2 }),
+    status: varchar("status", { length: 20 }),
+    created_at: datetime("created_at").defaultNow(),
+  },
+  (table) => ({
+    runIdx: index("idx_execution_run").on(table.run_id),
+    workflowIdx: index("idx_execution_workflow").on(table.workflow_id),
+  })
+);
+
+export const workflow_trust = mysqlTable(
+  "workflow_trust",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
+    workflow_id: varchar("workflow_id", { length: 255 }).unique(),
+    project_id: varchar("project_id", { length: 64 }),
+    current_tier: int("current_tier").default(1),
+    run_count: int("run_count").default(0),
+    approval_count: int("approval_count").default(0),
+    consecutive_approvals: int("consecutive_approvals").default(0),
+    last_regression_at: datetime("last_regression_at"),
+    promoted_to_tier2_at: datetime("promoted_to_tier2_at"),
+    promoted_to_tier3_at: datetime("promoted_to_tier3_at"),
+    tier_locked: tinyint("tier_locked").default(0),
+    created_at: datetime("created_at").defaultNow(),
+    updated_at: datetime("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    workflowIdx: index("idx_workflow_trust_workflow").on(table.workflow_id),
+    projectIdx: index("idx_workflow_trust_project").on(table.project_id),
+  })
+);
+
+export const trust_events = mysqlTable(
+  "trust_events",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default("(UUID())"),
+    workflow_id: varchar("workflow_id", { length: 255 }),
+    run_id: varchar("run_id", { length: 36 }),
+    gate_name: varchar("gate_name", { length: 255 }),
+    decision: varchar("decision", { length: 20 }), // approved, rejected, modified
+    notes: text("notes"),
+    decided_by: varchar("decided_by", { length: 255 }),
+    decided_at: datetime("decided_at").defaultNow(),
+  },
+  (table) => ({
+    workflowIdx: index("idx_trust_events_workflow").on(table.workflow_id),
+    runIdx: index("idx_trust_events_run").on(table.run_id),
+  })
+);
