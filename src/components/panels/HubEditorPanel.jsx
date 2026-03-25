@@ -48,6 +48,8 @@ export default function HubEditorPanel({ ctx }) {
     templates,
     tasks,
     comments,
+    commentsLoading,
+    setHubTab,
     newComment,
     setNewComment,
     setComments,
@@ -68,10 +70,11 @@ export default function HubEditorPanel({ ctx }) {
     setTemplates,
     sessionLog,
     setSessionLog,
-    fileMetadataState,
+    fileMetadataState: fileMetadata,
     setFileMetadata,
     loadingMetadata,
     setLoadingMetadata,
+    userTags,
     aiSuggestions,
     setAiSuggestions,
     loadingAiSuggestions,
@@ -87,6 +90,7 @@ export default function HubEditorPanel({ ctx }) {
     // functions
     saveFile,
     handleHubSave,
+    saving,
     deleteFile,
     handleDrop,
     updateProject,
@@ -211,7 +215,7 @@ export default function HubEditorPanel({ ctx }) {
                           p.id === hubId ? { ...p, activeFile: path } : p
                         )
                       );
-                      projectsApi.setActiveFile(hubId, path).catch(() => {});
+                      projectsApi.setActiveFile(hubId, path).catch(e => console.error('[sync]', e.message));
                       fetchMetadata(hubId, path);
                       if (isMobile) setMobileFileTreeOpen(false);
                     }}
@@ -916,7 +920,7 @@ export default function HubEditorPanel({ ctx }) {
                         c.id === tmp.id ? { ...c, id: r.id } : c
                       ),
                     }));
-                  } catch {}
+                  } catch (e) { console.error('[catch]', e.message); }
                 }
               }}
             />
@@ -947,7 +951,7 @@ export default function HubEditorPanel({ ctx }) {
                       c.id === tmp.id ? { ...c, id: r.id } : c
                     ),
                   }));
-                } catch {}
+                } catch (e) { console.error('[catch]', e.message); }
               }}
             >
               Add
@@ -1012,7 +1016,7 @@ export default function HubEditorPanel({ ctx }) {
                       }));
                       await commentsApi
                         .resolve(c.id, !c.resolved)
-                        .catch(() => {});
+                        .catch(e => console.error('[sync]', e.message));
                     }}
                   >
                     {c.resolved ? 'Reopen' : '✓ Resolve'}

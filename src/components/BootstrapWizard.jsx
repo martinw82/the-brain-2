@@ -1,6 +1,24 @@
 import React, { useState } from 'react';
 import { C, S } from '../utils/constants.js';
 
+const WIZARD_STEPS = [
+  { id: 'core', label: 'Core Idea', icon: '💡' },
+  { id: 'scope', label: 'MVP Scope', icon: '🎯' },
+  { id: 'tech', label: 'Tech & Design', icon: '🛠' },
+  { id: 'agents', label: 'Agent Team', icon: '🤖' },
+  { id: 'review', label: 'Review & Generate', icon: '✅' },
+];
+
+const Row = ({ label, children, hint }) => (
+  <div style={{ marginBottom: 12 }}>
+    <span style={S.label()}>{label}</span>
+    {hint && (
+      <div style={{ fontSize: 8, color: C.dim, marginBottom: 4 }}>{hint}</div>
+    )}
+    {children}
+  </div>
+);
+
 // Bootstrap Wizard (same as before — no persistence changes needed here)
 const BootstrapWizard = ({ project, onComplete, onClose }) => {
   const [step, setStep] = useState(0);
@@ -18,13 +36,6 @@ const BootstrapWizard = ({ project, onComplete, onClose }) => {
     customFolders: ['', '', ''],
     selectedAgents: ['strategy', 'dev'],
   });
-  const WIZARD_STEPS = [
-    { id: 'core', label: 'Core Idea', icon: '💡' },
-    { id: 'scope', label: 'MVP Scope', icon: '🎯' },
-    { id: 'tech', label: 'Tech & Design', icon: '🛠' },
-    { id: 'agents', label: 'Agent Team', icon: '🤖' },
-    { id: 'review', label: 'Review & Generate', icon: '✅' },
-  ];
   const toggleAgent = (id) =>
     setBrief((b) => ({
       ...b,
@@ -38,15 +49,6 @@ const BootstrapWizard = ({ project, onComplete, onClose }) => {
       f[i] = v;
       return { ...b, mvpFeatures: f };
     });
-  const Row = ({ label, children, hint }) => (
-    <div style={{ marginBottom: 12 }}>
-      <span style={S.label()}>{label}</span>
-      {hint && (
-        <div style={{ fontSize: 8, color: C.dim, marginBottom: 4 }}>{hint}</div>
-      )}
-      {children}
-    </div>
-  );
   const canProceed = [
     brief.problem.trim() && brief.solution.trim() && brief.targetUser.trim(),
     brief.revenueModel.trim() && brief.mvpFeatures.filter(Boolean).length >= 1,

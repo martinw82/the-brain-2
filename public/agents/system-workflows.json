@@ -206,6 +206,80 @@
       "triggers": ["manual", "on_schedule_weekly"]
     },
     {
+      "id": "system-outreach-sprint",
+      "name": "Outreach Sprint",
+      "description": "Find leads, draft messages, review, and log follow-ups",
+      "icon": "📨",
+      "steps": [
+        {
+          "id": "find-leads",
+          "label": "Find Leads",
+          "capability": "outreach.find",
+          "sop": "Identify 5 high-value targets from ICP. Check Twitter, GitHub, communities.",
+          "auto_assign": true
+        },
+        {
+          "id": "draft-messages",
+          "label": "Draft Messages",
+          "capability": "outreach.write",
+          "sop": "Write personalised first-touch message for each lead. Max 5 sentences. Save to staging/.",
+          "auto_assign": true
+        },
+        {
+          "id": "review-messages",
+          "label": "Review & Approve",
+          "capability": "outreach.write",
+          "sop": "Human reviews drafts in staging/. Edit or approve before sending.",
+          "auto_assign": false
+        },
+        {
+          "id": "log-outreach",
+          "label": "Log & Track",
+          "capability": "outreach.track",
+          "sop": "Add all sent messages to outreach-log.md. Set follow-up reminders.",
+          "auto_assign": true
+        }
+      ],
+      "triggers": ["manual"]
+    },
+    {
+      "id": "system-revenue-check",
+      "name": "Revenue Check",
+      "description": "Monthly snapshot: income, expenses, runway, and next revenue action",
+      "icon": "💰",
+      "steps": [
+        {
+          "id": "finance-snapshot",
+          "label": "Finance Snapshot",
+          "capability": "finance.analyze",
+          "sop": "Calculate current MRR, gap to £3000 target, and runway.",
+          "auto_assign": true
+        },
+        {
+          "id": "pricing-review",
+          "label": "Pricing Review",
+          "capability": "finance.price",
+          "sop": "Review all product pricing. Flag if under-priced vs market.",
+          "auto_assign": true
+        },
+        {
+          "id": "strategy-priorities",
+          "label": "Revenue Priorities",
+          "capability": "strategy.prioritize",
+          "sop": "Based on finance snapshot, pick the single highest-ROI revenue action for next 30 days.",
+          "auto_assign": true
+        },
+        {
+          "id": "human-review",
+          "label": "Review & Commit",
+          "capability": "finance.report",
+          "sop": "Human reviews report, commits to top revenue action for the month.",
+          "auto_assign": false
+        }
+      ],
+      "triggers": ["manual", "on_schedule_monthly"]
+    },
+    {
       "id": "system-security-audit",
       "name": "Security Audit",
       "description": "Comprehensive security review workflow",

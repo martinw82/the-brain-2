@@ -117,7 +117,7 @@ v2.0: User states goal → AI breaks down → AI assigns tasks →
 | **Router**          | Decide who does what         | Design mockup → Design Agent (auto) or Human (preview)         |
 | **Task Queue**      | Track status, assignments    | Pending → In Progress → Review → Complete                      |
 | **Workflow Engine** | Execute multi-step processes | Product Launch: 7 steps, track progress                        |
-| **Agent Pool**      | Execute assigned work        | Dev Agent, Content Agent, etc.                                 |
+| **Agent Pool**      | Execute assigned work        | Dev, Content, Strategy, Design, Research, Outreach, Finance    |
 
 ---
 
@@ -340,7 +340,7 @@ brain://workflow/product-launch/step-3    → Workflow step
 │  TiDB Cloud Serverless (MySQL-compatible)                           │
 │  ├─ 25 tables (v1.0 schema.sql)                                     │
 │  ├─ + 7 tables via migrations (v2.0) = 32 total                    │
-│  ├─ + agents as files in /agents/*.md (v2.0)                       │
+│  ├─ + agents as files in /public/agents/*.md (v2.0)                │
 │  └─ + memories (v2.0 planned)                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -388,7 +388,7 @@ tasks (project_id, assignee_type, assignee_id, status, workflow_instance_id)
 workflow_templates (id, name, steps JSON, triggers JSON, is_system)
 workflow_instances (workflow_template_id, status, current_step_index, step_results)
 
--- Agent definitions: file-based in /agents/*.md (not a DB table)
+-- Agent definitions: file-based in public/agents/*.md (not a DB table)
 
 -- Intelligence (planned)
 memories (user_id, category, content, confidence, source_task_id)

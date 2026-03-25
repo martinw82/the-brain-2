@@ -19,6 +19,7 @@ import { cache } from './cache.js';
 import { sync } from './sync.js';
 import AuthScreen from './AuthScreen.jsx';
 import TheBrain from './TheBrain.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -172,6 +173,7 @@ export default function App() {
 
   // ── AUTHED ────────────────────────────────────────────────
   return (
+    <ErrorBoundary>
     <TheBrain
       user={user}
       initialProjects={appData?.projects || []}
@@ -184,5 +186,6 @@ export default function App() {
       initialEntityTags={appData?.entityTags || []}
       onLogout={handleLogout}
     />
+    </ErrorBoundary>
   );
 }
