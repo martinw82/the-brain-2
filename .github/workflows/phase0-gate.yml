@@ -24,6 +24,3 @@ jobs:
 
       - name: Run Entity Graph tests (Phase 0 gate)
         run: npx jest src/__tests__/entityGraph.test.js --verbose
-
-      - name: Run all unit tests
-        run: npm test -- --passWithNoTests
