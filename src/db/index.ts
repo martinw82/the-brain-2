@@ -15,7 +15,6 @@ const poolPromise = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  enableLogs: process.env.DB_DEBUG === "true",
 });
 
 // ────────────────────────────────────────────────────────────────

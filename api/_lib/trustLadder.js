@@ -5,17 +5,16 @@
  * Manages workflow trust tiers, gate decisions, and promotion/regression.
  */
 
-import { db } from '../src/db/index.ts';
-import { workflow_trust, trust_events } from '../src/db/schema.ts';
+import { db } from '../../src/db/index.ts';
+import { workflow_trust, trust_events } from '../../src/db/schema.ts';
 import { eq, and, desc } from 'drizzle-orm';
 import {
   TRUST_THRESHOLDS,
   TIER_DESCRIPTIONS,
   DECISION_TYPES,
-  GATE_STATUS,
   shouldPromote,
   shouldRegress,
-} from '../src/config/trustLadder.js';
+} from '../../src/config/trustLadder.js';
 
 /**
  * Initialize trust tracking for a new workflow

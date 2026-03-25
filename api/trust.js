@@ -1,22 +1,32 @@
 /**
- * Trust Pending API Endpoint
+ * Trust API Endpoint
  * Phase 1 - v2.2 Architecture
  * 
- * GET /api/trust-pending
- * Lists pending trust gate approvals
+ * GET /api/trust - List pending approvals
+ * POST /api/trust - Record a gate decision
  */
 
+import { recordGateDecision, getTrustStatus, listWorkflowTrust } from './_lib/trustLadder.js';
 import { db } from '../src/db/index.ts';
 import { workflow_trust, trust_events } from '../src/db/schema.ts';
-import { eq, and, desc, isNull } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { TIER_DESCRIPTIONS, GATE_STATUS } from '../src/config/trustLadder.js';
 
 export default async function handler(req, res) {
-  // Only allow GET
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed', allowed: ['GET'] });
+  // GET /api/trust - List pending approvals
+  if (req.method === 'GET') {
+    return handleGet(req, res);
+  }
+  
+  // POST /api/trust - Record decision
+  if (req.method === 'POST') {
+    return handlePost(req, res);
   }
 
+  return res.status(405).json({ error: 'Method not allowed', allowed: ['GET', 'POST'] });
+}
+
+async function handleGet(req, res) {
   try {
     const { 
       project_id, 
@@ -66,11 +76,9 @@ export default async function handler(req, res) {
         }
       }
       
-      // Determine pending gates (this would need project-specific gate configuration)
-      // For now, list all gates that don't have a recent approval
+      // Determine pending gates
       const pendingGates = [];
       
-      // If no gates have been passed, the workflow needs initial approval
       const approvedGates = Object.values(gateStatus).filter(e => e.decision === 'approved');
       const rejectedGates = Object.values(gateStatus).filter(e => e.decision === 'rejected');
       
@@ -145,6 +153,66 @@ export default async function handler(req, res) {
     console.error('Trust pending error:', error);
     return res.status(500).json({
       error: 'Failed to fetch pending approvals',
+      message: error.message,
+    });
+  }
+}
+
+async function handlePost(req, res) {
+  try {
+    const { workflow_id, run_id, gate_name, decision, notes, decided_by } = req.body;
+
+    // Validate required fields
+    if (!workflow_id || !run_id || !gate_name || !decision) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        required: ['workflow_id', 'run_id', 'gate_name', 'decision'],
+        received: { workflow_id, run_id, gate_name, decision },
+      });
+    }
+
+    // Validate decision value
+    const validDecisions = ['approved', 'rejected', 'modified'];
+    if (!validDecisions.includes(decision)) {
+      return res.status(400).json({
+        error: 'Invalid decision value',
+        allowed: validDecisions,
+        received: decision,
+      });
+    }
+
+    // Record the decision
+    const result = await recordGateDecision(
+      workflow_id,
+      run_id,
+      gate_name,
+      decision,
+      notes,
+      decided_by
+    );
+
+    // Return success response
+    return res.status(200).json({
+      success: true,
+      message: `Gate ${gate_name} ${decision}`,
+      data: {
+        event: result.event,
+        trust_status: {
+          workflow_id: result.trust.workflow_id,
+          current_tier: result.trust.current_tier,
+          run_count: result.trust.run_count,
+          approval_count: result.trust.approval_count,
+          consecutive_approvals: result.trust.consecutive_approvals,
+        },
+        promotion: result.promotion,
+        regression: result.regression,
+      },
+    });
+
+  } catch (error) {
+    console.error('Trust decision error:', error);
+    return res.status(500).json({
+      error: 'Failed to record trust decision',
       message: error.message,
     });
   }

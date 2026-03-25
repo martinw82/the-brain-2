@@ -8,7 +8,7 @@
  * - POST /api/workers/:id/heartbeat - Worker heartbeat
  */
 
-import { registerWorker, workerHeartbeat, listWorkers } from './executors/UniversalAgentBridge.js';
+import { registerWorker, workerHeartbeat, listWorkers } from './_lib/executors/UniversalAgentBridge.js';
 
 export default async function handler(req, res) {
   const { method, query, body } = req;
