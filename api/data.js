@@ -3,8 +3,11 @@
 
 import mysql from 'mysql2/promise';
 import jwt from 'jsonwebtoken';
+import { encryptApiKey } from './_lib/crypto.js';
+import { getCorsHeaders } from './_lib/cors.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('FATAL: JWT_SECRET environment variable is not set');
 
 function getDb() {
   return mysql.createConnection({
@@ -17,12 +20,7 @@ function getDb() {
   });
 }
 
-const CORS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-};
+// CORS headers are set per-request via getCorsHeaders(req)
 
 function ok(res, data, status = 200) {
   return res.status(status).json(data);
@@ -129,6 +127,7 @@ function sanitizeObject(obj) {
 }
 
 export default async function handler(req, res) {
+  const CORS = getCorsHeaders(req);
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(204).end();
 
@@ -3150,10 +3149,8 @@ Provide metadata suggestions as JSON.`;
           return err(res, 'Invalid provider', 400);
         }
 
-        // Encrypt API key (base64 for basic obfuscation)
-        const encryptedKey = api_key
-          ? `enc:${Buffer.from(api_key).toString('base64')}`
-          : undefined;
+        // Encrypt API key with AES-256-GCM
+        const encryptedKey = api_key ? encryptApiKey(api_key) : undefined;
 
         await db.execute(
           `INSERT INTO user_ai_settings (id, user_id, provider, api_key_encrypted, model, max_tokens, temperature, enabled)

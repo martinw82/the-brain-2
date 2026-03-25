@@ -230,27 +230,27 @@ export function getProgress(instance) {
  */
 export async function seedSystemWorkflows() {
   try {
-    // Check if already seeded
+    // Get existing workflow IDs so we only seed missing ones
     const result = await workflowsApi.list();
-    const hasSystemWorkflows = result?.templates?.some((t) => t.is_system);
-
-    if (hasSystemWorkflows) {
-      console.log('[Workflow] System workflows already seeded');
-      return;
-    }
+    const existingIds = new Set((result?.templates || []).map((t) => t.id));
 
     // Load system workflows from JSON
     const response = await fetch('/agents/system-workflows.json');
     const data = await response.json();
 
+    let added = 0;
     for (const wf of data.workflows) {
-      await workflowsApi.create({
-        ...wf,
-        is_system: true,
-      });
+      if (!existingIds.has(wf.id)) {
+        await workflowsApi.create({ ...wf, is_system: true });
+        added++;
+      }
     }
 
-    console.log('[Workflow] System workflows seeded:', data.workflows.length);
+    if (added > 0) {
+      console.log('[Workflow] Seeded', added, 'new system workflow(s)');
+    } else {
+      console.log('[Workflow] System workflows up to date');
+    }
   } catch (e) {
     console.error('[Workflow] Failed to seed workflows:', e);
   }

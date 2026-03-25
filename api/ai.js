@@ -4,11 +4,14 @@
 import jwt from 'jsonwebtoken';
 import mysql from 'mysql2/promise';
 import { createRequire } from 'module';
+import { decryptApiKey } from './_lib/crypto.js';
+import { getCorsHeaders } from './_lib/cors.js';
 
 const require = createRequire(import.meta.url);
 const agentConfig = require('../agent-config.json');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('FATAL: JWT_SECRET environment variable is not set');
 
 // Environment fallbacks for server-side defaults (user keys take precedence)
 const ENV_API_KEYS = {
@@ -19,12 +22,7 @@ const ENV_API_KEYS = {
   openai: process.env.OPENAI_API_KEY,
 };
 
-const CORS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+// CORS headers are set per-request via getCorsHeaders(req)
 
 function err(res, msg, status = 400) {
   return res.status(status).json({ error: msg });
@@ -554,6 +552,7 @@ async function logAIUsage(db, userId, provider, usage, model) {
 
 // ── MAIN HANDLER ───────────────────────────────────────────────
 export default async function handler(req, res) {
+  const CORS = getCorsHeaders(req);
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return err(res, 'Method not allowed', 405);
@@ -617,10 +616,7 @@ export default async function handler(req, res) {
     }
 
     // Get API key: user setting first, then env fallback
-    let apiKey = userSettings?.api_key_encrypted;
-    if (apiKey && apiKey.startsWith('enc:')) {
-      apiKey = Buffer.from(apiKey.slice(4), 'base64').toString();
-    }
+    let apiKey = decryptApiKey(userSettings?.api_key_encrypted);
     if (!apiKey) apiKey = ENV_API_KEYS[providerKey];
 
     if (!apiKey) {

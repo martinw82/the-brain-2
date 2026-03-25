@@ -4,8 +4,10 @@
 import mysql from 'mysql2/promise';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { getCorsHeaders } from './_lib/cors.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('FATAL: JWT_SECRET environment variable is not set');
 
 function getDb() {
   return mysql.createConnection({
@@ -18,12 +20,7 @@ function getDb() {
   });
 }
 
-const CORS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-};
+// CORS headers are set per-request via getCorsHeaders(req)
 
 function ok(res, data, status = 200) {
   return res.status(status).json(data);
@@ -39,6 +36,7 @@ function getAuth(req) {
 
 export default async function handler(req, res) {
   // Set CORS headers
+  const CORS = getCorsHeaders(req);
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(204).end();
   

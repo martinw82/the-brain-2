@@ -49,7 +49,7 @@ export default function useSessionOps(deps) {
       setIdeas((prev) =>
         prev.map((i) => (i.id === tmp.id ? { ...i, id: res.id } : i))
       );
-    } catch {
+    } catch (e) { console.error('[catch]', e.message);
       showToast('⚠ Idea save failed');
     }
   };
@@ -75,7 +75,7 @@ export default function useSessionOps(deps) {
           started_at: sessionStart.current?.toISOString(),
           ended_at: new Date().toISOString(),
         })
-        .catch(() => {});
+        .catch(e => console.error('[sync]', e.message));
     }
     setSessionOn(false);
     setSessionSecs(0);
@@ -151,7 +151,7 @@ export default function useSessionOps(deps) {
             }),
           });
           setTodayCheckin(updated);
-        } catch {
+        } catch (e) { console.error('[catch]', e.message);
           // Non-critical: checkin training_done update failed, ignore
         }
       }

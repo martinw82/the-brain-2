@@ -1,4 +1,5 @@
 import { getFileType } from './fileHandlers.js';
+import { sanitizeHtml } from './sanitize.js';
 
 // ── MARKDOWN + GANTT ──────────────────────────────────────────
 export const renderMd = (md = '', files = {}) => {
@@ -69,6 +70,7 @@ export const renderMd = (md = '', files = {}) => {
     )
     .replace(/\n\n/g, '<br/><br/>')
     .replace(/\n/g, '<br/>');
+  return sanitizeHtml(html);
 };
 
 export const parseTasks = (md) => {
