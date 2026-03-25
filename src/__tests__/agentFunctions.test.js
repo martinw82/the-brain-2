@@ -37,8 +37,8 @@ describe('Agent Functions', () => {
 
   describe('FUNCTION_DEFINITIONS', () => {
     it('should have all required functions', () => {
-      const functionNames = FUNCTION_DEFINITIONS.map(f => f.name);
-      
+      const functionNames = FUNCTION_DEFINITIONS.map((f) => f.name);
+
       expect(functionNames).toContain('read_file');
       expect(functionNames).toContain('write_file');
       expect(functionNames).toContain('create_task');
@@ -48,7 +48,7 @@ describe('Agent Functions', () => {
     });
 
     it('should have proper schemas for each function', () => {
-      FUNCTION_DEFINITIONS.forEach(func => {
+      FUNCTION_DEFINITIONS.forEach((func) => {
         expect(func.name).toBeDefined();
         expect(func.description).toBeDefined();
         expect(func.parameters).toBeDefined();
@@ -58,27 +58,38 @@ describe('Agent Functions', () => {
     });
 
     it('should have read_file schema', () => {
-      const readFile = FUNCTION_DEFINITIONS.find(f => f.name === 'read_file');
-      
+      const readFile = FUNCTION_DEFINITIONS.find((f) => f.name === 'read_file');
+
       expect(readFile.parameters.properties.uri).toBeDefined();
       expect(readFile.parameters.required).toContain('uri');
     });
 
     it('should have write_file schema', () => {
-      const writeFile = FUNCTION_DEFINITIONS.find(f => f.name === 'write_file');
-      
+      const writeFile = FUNCTION_DEFINITIONS.find(
+        (f) => f.name === 'write_file'
+      );
+
       expect(writeFile.parameters.properties.uri).toBeDefined();
       expect(writeFile.parameters.properties.content).toBeDefined();
       expect(writeFile.parameters.properties.mode).toBeDefined();
-      expect(writeFile.parameters.properties.mode.enum).toEqual(['create', 'update', 'preview']);
+      expect(writeFile.parameters.properties.mode.enum).toEqual([
+        'create',
+        'update',
+        'preview',
+      ]);
     });
 
     it('should have create_task schema', () => {
-      const createTask = FUNCTION_DEFINITIONS.find(f => f.name === 'create_task');
-      
+      const createTask = FUNCTION_DEFINITIONS.find(
+        (f) => f.name === 'create_task'
+      );
+
       expect(createTask.parameters.properties.title).toBeDefined();
       expect(createTask.parameters.properties.assignee_type).toBeDefined();
-      expect(createTask.parameters.properties.assignee_type.enum).toEqual(['human', 'agent']);
+      expect(createTask.parameters.properties.assignee_type.enum).toEqual([
+        'human',
+        'agent',
+      ]);
     });
   });
 
@@ -97,7 +108,7 @@ describe('Agent Functions', () => {
   describe('executeFunction', () => {
     it('should execute read_file function', async () => {
       const fileContent = '# README\n\nProject description.';
-      
+
       fetch.mockResolvedValueOnce({
         json: async () => ({ file: { content: fileContent } }),
       });
@@ -149,10 +160,12 @@ describe('Agent Functions', () => {
         assignee_id: 'system-dev-v1',
       });
 
-      expect(tasksApi.create).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'New Task',
-        priority: 'high',
-      }));
+      expect(tasksApi.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'New Task',
+          priority: 'high',
+        })
+      );
       expect(result.success).toBe(true);
       expect(result.task_id).toBe('new-task-123');
     });
@@ -166,7 +179,11 @@ describe('Agent Functions', () => {
         outputs: ['brain://project/test-project/file/result.md'],
       });
 
-      expect(tasksApi.complete).toHaveBeenCalledWith('task-123', 'Completed the work', expect.any(Array));
+      expect(tasksApi.complete).toHaveBeenCalledWith(
+        'task-123',
+        'Completed the work',
+        expect.any(Array)
+      );
       expect(result.success).toBe(true);
     });
 

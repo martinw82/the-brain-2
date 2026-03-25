@@ -52,12 +52,12 @@ describe('Project Factory', () => {
     it('should decrease health for old projects', () => {
       const oldDate = new Date();
       oldDate.setMonth(oldDate.getMonth() - 3);
-      
+
       const health = calcHealth({
         last_touched: oldDate.toISOString().slice(0, 7),
         momentum: 5,
       });
-      
+
       expect(health).toBeLessThan(100);
     });
 
@@ -66,19 +66,19 @@ describe('Project Factory', () => {
         last_touched: new Date().toISOString().slice(0, 7),
         momentum: 1,
       });
-      
+
       expect(health).toBeLessThan(100);
     });
 
     it('should not return negative health', () => {
       const veryOldDate = new Date();
       veryOldDate.setFullYear(veryOldDate.getFullYear() - 2);
-      
+
       const health = calcHealth({
         last_touched: veryOldDate.toISOString().slice(0, 7),
         momentum: 0,
       });
-      
+
       expect(health).toBeGreaterThanOrEqual(0);
     });
   });
@@ -146,7 +146,7 @@ describe('Project Factory', () => {
 
     it('should include all standard folders', () => {
       const project = makeProject({ id: 'test', name: 'Test' });
-      
+
       expect(project.files['code-modules/.gitkeep']).toBeDefined();
       expect(project.files['design-assets/.gitkeep']).toBeDefined();
       expect(project.files['content-assets/.gitkeep']).toBeDefined();

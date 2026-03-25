@@ -215,7 +215,9 @@ export default function HubEditorPanel({ ctx }) {
                           p.id === hubId ? { ...p, activeFile: path } : p
                         )
                       );
-                      projectsApi.setActiveFile(hubId, path).catch(e => console.error('[sync]', e.message));
+                      projectsApi
+                        .setActiveFile(hubId, path)
+                        .catch((e) => console.error('[sync]', e.message));
                       fetchMetadata(hubId, path);
                       if (isMobile) setMobileFileTreeOpen(false);
                     }}
@@ -920,7 +922,9 @@ export default function HubEditorPanel({ ctx }) {
                         c.id === tmp.id ? { ...c, id: r.id } : c
                       ),
                     }));
-                  } catch (e) { console.error('[catch]', e.message); }
+                  } catch (e) {
+                    console.error('[catch]', e.message);
+                  }
                 }
               }}
             />
@@ -951,7 +955,9 @@ export default function HubEditorPanel({ ctx }) {
                       c.id === tmp.id ? { ...c, id: r.id } : c
                     ),
                   }));
-                } catch (e) { console.error('[catch]', e.message); }
+                } catch (e) {
+                  console.error('[catch]', e.message);
+                }
               }}
             >
               Add
@@ -1016,7 +1022,7 @@ export default function HubEditorPanel({ ctx }) {
                       }));
                       await commentsApi
                         .resolve(c.id, !c.resolved)
-                        .catch(e => console.error('[sync]', e.message));
+                        .catch((e) => console.error('[sync]', e.message));
                     }}
                   >
                     {c.resolved ? 'Reopen' : '✓ Resolve'}

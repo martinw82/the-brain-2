@@ -428,8 +428,9 @@ export default function TheBrain({
     try {
       const saved = localStorage.getItem('brain_recent_searches');
       if (saved) setRecentSearches(JSON.parse(saved));
-    } catch (e) { console.error('[catch]', e.message);
-}
+    } catch (e) {
+      console.error('[catch]', e.message);
+    }
 
     // Cmd+K / Ctrl+K keyboard shortcut
     const handleKeyDown = (e) => {
@@ -472,7 +473,9 @@ export default function TheBrain({
     setRecentSearches(updated);
     try {
       localStorage.setItem('brain_recent_searches', JSON.stringify(updated));
-    } catch (e) { console.error('[catch]', e.message); }
+    } catch (e) {
+      console.error('[catch]', e.message);
+    }
   };
 
   // ── COMMENTS LOADER — fetch from DB when hub or active file changes ──
@@ -492,7 +495,7 @@ export default function TheBrain({
         }));
         setComments((prev) => ({ ...prev, [commKey]: mapped }));
       })
-      .catch(e => console.error('[sync]', e.message))
+      .catch((e) => console.error('[sync]', e.message))
       .finally(() => setCommentsLoading(false));
   }, [hubId, hub?.activeFile]);
 
@@ -502,7 +505,7 @@ export default function TheBrain({
     linksApi
       .query('project', hubId)
       .then((d) => setHubLinks(d.links || []))
-      .catch(e => console.error('[sync]', e.message));
+      .catch((e) => console.error('[sync]', e.message));
   }, [hubId]);
 
   // ── USER SETTINGS — load once on login ──────────────────────
@@ -516,7 +519,7 @@ export default function TheBrain({
           setSettingsForm((s) => ({ ...s, ...d.settings }));
         }
       })
-      .catch(e => console.error('[sync]', e.message));
+      .catch((e) => console.error('[sync]', e.message));
   }, [user?.id]);
 
   // ── DAILY CHECKIN — prompt on first visit of day (Phase 2.5) ──
@@ -568,7 +571,7 @@ export default function TheBrain({
         loadDriftCheck();
       loadTasks();
       // Phase 5.5: Seed system workflows on first run
-      seedSystemWorkflows().catch(e => console.error('[sync]', e.message));
+      seedSystemWorkflows().catch((e) => console.error('[sync]', e.message));
     }
   }, [user?.id]);
 
@@ -941,7 +944,9 @@ export default function TheBrain({
             )
           );
           // Save to API (silent)
-          projectsApi.saveFile(projectId, filePath, content).catch(e => console.error('[sync]', e.message));
+          projectsApi
+            .saveFile(projectId, filePath, content)
+            .catch((e) => console.error('[sync]', e.message));
           setUndoToast({ action: 'undone', message: `Undid ${undone.action}` });
           setTimeout(() => setUndoToast(null), 2000);
         }
@@ -964,7 +969,9 @@ export default function TheBrain({
                 : p
             )
           );
-          projectsApi.saveFile(projectId, filePath, content).catch(e => console.error('[sync]', e.message));
+          projectsApi
+            .saveFile(projectId, filePath, content)
+            .catch((e) => console.error('[sync]', e.message));
           setUndoToast({ action: 'redone', message: `Redid ${redone.action}` });
           setTimeout(() => setUndoToast(null), 2000);
         }
@@ -2688,7 +2695,14 @@ export default function TheBrain({
       )}
 
       {(modal === 'manage-goals' || showGoalModal) && (
-        <Modal title="Manage Goals" onClose={() => { setModal(null); setShowGoalModal(false); }} width={500}>
+        <Modal
+          title="Manage Goals"
+          onClose={() => {
+            setModal(null);
+            setShowGoalModal(false);
+          }}
+          width={500}
+        >
           <div style={{ marginBottom: 16 }}>
             <span style={S.label()}>Active Goal</span>
             <select

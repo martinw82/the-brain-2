@@ -1,0 +1,58 @@
+{
+  "workflows": [
+    {
+      "id": "inbound-management",
+      "name": "Inbound Email Management",
+      "description": "Automated inbound email fetching, classification, routing, and notification pipeline",
+      "icon": "📬",
+      "steps": [
+        {
+          "id": "fetch-emails",
+          "label": "Fetch Emails",
+          "capability": "email.read",
+          "sop": "Query Gmail API for unread messages since last check. Handle OAuth 2.0 token refresh if needed. Collect sender, subject, body, and headers for each email.",
+          "auto_assign": true
+        },
+        {
+          "id": "classify",
+          "label": "Classify Emails",
+          "capability": "email.classify",
+          "sop": "Classify each email into exactly one category: lead_reply, newsletter, spam, support, personal. Check sender against CRM contacts first. Log classification confidence.",
+          "auto_assign": true
+        },
+        {
+          "id": "route-lead-reply",
+          "label": "Route: Lead Reply → CRM Update",
+          "capability": "crm.update",
+          "sop": "For lead_reply emails: update CRM status to reply_detected, classify reply sentiment, queue follow-up workflow if positive, close if negative.",
+          "auto_assign": true,
+          "condition": "classification == 'lead_reply'"
+        },
+        {
+          "id": "route-support",
+          "label": "Route: Support → Ticket",
+          "capability": "email.classify",
+          "sop": "For support emails: create support ticket with subject, body, and sender details. Set priority based on keywords (urgent, broken, down = high priority).",
+          "auto_assign": true,
+          "condition": "classification == 'support'"
+        },
+        {
+          "id": "route-spam",
+          "label": "Route: Spam → Archive",
+          "capability": "email.classify",
+          "sop": "For spam emails: archive immediately. Flag phishing attempts for security review. Do not unsubscribe automatically.",
+          "auto_assign": true,
+          "condition": "classification == 'spam'"
+        },
+        {
+          "id": "notify",
+          "label": "Notify & Report",
+          "capability": "email.classify",
+          "sop": "Send summary notification: total processed, lead replies (immediate alert), support tickets created, spam archived. Log full report to inbound-log.md.",
+          "auto_assign": true
+        }
+      ],
+      "triggers": ["on_schedule_5min", "manual"]
+    }
+  ]
+}

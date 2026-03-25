@@ -202,7 +202,8 @@ export default function AgentManager({ projectId, projectFiles, onSaveAgent }) {
     try {
       const result = await tasksApi.list({ assignee_id: agent.id });
       setAgentTasks(result.tasks || []);
-    } catch (e) { console.error('[catch]', e.message);
+    } catch (e) {
+      console.error('[catch]', e.message);
       setAgentTasks([]);
     }
   };

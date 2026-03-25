@@ -83,12 +83,18 @@ describe('useTaskOps', () => {
       });
 
       expect(tasksApi.create).toHaveBeenCalledWith(newTaskData);
-      expect(mockDeps.showToast).toHaveBeenCalledWith(expect.stringContaining('Task created'));
+      expect(mockDeps.showToast).toHaveBeenCalledWith(
+        expect.stringContaining('Task created')
+      );
       expect(mockDeps.setShowTaskModal).toHaveBeenCalledWith(false);
     });
 
     it('should show agent assignment in toast', async () => {
-      const agentTask = { ...newTaskData, assignee_type: 'agent', assignee_id: 'system-dev-v1' };
+      const agentTask = {
+        ...newTaskData,
+        assignee_type: 'agent',
+        assignee_id: 'system-dev-v1',
+      };
       tasksApi.create.mockResolvedValueOnce({ success: true });
 
       const { result } = renderHook(() => useTaskOps(mockDeps));
@@ -97,7 +103,9 @@ describe('useTaskOps', () => {
         await result.current.createTask(agentTask);
       });
 
-      expect(mockDeps.showToast).toHaveBeenCalledWith(expect.stringContaining('system-dev-v1'));
+      expect(mockDeps.showToast).toHaveBeenCalledWith(
+        expect.stringContaining('system-dev-v1')
+      );
     });
 
     it('should reset form after creation', async () => {
@@ -109,11 +117,13 @@ describe('useTaskOps', () => {
         await result.current.createTask(newTaskData);
       });
 
-      expect(mockDeps.setTaskForm).toHaveBeenCalledWith(expect.objectContaining({
-        title: '',
-        description: '',
-        priority: 'medium',
-      }));
+      expect(mockDeps.setTaskForm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: '',
+          description: '',
+          priority: 'medium',
+        })
+      );
     });
 
     it('should handle creation errors', async () => {
@@ -153,7 +163,9 @@ describe('useTaskOps', () => {
         await result.current.completeTask(123);
       });
 
-      expect(mockDeps.showToast).toHaveBeenCalledWith('Failed to complete task');
+      expect(mockDeps.showToast).toHaveBeenCalledWith(
+        'Failed to complete task'
+      );
     });
   });
 
@@ -176,7 +188,7 @@ describe('useTaskOps', () => {
   describe('Agent Task Polling', () => {
     it('should poll for executing agent tasks', async () => {
       jest.useFakeTimers();
-      
+
       const executingTasks = [
         { id: 1, status: 'in_progress', assignee_type: 'agent' },
       ];
@@ -203,7 +215,7 @@ describe('useTaskOps', () => {
 
     it('should not poll if no executing tasks', () => {
       jest.useFakeTimers();
-      
+
       const nonExecutingTasks = [
         { id: 1, status: 'pending', assignee_type: 'human' },
       ];

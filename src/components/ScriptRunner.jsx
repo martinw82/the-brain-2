@@ -35,7 +35,9 @@ const ScriptRunner = ({ projectId, projectFiles }) => {
           try {
             const parsed = JSON.parse(metaMatch[1].replace(/'/g, '"'));
             meta = { ...meta, ...parsed };
-          } catch (e) { console.error('[catch]', e.message); }
+          } catch (e) {
+            console.error('[catch]', e.message);
+          }
         }
         foundScripts.push({ path, name, content, meta });
       }

@@ -1,0 +1,59 @@
+{
+  "workflows": [
+    {
+      "id": "b2b-outreach-system",
+      "name": "B2B Cold Outreach",
+      "description": "End-to-end B2B cold outreach pipeline from prospect research through follow-up management",
+      "icon": "📧",
+      "steps": [
+        {
+          "id": "research-prospect",
+          "label": "Research Prospect",
+          "capability": "outreach.find",
+          "sop": "Research the prospect: company size, industry, role, recent news, pain points. Check LinkedIn and company website. Document findings.",
+          "auto_assign": true
+        },
+        {
+          "id": "draft-email",
+          "label": "Draft Cold Email",
+          "capability": "email.draft",
+          "sop": "Write personalised cold email following tone rules. No forbidden words. Value-first, max 5 sentences. Save to staging/ as TRADE_{company}_{date}.md",
+          "auto_assign": true
+        },
+        {
+          "id": "review-gate",
+          "label": "Review & Approve Draft",
+          "capability": "content.write",
+          "sop": "Human reviews email draft. Check for tone, accuracy, forbidden words, and personalisation. Approve, edit, or reject.",
+          "auto_assign": false,
+          "approval_required": true,
+          "trust_gate": true
+        },
+        {
+          "id": "send-email",
+          "label": "Send Email",
+          "capability": "email.draft",
+          "sop": "Send approved email. Update CRM status from email_draft to email_sent. Log send time for follow-up scheduling.",
+          "auto_assign": false,
+          "approval_required": true,
+          "trust_gate": true
+        },
+        {
+          "id": "monitor-reply",
+          "label": "Monitor for Reply",
+          "capability": "email.read",
+          "sop": "Monitor inbox for prospect reply. On reply: update CRM to reply_detected, classify sentiment (positive/negative/neutral), notify human.",
+          "auto_assign": true
+        },
+        {
+          "id": "follow-up",
+          "label": "Follow-Up Sequence",
+          "capability": "email.draft",
+          "sop": "If no reply after 72h: draft follow-up with new angle. If no reply after 5 more days: draft final breakup email. Each follow-up goes through review gate before sending.",
+          "auto_assign": true
+        }
+      ],
+      "triggers": ["manual", "on_lead_added"]
+    }
+  ]
+}

@@ -60,7 +60,10 @@ export default function useTaskOps(deps) {
         console.error('[TaskOps] Poll error:', e.message);
       }
 
-      const delay = Math.min(3000 * Math.pow(1.5, pollCountRef.current - 1), 30000);
+      const delay = Math.min(
+        3000 * Math.pow(1.5, pollCountRef.current - 1),
+        30000
+      );
       timeoutId = setTimeout(poll, delay);
     };
 

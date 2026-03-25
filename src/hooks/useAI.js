@@ -30,7 +30,8 @@ export default function useAI(deps) {
       const { results } = await searchApi.query(q, searchFilters);
       setSearchRes(results || []);
       addRecentSearch(q);
-    } catch (e) { console.error('[catch]', e.message);
+    } catch (e) {
+      console.error('[catch]', e.message);
       // Fallback to in-memory search
       const res = [];
       projects.forEach((p) =>
@@ -100,7 +101,8 @@ export default function useAI(deps) {
         null,
         2
       );
-    } catch (e) { console.error('[catch]', e.message);
+    } catch (e) {
+      console.error('[catch]', e.message);
       return '{}';
     }
   };

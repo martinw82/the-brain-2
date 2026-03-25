@@ -25,7 +25,9 @@ describe('Retrieval Module', () => {
 
   describe('analyzeIntent', () => {
     it('should extract keywords from query', () => {
-      const result = analyzeIntent('How does authentication work in this project?');
+      const result = analyzeIntent(
+        'How does authentication work in this project?'
+      );
 
       expect(result.keywords).toContain('authentication');
       expect(result.keywords).toContain('work');
@@ -58,13 +60,19 @@ describe('Retrieval Module', () => {
 
   describe('rankDirectories', () => {
     const mockDirectories = [
-      { path: 'src/auth', l0_abstract: 'Authentication module with login/signup' },
+      {
+        path: 'src/auth',
+        l0_abstract: 'Authentication module with login/signup',
+      },
       { path: 'src/api', l0_abstract: 'API routes and controllers' },
       { path: 'src/utils', l0_abstract: 'Utility functions and helpers' },
     ];
 
     it('should rank directories by relevance', () => {
-      const ranked = rankDirectories(mockDirectories, ['authentication', 'login']);
+      const ranked = rankDirectories(mockDirectories, [
+        'authentication',
+        'login',
+      ]);
 
       expect(ranked[0].path).toBe('src/auth');
       expect(ranked[0].relevanceScore).toBeGreaterThan(0);
@@ -81,7 +89,7 @@ describe('Retrieval Module', () => {
       const ranked = rankDirectories(mockDirectories, []);
 
       expect(ranked).toHaveLength(3);
-      expect(ranked.every(r => r.relevanceScore === 0)).toBe(true);
+      expect(ranked.every((r) => r.relevanceScore === 0)).toBe(true);
     });
   });
 

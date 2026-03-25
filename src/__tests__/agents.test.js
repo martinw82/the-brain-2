@@ -111,17 +111,15 @@ Prompt`,
     });
 
     it('should skip failed agent files', async () => {
-      fetch
-        .mockResolvedValueOnce({ ok: false })
-        .mockResolvedValueOnce({
-          ok: true,
-          text: async () => `---
+      fetch.mockResolvedValueOnce({ ok: false }).mockResolvedValueOnce({
+        ok: true,
+        text: async () => `---
 id: working-agent
 name: Working
 capabilities: []
 ---
 Prompt`,
-        });
+      });
 
       // Mock remaining files
       for (let i = 0; i < 3; i++) {

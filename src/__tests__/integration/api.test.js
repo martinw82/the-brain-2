@@ -41,7 +41,10 @@ describe('API Client', () => {
         expect.stringContaining('/api/auth?action=login'),
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ email: 'test@example.com', password: 'password' }),
+          body: JSON.stringify({
+            email: 'test@example.com',
+            password: 'password',
+          }),
         })
       );
       expect(result).toEqual(mockResponse);
@@ -227,11 +230,16 @@ describe('API Client', () => {
   describe('Offline Fallback', () => {
     it('should return cached data when offline', async () => {
       // Setup cache
-      const cachedData = { projects: [{ id: 'cached', name: 'Cached Project' }] };
-      localStorage.setItem('brain_cache_projects', JSON.stringify({
-        data: cachedData.projects,
-        timestamp: Date.now(),
-      }));
+      const cachedData = {
+        projects: [{ id: 'cached', name: 'Cached Project' }],
+      };
+      localStorage.setItem(
+        'brain_cache_projects',
+        JSON.stringify({
+          data: cachedData.projects,
+          timestamp: Date.now(),
+        })
+      );
 
       // Mock network failure
       fetch.mockRejectedValueOnce(new Error('Failed to fetch'));
@@ -247,7 +255,9 @@ describe('API Client', () => {
       await projects.update('proj-1', { name: 'Updated' });
 
       // Check that write was queued
-      const queue = JSON.parse(localStorage.getItem('brain_write_queue') || '[]');
+      const queue = JSON.parse(
+        localStorage.getItem('brain_write_queue') || '[]'
+      );
       expect(queue.length).toBeGreaterThan(0);
       expect(queue[0].resource).toBe('projects');
     });

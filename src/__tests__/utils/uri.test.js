@@ -137,8 +137,7 @@ describe('URI Utilities', () => {
     });
 
     it('should handle multiple URIs on same line', () => {
-      const text =
-        'brain://project/a brain://project/b brain://task/1';
+      const text = 'brain://project/a brain://project/b brain://task/1';
       expect(extractURIs(text)).toHaveLength(3);
     });
   });
@@ -153,9 +152,7 @@ describe('URI Utilities', () => {
     });
 
     it('should convert file URI to navigation action', () => {
-      const action = uriToNavigation(
-        'brain://project/my-app/file/README.md'
-      );
+      const action = uriToNavigation('brain://project/my-app/file/README.md');
       expect(action).toEqual({
         view: 'hub',
         hubId: 'my-app',
@@ -174,9 +171,9 @@ describe('URI Utilities', () => {
     });
 
     it('should generate label for file URI', () => {
-      expect(
-        resolveLabel('brain://project/my-app/file/README.md')
-      ).toBe('File: README.md');
+      expect(resolveLabel('brain://project/my-app/file/README.md')).toBe(
+        'File: README.md'
+      );
     });
 
     it('should generate label for task URI', () => {

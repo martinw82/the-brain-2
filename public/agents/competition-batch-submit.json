@@ -1,0 +1,76 @@
+{
+  "workflows": [
+    {
+      "id": "competition-batch-submit",
+      "name": "Competition Batch Submit",
+      "description": "End-to-end pipeline: research competitions, score, detect style, route to writer, review, and submit entries",
+      "icon": "🏆",
+      "steps": [
+        {
+          "id": "research",
+          "label": "Research Competitions",
+          "capability": "web.scrape",
+          "agent": "system-competition-research-v1",
+          "sop": "Scrape competition aggregators, extract structured data (title, prize, deadline, requirements, URL). Deduplicate via REL entity graph.",
+          "auto_assign": true
+        },
+        {
+          "id": "score",
+          "label": "Score & Rank",
+          "capability": "data.extract",
+          "agent": "system-competition-research-v1",
+          "sop": "Score each competition by prize_value/effort/odds/deadline/fit. Filter to 5.0+ composite score only. Rank by score descending.",
+          "auto_assign": true,
+          "depends_on": ["research"]
+        },
+        {
+          "id": "style_detect",
+          "label": "Detect Required Style",
+          "capability": "data.extract",
+          "agent": "system-competition-research-v1",
+          "sop": "Analyze competition requirements and tag each with a style: humorous, professional, fiction, sad, narrative, or persuasive. Style tag determines writer routing.",
+          "auto_assign": true,
+          "depends_on": ["score"]
+        },
+        {
+          "id": "route_to_writer",
+          "label": "Route to Writer",
+          "capability": "content.write",
+          "sop": "Route each competition to the appropriate style writer agent based on style tag. humorous → system-content-humorous-v1, professional → system-content-professional-v1, fiction → system-content-fiction-v1, sad → system-content-sad-v1, narrative → system-content-narrative-v1, persuasive → system-content-persuasive-v1. Writer produces draft saved to staging/.",
+          "auto_assign": true,
+          "depends_on": ["style_detect"],
+          "routing_rules": {
+            "humorous": "system-content-humorous-v1",
+            "professional": "system-content-professional-v1",
+            "fiction": "system-content-fiction-v1",
+            "sad": "system-content-sad-v1",
+            "narrative": "system-content-narrative-v1",
+            "persuasive": "system-content-persuasive-v1"
+          }
+        },
+        {
+          "id": "review",
+          "label": "Review & Approve",
+          "capability": "content.write",
+          "sop": "Human reviews all drafts in staging/. Check: meets word count, matches competition requirements, quality bar met, style appropriate. Approve, request edits, or reject.",
+          "auto_assign": false,
+          "approval_required": true,
+          "trust_gate": true,
+          "depends_on": ["route_to_writer"]
+        },
+        {
+          "id": "submit",
+          "label": "Submit Entries",
+          "capability": "browser.form_fill",
+          "agent": "system-competition-submitter-v1",
+          "sop": "For each approved entry: navigate to submission URL, fill form via Playwright, upload files, screenshot before and after submit, log confirmation. Only submit entries with status: approved.",
+          "auto_assign": true,
+          "approval_required": true,
+          "trust_gate": true,
+          "depends_on": ["review"]
+        }
+      ],
+      "triggers": ["manual", "on_schedule_weekly"]
+    }
+  ]
+}
