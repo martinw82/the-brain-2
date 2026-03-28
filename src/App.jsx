@@ -20,6 +20,7 @@ import { sync } from './sync.js';
 import AuthScreen from './AuthScreen.jsx';
 import TheBrain from './TheBrain.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { UserProvider } from './contexts/UserContext.jsx';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -174,18 +175,20 @@ export default function App() {
   // ── AUTHED ────────────────────────────────────────────────
   return (
     <ErrorBoundary>
-      <TheBrain
-        user={user}
-        initialProjects={appData?.projects || []}
-        initialStaging={appData?.staging || []}
-        initialIdeas={appData?.ideas || []}
-        initialAreas={appData?.areas || []}
-        initialGoals={appData?.goals || []}
-        initialTemplates={appData?.templates || []}
-        initialTags={appData?.tags || []}
-        initialEntityTags={appData?.entityTags || []}
-        onLogout={handleLogout}
-      />
+      <UserProvider user={user}>
+        <TheBrain
+          user={user}
+          initialProjects={appData?.projects || []}
+          initialStaging={appData?.staging || []}
+          initialIdeas={appData?.ideas || []}
+          initialAreas={appData?.areas || []}
+          initialGoals={appData?.goals || []}
+          initialTemplates={appData?.templates || []}
+          initialTags={appData?.tags || []}
+          initialEntityTags={appData?.entityTags || []}
+          onLogout={handleLogout}
+        />
+      </UserProvider>
     </ErrorBoundary>
   );
 }

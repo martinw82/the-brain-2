@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useUser } from './contexts/UserContext.jsx';
 import {
   projects as projectsApi,
   comments as commentsApi,
@@ -14,7 +15,7 @@ import DailyCheckinModal from './components/DailyCheckinModal.jsx';
 import TrainingLogModal from './components/TrainingLogModal.jsx';
 import OutreachLogModal from './components/OutreachLogModal.jsx';
 import { seedSystemWorkflows } from './workflows.js';
-import { getMode, getBehavior, shouldShow, MODE_INFO } from './modeHelper.js';
+import { getBehavior, shouldShow, MODE_INFO } from './modeHelper.js';
 import {
   C,
   S,
@@ -40,7 +41,9 @@ import { calcHealth } from './utils/projectFactory.js';
 // ── Extracted hooks ──────────────────────────────────────────
 import useUndoRedo from './hooks/useUndoRedo.js';
 import useBreakpoint from './hooks/useBreakpoint.js';
-import useProjectCrud from './hooks/useProjectCrud.js';
+import useFileCrud from './hooks/useFileCrud.js';
+import useProjectLifecycle from './hooks/useProjectLifecycle.js';
+import useProjectBootstrap from './hooks/useProjectBootstrap.js';
 import useStagingOps from './hooks/useStagingOps.js';
 import useSessionOps from './hooks/useSessionOps.js';
 import useNotifications from './hooks/useNotifications.js';
@@ -92,6 +95,9 @@ export default function TheBrain({
   initialEntityTags = [],
   onLogout,
 }) {
+  // ── USER CONTEXT ───────────────────────────────────────────
+  const { userSettings, setUserSettings, currentMode } = useUser();
+
   // ── STATE ──────────────────────────────────────────────────
   const [projects, setProjects] = useState(
     initialProjects.map((p) => ({ ...p, health: calcHealth(p) }))
@@ -106,10 +112,6 @@ export default function TheBrain({
   const [entityTags, setEntityTags] = useState(initialEntityTags || []);
   const [tagInput, setTagInput] = useState({}); // {[entityKey]: inputValue}
   const [selectedTagId, setSelectedTagId] = useState(null); // for Tags brain tab
-  const [userSettings, setUserSettings] = useState({
-    font: 'JetBrains Mono',
-    fontSize: 11,
-  });
   const [fileMetadata, setFileMetadata] = useState(null); // Roadmap 2.3: current file's metadata
   const [loadingMetadata, setLoadingMetadata] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState(null); // Phase 3.1: AI metadata suggestions
@@ -523,7 +525,6 @@ export default function TheBrain({
   }, [user?.id]);
 
   // ── DAILY CHECKIN — prompt on first visit of day (Phase 2.5) ──
-  const currentMode = getMode(userSettings);
   useEffect(() => {
     if (!user) return;
     const checkinBehavior = getBehavior('daily_checkin', currentMode);
@@ -565,9 +566,9 @@ export default function TheBrain({
     // Load weekly training count + today's outreach + drift check + tasks + seed workflows
     if (user) {
       loadWeeklyTraining();
-      if (getBehavior('outreach_enforcement', getMode(userSettings)) !== 'off')
+      if (getBehavior('outreach_enforcement', currentMode) !== 'off')
         loadTodayOutreach();
-      if (getBehavior('drift_alerts', getMode(userSettings)) !== 'off')
+      if (getBehavior('drift_alerts', currentMode) !== 'off')
         loadDriftCheck();
       loadTasks();
       // Phase 5.5: Seed system workflows on first run
@@ -578,7 +579,7 @@ export default function TheBrain({
   // ── NOTIFICATIONS — load on mount and check triggers periodically (Phase 4.4) ──
   useEffect(() => {
     if (!user) return;
-    const notifBehavior = getBehavior('notifications', getMode(userSettings));
+    const notifBehavior = getBehavior('notifications', currentMode);
     if (notifBehavior === 'none') return; // silent mode — no notifications
 
     // Initial load
@@ -609,27 +610,38 @@ export default function TheBrain({
     showToast,
   });
 
-  // ── PROJECT CRUD, FILE OPS, ONBOARDING, BOOTSTRAP ────────
+  // ── FILE OPS ─────────────────────────────────────────────
   const {
-    openHub,
     saveFile,
     handleHubSave,
     createFile,
     deleteFile,
+    handleDrop,
+    exportProject,
+  } = useFileCrud({
+    projects,
+    setProjects,
+    hubId,
+    setModal,
+    setSaving,
+    setNewFileName,
+    setDragOver,
+    setToast,
+    fileHistory,
+    showToast,
+    addStaging,
+  });
+
+  // ── PROJECT LIFECYCLE ────────────────────────────────────
+  const {
+    openHub,
     addCustomFolder,
     createProject,
     updateProject,
     renameProject,
     deleteProject,
     importProject,
-    completeBootstrap,
-    handleOnboardingCreateGoal,
-    handleOnboardingCreateProject,
-    completeOnboarding,
-    skipOnboarding,
-    handleDrop,
-    exportProject,
-  } = useProjectCrud({
+  } = useProjectLifecycle({
     projects,
     setProjects,
     staging,
@@ -643,9 +655,6 @@ export default function TheBrain({
     setHubTab,
     setModal,
     setLoadingFiles,
-    setSaving,
-    setBootstrapWiz,
-    setNewFileName,
     setNewProjForm,
     setCFForm,
     setImportForm,
@@ -654,17 +663,31 @@ export default function TheBrain({
     setImportLoading,
     setImportError,
     setShowImportModal,
+    showToast,
+    importForm,
+  });
+
+  // ── BOOTSTRAP & ONBOARDING ─────────────────────────────────
+  const {
+    completeBootstrap,
+    handleOnboardingCreateGoal,
+    handleOnboardingCreateProject,
+    completeOnboarding,
+    skipOnboarding,
+  } = useProjectBootstrap({
+    projects,
+    setProjects,
+    setStaging,
+    templates,
+    setFocusId,
+    setBootstrapWiz,
     setShowOnboarding,
     setOnboardingCompleted,
     setTourStep,
     setGoals,
     setActiveGoalId,
-    setDragOver,
-    setToast,
-    fileHistory,
     showToast,
-    addStaging,
-    importForm,
+    openHub,
   });
 
   // ── METADATA OPS (Roadmap 2.3) ──────────────────────────
@@ -2639,7 +2662,6 @@ export default function TheBrain({
       {/* ── ONBOARDING WIZARD (Phase 4.2) ─────────────────────── */}
       {showOnboarding && (
         <OnboardingWizard
-          user={user}
           templates={templates}
           areas={areas}
           isMobile={isMobile}

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { C, S } from '../utils/constants.js';
+import { useUser } from '../contexts/UserContext.jsx';
 
 // ═══════════════════════════════════════════════════════════
 // ONBOARDING WIZARD (Phase 4.2)
 // ═══════════════════════════════════════════════════════════
 const OnboardingWizard = ({
-  user,
   templates,
   areas,
   onComplete,
@@ -14,6 +14,7 @@ const OnboardingWizard = ({
   onCreateProject,
   isMobile,
 }) => {
+  const { user } = useUser();
   const [step, setStep] = useState(1);
   const [useCases, setUseCases] = useState([]);
   const [goalForm, setGoalForm] = useState({

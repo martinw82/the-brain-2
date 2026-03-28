@@ -1,10 +1,13 @@
+import { lazy, Suspense } from 'react';
 import { HealthBar, BadgeStatus, Dots } from '../UI/SmallComponents.jsx';
 import ProgressTrends from '../ProgressTrends.jsx';
-import AgentManager from '../AgentManager.jsx';
-import WorkflowRunner from '../WorkflowRunner.jsx';
 import WeeklyReviewPanel from '../WeeklyReviewPanel.jsx';
-import GitHubIntegration from '../GitHubIntegration.jsx';
 import { renderAIResponse } from '../URILink.jsx';
+
+// Lazy-loaded tab components to reduce initial bundle (~100KB)
+const AgentManager = lazy(() => import('../AgentManager.jsx'));
+const WorkflowRunner = lazy(() => import('../WorkflowRunner.jsx'));
+const GitHubIntegration = lazy(() => import('../GitHubIntegration.jsx'));
 import { uriToNavigation } from '../../uri.js';
 import { getBehavior, getMode, shouldShow } from '../../modeHelper.js';
 import {
@@ -1562,32 +1565,38 @@ export default function BrainTabsPanel({ ctx }) {
 
       {mainTab === 'skills' && (
         <div style={{ height: 'calc(100vh - 200px)' }}>
-          <AgentManager
-            projectId={hubId}
-            projectFiles={hub?.files}
-            onSaveAgent={async (agentId, content) => {
-              // Save custom agent to project files
-              if (hubId) {
-                await saveFile(hubId, `agents/${agentId}.md`, content);
-                showToast(`✓ Agent ${agentId} created`);
-              }
-            }}
-          />
+          <Suspense fallback={<div style={{ padding: 20, color: '#64748b' }}>Loading agents...</div>}>
+            <AgentManager
+              projectId={hubId}
+              projectFiles={hub?.files}
+              onSaveAgent={async (agentId, content) => {
+                // Save custom agent to project files
+                if (hubId) {
+                  await saveFile(hubId, `agents/${agentId}.md`, content);
+                  showToast(`✓ Agent ${agentId} created`);
+                }
+              }}
+            />
+          </Suspense>
         </div>
       )}
 
       {mainTab === 'workflows' && (
         <div style={{ height: 'calc(100vh - 200px)' }}>
-          <WorkflowRunner
-            projectId={focusId}
-            project={projects.find((p) => p.id === focusId)}
-            agents={[]}
-          />
+          <Suspense fallback={<div style={{ padding: 20, color: '#64748b' }}>Loading workflows...</div>}>
+            <WorkflowRunner
+              projectId={focusId}
+              project={projects.find((p) => p.id === focusId)}
+              agents={[]}
+            />
+          </Suspense>
         </div>
       )}
 
       {mainTab === 'integrations' && (
-        <GitHubIntegration projects={projects} isMobile={isMobile} />
+        <Suspense fallback={<div style={{ padding: 20, color: '#64748b' }}>Loading integrations...</div>}>
+          <GitHubIntegration projects={projects} isMobile={isMobile} />
+        </Suspense>
       )}
 
       {mainTab === 'ideas' && (
