@@ -10,6 +10,7 @@ import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
 import { logger } from '../utils/logger.js';
+import { SpineAPI } from '../utils/api.js';
 
 export class RemotionExecutor {
   constructor(worker) {
@@ -57,15 +58,22 @@ export class RemotionExecutor {
       // 7. Calculate checksum
       const checksum = await this.calculateChecksum(outputPath);
 
-      // 8. For now, return local path (future: upload to cloud)
-      // In production, you'd upload to S3/R2 and return a URL
+      // 8. Upload video to Spine storage
+      logger.info('Uploading video...');
+      const uploadResult = await this.uploadVideo(job, outputPath, stats.size);
+      logger.success('Upload complete:', uploadResult.public_url);
+
+      // 9. Cleanup temp files
+      await this.cleanup(workDir);
+
       return {
-        file_path: outputPath,
+        file_url: uploadResult.public_url,
+        file_key: uploadResult.key,
         file_size: stats.size,
         checksum,
         format: output_format,
         resolution: output_resolution,
-        work_dir: workDir // Keep for cleanup or reference
+        uploaded_at: new Date().toISOString()
       };
 
     } catch (e) {
@@ -383,9 +391,36 @@ export default RemotionRoot;
     });
   }
 
+  async uploadVideo(job, filePath, fileSize) {
+    const api = new SpineAPI(this.worker.config);
+    api.setWorkerToken(this.worker.workerToken);
+
+    // Get upload URL from Spine
+    const filename = `render_${job.job_id}.mp4`;
+    const uploadInfo = await api.getUploadUrl(
+      job.project_id,
+      job.payload?.workflow_id,
+      filename,
+      'video/mp4',
+      fileSize
+    );
+
+    // Upload file
+    await api.uploadFile(filePath, uploadInfo.upload_url);
+
+    return {
+      public_url: uploadInfo.public_url,
+      key: uploadInfo.key
+    };
+  }
+
   async cleanup(workDir) {
-    // Optional: cleanup temp files
-    // await fs.remove(workDir);
+    try {
+      await fs.remove(workDir);
+      logger.debug('Cleaned up workspace:', workDir);
+    } catch (e) {
+      logger.warn('Failed to cleanup workspace:', e.message);
+    }
   }
 
   formatBytes(bytes) {

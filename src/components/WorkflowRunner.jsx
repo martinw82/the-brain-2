@@ -10,6 +10,7 @@ import {
   getProgress,
   formatExecutionLog,
 } from '../workflows.js';
+import WorkerStatusPanel from './WorkerStatusPanel.jsx';
 
 const C = {
   bg: '#070b14',
@@ -316,6 +317,9 @@ export default function WorkflowRunner({ projectId, project, agents }) {
         </div>
       )}
 
+      {/* Worker Status Panel */}
+      <WorkerStatusPanel projectId={projectId} />
+
       {/* Active Instance Detail */}
       {activeInstance && (
         <WorkflowInstanceDetail
@@ -583,6 +587,7 @@ function WorkflowInstanceDetail({ instance, agents, onClose }) {
             const isCurrent = idx === instance.current_step_index;
             const isComplete = result?.status === 'complete';
             const isPending = idx > instance.current_step_index;
+            const isWaitingForWorker = isCurrent && step.worker_required && instance.status === 'waiting_for_worker';
 
             return (
               <div
@@ -593,8 +598,8 @@ function WorkflowInstanceDetail({ instance, agents, onClose }) {
                   gap: 10,
                   padding: '8px 10px',
                   borderRadius: 5,
-                  background: isCurrent ? C.blue + '15' : 'transparent',
-                  border: `1px solid ${isCurrent ? C.blue : C.border}`,
+                  background: isCurrent ? (isWaitingForWorker ? C.amber + '15' : C.blue + '15') : 'transparent',
+                  border: `1px solid ${isCurrent ? (isWaitingForWorker ? C.amber : C.blue) : C.border}`,
                   opacity: isPending ? 0.5 : 1,
                 }}
               >
@@ -606,7 +611,7 @@ function WorkflowInstanceDetail({ instance, agents, onClose }) {
                     background: isComplete
                       ? C.green
                       : isCurrent
-                        ? C.blue
+                        ? (isWaitingForWorker ? C.amber : C.blue)
                         : C.border,
                     display: 'flex',
                     alignItems: 'center',
@@ -616,7 +621,7 @@ function WorkflowInstanceDetail({ instance, agents, onClose }) {
                     flexShrink: 0,
                   }}
                 >
-                  {isComplete ? '✓' : idx + 1}
+                  {isComplete ? '✓' : isWaitingForWorker ? '⏳' : idx + 1}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div
@@ -627,6 +632,11 @@ function WorkflowInstanceDetail({ instance, agents, onClose }) {
                     }}
                   >
                     {step.label}
+                    {isWaitingForWorker && (
+                      <span style={{ color: C.amber, marginLeft: 8 }}>
+                        (Waiting for worker...)
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: 8, color: C.muted, marginTop: 2 }}>
                     {step.sop}
@@ -635,6 +645,7 @@ function WorkflowInstanceDetail({ instance, agents, onClose }) {
                     <div style={{ fontSize: 8, color: C.blue2, marginTop: 4 }}>
                       Needs: {step.capability}
                       {step.auto_assign && ' • Auto-assign'}
+                      {step.worker_required && ' • Worker required'}
                     </div>
                   )}
                 </div>
