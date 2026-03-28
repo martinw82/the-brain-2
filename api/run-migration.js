@@ -1,4 +1,4 @@
-// api/run-migration.js — Run database migrations
+// api/run-migration.js — Run database migrations (v2)
 import mysql from 'mysql2/promise';
 import { getCorsHeaders } from './_lib/cors.js';
 
