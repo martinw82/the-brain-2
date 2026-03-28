@@ -481,13 +481,27 @@ async function handleHeartbeat(req, res) {
   const db = await getDb();
 
   try {
+    // Build query dynamically to avoid undefined parameters
+    const updates = ['last_seen = NOW()'];
+    const params = [];
+    
+    if (status !== undefined) {
+      updates.push('status = ?');
+      params.push(status);
+    }
+    
+    if (current_job !== undefined) {
+      updates.push('current_job = ?');
+      params.push(current_job);
+    }
+    
+    params.push(worker_id);
+    
     await db.execute(
       `UPDATE worker_connections 
-       SET last_seen = NOW(),
-           status = COALESCE(?, status),
-           current_job = COALESCE(?, current_job)
+       SET ${updates.join(', ')}
        WHERE worker_id = ?`,
-      [status, current_job, worker_id]
+      params
     );
 
     return res.status(200).json({ success: true, timestamp: new Date().toISOString() });

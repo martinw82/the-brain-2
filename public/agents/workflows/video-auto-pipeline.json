@@ -96,6 +96,7 @@
           "depends_on": ["asset_sourcing", "keywords"],
           "sop": "Render video using Remotion with storyboard JSON and sourced assets. Apply music, transitions, text overlays. Output: renders/{topic}_{date}.mp4",
           "auto_assign": true,
+          "worker_required": true,
           "outputs": ["renders/{topic}_{date}.mp4"]
         },
         {
