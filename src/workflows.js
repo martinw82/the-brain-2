@@ -8,8 +8,136 @@ import {
   tasks,
   workflows as workflowsApi,
   agentExecution,
+  workflowJob,
 } from './api.js';
 import { selectAgent, buildAgentPrompt } from './agents.js';
+
+/**
+ * Queue a job for worker execution (local resources like Remotion)
+ * @param {object} instance - Workflow instance
+ * @param {object} step - Step definition
+ * @param {number} stepIndex - Step index
+ */
+async function queueWorkerJob(instance, step, stepIndex) {
+  try {
+    console.log(`[Workflow] Step ${stepIndex + 1} requires worker, queuing job...`);
+    
+    // Determine job type from step
+    const jobType = step.capability || 'shell.execute';
+    
+    // Build payload based on job type
+    let payload = {};
+    
+    if (jobType === 'video.render') {
+      // For video rendering, we need storyboard JSON
+      // This would come from previous step outputs
+      payload = {
+        storyboard_json: step.storyboard_json || {},
+        output_format: 'mp4',
+        output_resolution: '1080p'
+      };
+    } else {
+      // Generic shell execution
+      payload = step.payload || {};
+    }
+    
+    // Queue the job
+    const result = await workflowJob.queue({
+      workflow_id: instance.id,
+      task_id: null, // No task for worker jobs
+      project_id: instance.project_id,
+      job_type: jobType,
+      payload,
+      priority: 5
+    });
+    
+    if (result.success) {
+      console.log(`[Workflow] Job queued: ${result.job_id}`);
+      
+      // Start polling for job completion
+      pollWorkerJob(instance.id, step.id, result.job_id);
+    } else {
+      console.error(`[Workflow] Failed to queue job:`, result.error);
+      
+      // If no worker available, mark step as waiting
+      await workflowInstances.updateStatus(instance.id, {
+        current_step_index: stepIndex,
+        status: 'waiting_for_worker',
+        step_status: {
+          [step.id]: {
+            status: 'waiting',
+            message: 'No worker available. Start a Spine worker to continue.'
+          }
+        }
+      });
+    }
+  } catch (e) {
+    console.error('[Workflow] Queue worker job error:', e);
+  }
+}
+
+/**
+ * Poll for worker job completion
+ */
+async function pollWorkerJob(instanceId, stepId, jobId) {
+  const maxAttempts = 3600; // 1 hour at 1 poll per second
+  let attempts = 0;
+  
+  const poll = async () => {
+    attempts++;
+    
+    if (attempts > maxAttempts) {
+      console.error(`[Workflow] Job ${jobId} timed out`);
+      return;
+    }
+    
+    try {
+      const status = await workflowJob.status(jobId);
+      
+      if (status.status === 'completed') {
+        console.log(`[Workflow] Job ${jobId} completed`);
+        
+        // Save output to workflow instance
+        await workflowInstances.completeStep(instanceId, {
+          step_id: stepId,
+          status: 'complete',
+          outputs: status.result
+        });
+        
+        // Advance workflow
+        const instanceResult = await workflowInstances.get(instanceId);
+        if (instanceResult?.instance) {
+          const nextIndex = getNextStep(instanceResult.instance, [], 0);
+          if (nextIndex !== null) {
+            await executeStep(instanceId, nextIndex);
+          }
+        }
+        
+        return;
+      } else if (status.status === 'failed') {
+        console.error(`[Workflow] Job ${jobId} failed:`, status.error);
+        
+        await workflowInstances.completeStep(instanceId, {
+          step_id: stepId,
+          status: 'failed',
+          error: status.error
+        });
+        
+        return;
+      }
+      
+      // Still pending/running, poll again
+      setTimeout(poll, 2000);
+      
+    } catch (e) {
+      console.error(`[Workflow] Poll error for job ${jobId}:`, e);
+      setTimeout(poll, 5000); // Retry with backoff
+    }
+  };
+  
+  // Start polling
+  poll();
+}
 
 /**
  * Start a new workflow instance
@@ -78,6 +206,13 @@ export async function executeStep(instanceId, stepIndex) {
         assigneeType = 'agent';
         assigneeId = agent.id;
       }
+    }
+
+    // Check if step requires worker execution (local resources like Remotion)
+    if (step.worker_required) {
+      // Queue job for worker instead of creating agent task
+      await queueWorkerJob(instance, step, stepIndex);
+      return;
     }
 
     // Create task for this step

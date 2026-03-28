@@ -1,0 +1,35 @@
+{
+  "name": "@spine/worker",
+  "version": "0.1.0",
+  "description": "Spine Desktop Worker - Execute jobs locally for the Spine orchestration platform",
+  "main": "src/index.js",
+  "bin": {
+    "spine-worker": "./bin/spine-worker.js"
+  },
+  "scripts": {
+    "start": "node bin/spine-worker.js start",
+    "init": "node bin/spine-worker.js init"
+  },
+  "keywords": [
+    "spine",
+    "worker",
+    "remotion",
+    "video",
+    "automation"
+  ],
+  "author": "Spine Team",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.0.0",
+    "chalk": "^5.3.0",
+    "inquirer": "^9.2.0",
+    "node-fetch": "^3.3.0",
+    "eventsource": "^2.0.2",
+    "fs-extra": "^11.1.0",
+    "os": "^0.1.2",
+    "path": "^0.12.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

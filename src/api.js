@@ -942,3 +942,29 @@ export async function parseFileSystemEntries(dirHandle) {
   await readDir(dirHandle);
   return { files, warnings };
 }
+
+// ── WORKFLOW JOB QUEUE (Worker System) ───────────────────────
+export const workflowJob = {
+  // Queue a job for worker execution
+  queue: (options) => post(`${BASE}/api/workflow-job?action=queue`, options),
+
+  // Get job status
+  status: (jobId) => get(`${BASE}/api/workflow-job?action=status&job_id=${jobId}`),
+
+  // Check worker availability
+  checkWorker: (capability) => 
+    get(`${BASE}/api/workflow-job?action=check-worker&capability=${encodeURIComponent(capability)}`),
+};
+
+// ── WORKER MANAGEMENT ────────────────────────────────────────
+export const worker = {
+  // Register worker
+  register: (options) => post(`${BASE}/api/worker?action=register`, options),
+
+  // Get worker status (list online workers)
+  status: () => get(`${BASE}/api/worker?action=status`),
+
+  // Submit job result
+  submitResult: (jobId, result) => 
+    post(`${BASE}/api/worker?action=result`, { job_id: jobId, ...result }),
+};
