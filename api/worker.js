@@ -116,7 +116,7 @@ async function handleRegister(req, res) {
     // Check if worker already exists for this user
     const [existing] = await db.execute(
       'SELECT id FROM worker_connections WHERE worker_id = ? AND user_id = ?',
-      [worker_id, user.id]
+      [worker_id, user.userId]
     );
 
     const connectionId = existing[0]?.id || crypto.randomUUID();
@@ -152,7 +152,7 @@ async function handleRegister(req, res) {
         [
           connectionId,
           worker_id,
-          user.id,
+          user.userId, 
           JSON.stringify(capabilities),
           JSON.stringify(supported_protocols),
           JSON.stringify({ platform, hostname, ...metadata }),
@@ -540,7 +540,7 @@ async function handleStatus(req, res) {
     // Get pending jobs count
     const [pendingJobs] = await db.execute(
       'SELECT COUNT(*) as count FROM job_queue WHERE user_id = ? AND status = ?',
-      [user.id, 'pending']
+      [user.userId, 'pending']
     );
 
     return res.status(200).json({

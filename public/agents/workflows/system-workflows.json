@@ -436,6 +436,23 @@
         }
       ],
       "triggers": ["manual"]
+    },
+    {
+      "id": "quick-video-render",
+      "name": "⚡ Quick Video Render",
+      "description": "Render a test video immediately using a sample storyboard. Tests the worker rendering without research/scripting.",
+      "icon": "⚡",
+      "steps": [
+        {
+          "id": "render_test",
+          "label": "Render Test Video",
+          "capability": "video.render",
+          "sop": "Render a 10-second test video with sample storyboard using Remotion",
+          "auto_assign": true,
+          "worker_required": true
+        }
+      ],
+      "triggers": ["manual"]
     }
   ]
 }

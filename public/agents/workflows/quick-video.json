@@ -1,0 +1,57 @@
+{
+  "workflows": [
+    {
+      "id": "quick-video-render",
+      "name": "⚡ Quick Video Render",
+      "description": "Render a test video immediately using a sample storyboard. No research or scripting - just test the worker rendering.",
+      "icon": "⚡",
+      "steps": [
+        {
+          "id": "render_test",
+          "label": "Render Test Video",
+          "capability": "video.render",
+          "sop": "Render a 10-second test video with sample storyboard using Remotion",
+          "auto_assign": true,
+          "worker_required": true,
+          "payload": {
+            "storyboard_json": {
+              "composition_id": "test-video",
+              "title": "Spine Test Video",
+              "segments": [
+                {
+                  "segment_id": "intro",
+                  "scenes": [
+                    {
+                      "scene_id": "scene-1",
+                      "text": "Hello from Spine!",
+                      "visual_type": "text_overlay",
+                      "background_color": "#1a4fd6",
+                      "duration_s": 3
+                    },
+                    {
+                      "scene_id": "scene-2",
+                      "text": "This video was rendered by your desktop worker",
+                      "visual_type": "text_overlay",
+                      "background_color": "#0a0f1e",
+                      "duration_s": 4
+                    },
+                    {
+                      "scene_id": "scene-3",
+                      "text": "Ready to create real content! 🎬",
+                      "visual_type": "text_overlay",
+                      "background_color": "#10b981",
+                      "duration_s": 3
+                    }
+                  ]
+                }
+              ]
+            },
+            "output_format": "mp4",
+            "output_resolution": "1080p"
+          }
+        }
+      ],
+      "triggers": ["manual"]
+    }
+  ]
+}

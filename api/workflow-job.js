@@ -156,7 +156,7 @@ async function handleQueue(req, res, db, user) {
   }
 
   // Check if worker is available
-  const workerAvailable = await checkWorkerAvailability(db, user.id, job_type);
+  const workerAvailable = await checkWorkerAvailability(db, user.userId, job_type);
   
   if (!workerAvailable) {
     return res.status(503).json({
@@ -171,7 +171,7 @@ async function handleQueue(req, res, db, user) {
     workflow_id,
     task_id,
     project_id,
-    user_id: user.id,
+    user_id: user.userId,
     job_type,
     payload,
     priority
@@ -200,7 +200,7 @@ async function handleStatus(req, res, db, user) {
     return res.status(400).json({ error: 'job_id is required' });
   }
 
-  const status = await getJobStatus(db, job_id, user.id);
+  const status = await getJobStatus(db, job_id, user.userId);
   
   if (!status) {
     return res.status(404).json({ error: 'Job not found' });
@@ -224,13 +224,13 @@ async function handleCheckWorker(req, res, db, user) {
     return res.status(400).json({ error: 'capability is required' });
   }
 
-  const available = await checkWorkerAvailability(db, user.id, capability);
+  const available = await checkWorkerAvailability(db, user.userId, capability);
   
   // Get list of online workers for this user
   const [workers] = await db.execute(
     `SELECT worker_id, status, capabilities FROM worker_connections 
      WHERE user_id = ? AND status = 'online'`,
-    [user.id]
+    [user.userId]
   );
 
   return res.status(200).json({
