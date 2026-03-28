@@ -4,6 +4,57 @@ Condensed version history for The Brain / Spine. Replaces `ROADMAP-v2.md`, `brai
 
 ---
 
+## [2.2.1] — 2026-03-28 — Architecture Audit Complete
+
+**Focus:** Technical debt reduction from architecture audit findings (P0-P2)
+
+### Schema Integrity (P0)
+- Fixed `outreach_log.project_id` type VARCHAR(36) → VARCHAR(64) to match `projects.id`
+- Added `idx_project_files_active` index on `project_files (project_id, deleted_at)`
+- Added `workflow_templates` and `workflow_instances` tables to `schema.sql` (previously only in migrations)
+- Added FK constraint `tasks.workflow_instance_id → workflow_instances.id`
+- Deleted stale `scripts/migrate.js.backup` (contained triplicate migration v26)
+
+### API Refactoring (P1)
+- **Major:** Split monolithic `api/data.js` (4,748 lines) into 8 focused handler modules:
+  - `api/_lib/handlers/staging.js` — staging, ideas
+  - `api/_lib/handlers/entities.js` — areas, goals, templates, contributions, tags, entity-tags, links, search
+  - `api/_lib/handlers/sessions.js` — sessions, comments, daily-checkins, training-logs, weekly-reviews
+  - `api/_lib/handlers/tasks.js` — tasks, auto-tasks, create-from-proposed
+  - `api/_lib/handlers/files.js` — file_metadata, file-summaries, scripts
+  - `api/_lib/handlers/settings.js` — settings, user-ai-settings, outreach-log, ai-metadata-suggestions
+  - `api/_lib/handlers/sync.js` — sync-state, drift-check
+  - `api/_lib/handlers/admin.js` — export-all, import-all, agent-stats, wipe-user
+- `api/data.js` now ~200 line thin router (95% line reduction)
+
+### Test Organization (P1)
+- Co-located 17 test files with source code (moved from `src/__tests__/`)
+- Tests now sit alongside their source files for better discoverability
+- Integration tests moved to `src/integration/`
+
+### Code Cleanup (P2)
+- **Removed Drizzle ORM** (unused): deleted `src/db/`, `drizzle.config.ts`, removed from package.json
+- **Reorganized agents** into categorical subdirectories:
+  - `public/agents/system/` — 8 core agents (dev, content, strategy, design, research, outreach, finance, assessment)
+  - `public/agents/styles/` — 6 style writers (humorous, professional, fiction, sad, narrative, persuasive)
+  - `public/agents/pipelines/` — 2 competition agents (research, submitter)
+  - `public/agents/youtube/` — 5 YouTube agents (research, script, storyboard, keywords, retention)
+  - `public/agents/b2b/` — 4 B2B agents (inbound-monitor, outreach-trade, social-content, relation-maintainer)
+  - `public/agents/workflows/` — 5 workflow JSON definitions
+- Updated `src/agents.js` with new agent paths (25 total agents)
+
+### Bug Fixes
+- Removed duplicate `fileMetadata` prop in `Editor.jsx` destructuring
+
+### Remaining Backlog (P2-P3)
+- Lazy-load tab components with React.lazy() + Suspense
+- Extract UserContext from TheBrain.jsx state
+- Split useProjectCrud hook (677 lines) into focused hooks
+
+---
+
+---
+
 ## [2.2.0] — 2026-03-25 — Brain OS
 
 **Product renamed:** Spine (codebase remains `the-brain-2`)
