@@ -1,626 +1,300 @@
-\***\*\*\*\*\*\*\***APPEND AND ANNOTATE ALL EDITS\***\*\*\*\*\*\*\***
+**APPEND AND ANNOTATE ALL EDITS**
 
-# THE BRAIN — Master Status Document v2.0
+# THE BRAIN / SPINE — Master Status Document v2.2
 
-**Agent Orchestration Platform with Adaptive Coaching**
-
-**Version:** 8.2 → **v2.0 Vision**
-**Live URL:** the-brain-2.vercel.app
-**Last Updated:** 2026-03-18 (Test Suite Complete)
-**Status:** v1.0 Complete | v2.0 FULLY SHIPPED ✅ | Frontend Refactored ✅ | Test Suite Complete ✅
+**Product Name:** Spine (codebase: `the-brain-2`, repo: `martinw82/the-brain-2`)  
+**Live URL:** the-brain-2.vercel.app  
+**Last Updated:** 2026-03-28  
+**Status:** v2.0 SHIPPED ✅ | v2.2 (Brain OS) SHIPPED ✅ | Frontend Refactored ✅ | Test Suite Complete ✅
 
 ---
 
-## 1. What The Brain Is
+## 1. What This Is
 
-### v1.0: Personal Operating System (CURRENT)
+### Product: Spine
 
-The Brain is a personal operating system for organising life. The core philosophy is that **Life** is made up of **Parts** (business, health, relationships, creative work, etc.), Parts are made up of **Things** (projects, habits, tasks, ideas, goals), and Things connect across multiple Parts in overlapping, flexible ways.
+Spine is a **personal AI orchestration OS** — a solo-operator's command centre for planning, executing, and compounding digital projects. The product name "Spine" was locked in a branding session in March 2026. The open-source protocol layer will eventually be extracted as **Keystone**.
 
-### v2.0: Agent Orchestration Platform (VISION)
+### Core Architecture (three layers)
 
-The Brain evolves into an **adaptive intelligence system** that:
-
-1. **Guides Project Setup** — AI-guided creation with intelligent structure
-2. **Delegates Work** — Assigns tasks to humans, agents, or tools
-3. **Manages Workflows** — Executes multi-step processes with tracking
-4. **Adapts to You** — Three modes (Coach/Assistant/Silent) for different needs
-
-**Key Philosophy:** _The system becomes what you need — from drill sergeant to silent tool — while the orchestration engine works consistently behind the scenes._
+1. **Adaptive Interface Layer** — UI adapts to Coach / Assistant / Silent modes
+2. **Orchestration Layer** — Task routing, workflow execution, Universal Agent Bridge
+3. **Context Layer** — Hierarchical L0/L1/L2 summaries, URI-based addressing, REL entity graph
 
 ### Evolution Path
 
-1. **Original concept:** Project management (Next.js/Firebase/Genkit)
-2. **Chat analysis:** Revealed portfolio, patterns, build-don't-ship loop
-3. **v1.0 Rebuild:** React/Vite + serverless + TiDB, agent-centric architecture
-4. **v1.0 Shipped:** Phases 0-4 complete, full persistence, responsive, 21 tables
-5. **v2.0 Vision:** Agent orchestration, adaptive modes, Open Viking integration
+| Version | Date | Milestone |
+|---------|------|-----------|
+| v0.1 | Pre-2026 | Original concept (Next.js/Firebase/Genkit) |
+| v1.0 | 2026-03-12 | React/Vite + TiDB + serverless, Phases 0-4 |
+| v2.0 | 2026-03-15 | Agent orchestration, modes, workflows, memory |
+| v2.1 | 2026-03-17 | Frontend refactor (14k → 4k lines), test suite |
+| **v2.2** | **2026-03-25** | **Brain OS: REL graph, Trust Ladder, UAB, 3 pipelines** |
 
 ---
 
-## 2. v1.0 Tech Stack (CURRENT)
+## 2. Tech Stack
 
-| Layer      | Technology                       | Notes                                                                      |
-| ---------- | -------------------------------- | -------------------------------------------------------------------------- |
-| Frontend   | React 18 + Vite 5                | Modular: orchestrator (3,962 lines) + 11 hooks + 2 panels + 20+ components |
-| Styling    | Inline styles, dark monospace UI | JetBrains Mono / Fira Code                                                 |
-| API        | Vercel serverless functions      | `api/ai.js`, `api/auth.js`, `api/data.js`, `api/projects.js`               |
-| Database   | TiDB Cloud Serverless (MySQL)    | Free tier, EU-central-1, 32 tables                                         |
-| Auth       | JWT + bcrypt                     | Register/login/sessions                                                    |
-| AI         | Multi-provider proxy             | Anthropic, Moonshot, DeepSeek, Mistral, OpenAI                             |
-| Migrations | `scripts/migrate.js`             | Versioned schema migrations                                                |
-| Deployment | Vercel (primary)                 | Netlify config also present                                                |
-| Testing    | Jest + React Testing Library     | 175+ tests, coverage tracking                                              |
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| Frontend | React 18 + Vite 6 | Modular: orchestrator + 11 hooks + 2 panels + 20+ components |
+| Styling | Inline dark monospace | JetBrains Mono / Fira Code |
+| API | Vercel serverless | **8/12 functions used** — see constraints §10 |
+| Database | TiDB Cloud Serverless (MySQL) | Free tier, EU-central-1, **39 tables** |
+| Auth | JWT + bcrypt | Register/login/sessions |
+| AI | Multi-provider proxy | Anthropic, Moonshot, DeepSeek, Mistral, OpenAI |
+| Migrations | `scripts/migrate.js` | Versioned; v1–v28 applied |
+| Deployment | Vercel (primary) | `vercel.json` present |
+| Testing | Jest + React Testing Library | 175+ unit tests + 31 entity graph tests |
+| CI | GitHub Actions | `phase0-gate.yml` runs entityGraph tests on every PR |
 
 ---
 
-## 3. Database Schema (32 tables)
+## 3. Database Schema (39 tables)
 
-### Core (original)
-
-- **users** — email, password_hash, name, goal, monthly_target, currency, timezone, `settings` JSON
-- **projects** — slug IDs, phase, priority, health, momentum, revenue_ready, blockers/tags/skills, active_file, `life_area_id` FK
-- **project_custom_folders** — per-project folder structure
-- **project_files** — LONGTEXT content, full-text search indexed, `deleted_at` for soft deletes
-- **staging** — review pipeline items, tagged, linked to projects
-- **ideas** — scored idea bank (1-10)
-- **sessions** — work session logging with duration and notes
-- **comments** — per-file comments with resolved flag
-- **refresh_tokens** — auth token store
+### Core (v1.0)
+`users`, `projects`, `project_files`, `project_custom_folders`, `staging`, `ideas`, `sessions`, `comments`, `refresh_tokens`
 
 ### Phase 1 Foundations
-
-- **schema_migrations** — versioned migration tracking (v1–v12)
-- **life_areas** — "Parts" entities with health_score
-- **goals** / **goal_contributions** — configurable financial/personal goals
-- **tags** / **entity_tags** / **entity_links** — cross-entity relationships
-- **templates** — project structure templates with JSON config
+`schema_migrations`, `life_areas`, `goals`, `goal_contributions`, `tags`, `entity_tags`, `entity_links`, `templates`
 
 ### Phase 2-4 Features
+`file_metadata`, `sync_state`, `sync_file_state`, `daily_checkins`, `training_logs`, `outreach_log`, `weekly_reviews`, `notifications`, `project_integrations`
 
-- **file_metadata** — per-file category, status, custom fields
-- **sync_state** / **sync_file_state** — desktop folder sync
-- **daily_checkins** — sleep, energy, gut, training tracking
-- **training_logs** — training sessions with type/duration
-- **outreach_log** — outreach actions tracking
-- **weekly_reviews** — weekly snapshots with AI analysis
-- **notifications** — in-app notification system
-- **project_integrations** — GitHub PAT, repo status
+### v2.0 Infrastructure
+`ai_usage`, `user_ai_settings`, `tasks`, `file_summaries`, `workflow_templates`, `workflow_instances`, `memories`, `community_workflows`, `user_integrations`, `integration_sync_log`
 
-### v2.0 Infrastructure (Complete)
+### v2.2 Brain OS (7 new tables — migration `0002_rel_foundation.sql`)
 
-- **ai_usage** — AI token/cost tracking per user per day ✅
-- **user_ai_settings** — per-user AI provider and model preferences ✅
-- **tasks** — universal task queue with assignee types (human/agent/integration) ✅
-- **file_summaries** — L0/L1 hierarchical summaries, auto-generated on save ✅
-- **agents** — file-based agent definitions in `/agents/*.md` (not a DB table) ✅
-- **workflow_templates** — static workflow definitions with step JSON ✅
-- **workflow_instances** — running workflow executions with progress tracking ✅
+| Table | Purpose |
+|-------|---------|
+| `rel_entities` | URI-keyed entity graph nodes. Every file, task, asset, workflow output must be registered here before execution |
+| `rel_entity_links` | Directed edges: `depends_on`, `generated_by`, `part_of`, `succeeded_by`, `version_of`, `input_to`, `output_from`, `blocks`, `relates_to`, `awaits_reply_by`, `responds_to` |
+| `rel_entity_tags` | Tags on entities; supports inheritance via `propagateTags()` |
+| `worker_capabilities` | Worker registry for UAB routing (ClaudeCode, OpenClaw, MCP) |
+| `execution_log` | Every worker execution: provider, cost_usd, tokens, duration, quality |
+| `workflow_trust` | Trust Ladder state per workflow (current_tier, run_count, approval rates) |
+| `trust_events` | Audit log for every trust gate decision |
 
-### v2.0 Planned
+**Note:** `workflow_instances` also gained two new columns: `trust_tier INT DEFAULT 1` and `pending_gate TEXT`.
 
-- **memories** — auto-extracted patterns (Phase 7.4)
+**Note:** Old `entity_links` and `entity_tags` tables remain for the existing UI tag system. The REL graph uses `rel_*` tables exclusively. Migration path: backfill old rows to `brain://{type}/{id}` URIs later.
 
 ---
 
-## 4. What's Built & Working (v1.0)
+## 4. What's Built
 
-### Brain-Level Features (11 tabs)
+### v1.0 Brain-Level (11 tabs)
+Command Centre, Projects, Bootstrap, Staging, Skills, Workflows, Integrations, Ideas, AI Coach, Export, Notifications
 
-- **Command Centre** — today's focus, priority stack, health alerts, goal progress, life area filters
-- **Projects** — full CRUD with optimistic updates, templates, area assignment
-- **Bootstrap** — 5-step guided wizard with agent brief generation
-- **Staging** — pipeline with tagging (IDEA*, SKETCH*, DRAFT\_), approve/reject/defer
-- **Skills** — 5 agent definitions (Dev, Content, Strategy, Design, Research) with SOPs
-- **Workflows** — 4 templates (Product Launch, Content Sprint, Idea→Brief, Weekly Review)
-- **Integrations** — GitHub repo status, commits, connect/disconnect
-- **Ideas** — bank ideas with score and tags
-- **AI Coach** — Multi-provider proxy, 10 rules, state-based routing (Recovery/Steady/Power)
-- **Export** — full JSON context, per-agent briefings, local download
-- **Notifications** — bell icon with badge, triggered alerts
+### v1.0 Hub-Level (8 tabs per project)
+Editor, Overview, Folders, Review, Dev Log, Timeline, Comments, Meta
 
-### Hub-Level Features (8 tabs per project)
+### v2.0 Orchestration Features
+- `brain://` URI scheme (`src/uri.js`, 12 functions)
+- L0/L1/L2 hierarchical file summaries (`src/summaries.js`)
+- File-based agent registry: 7 system agents in `public/agents/system-*.md`
+- Universal task queue with delegation (`tasks` table)
+- Workflow execution engine (`src/workflows.js`)
+- Agent task execution with function calling (`api/agent-execute.js`)
+- Three assistance modes: Coach / Assistant / Silent (`src/modeHelper.js`)
+- Smart mode suggestions, auto task creation from DEVLOG
+- Memory self-iteration (6 categories, auto-extraction)
+- Community workflows, advanced integrations, pagination, rate limiting
 
-- **Editor** — file tree + markdown editor with debounced auto-save
-- **Overview** — status dashboard (phase, health, momentum, next action)
-- **Folders** — browse standard + custom folders
-- **Review** — staging items for this project
-- **Dev Log** — quick-log entries + rendered DEVLOG.md
-- **Timeline** — Gantt chart from TASKS.md
-- **Comments** — per-file comments with resolve/reopen
-- **Meta** — manifest.json, health check, folder sync, script runner
+### v2.2 Brain OS Features (added 2026-03-25)
 
-### Daily Tracking
+**REL Entity Graph (`src/entityGraph.js`)**  
+8 core functions: `createNode`, `realizeNode`, `linkNodes`, `getDependencies`, `getDependents`, `propagateTags`, `getLineage`, `pruneOrphans`, `queryGraph`. All entities must be registered before execution. Provenance is tracked from root to output.
 
-- **Daily Check-in** — Sleep/energy/gut sliders, training checkbox
-- **Training Log** — Weekly targets (3×30min), energy correlation
-- **Outreach Tracking** — Mandatory minimum enforcement
-- **Weekly Reviews** — Auto-aggregated stats + AI analysis
-- **Drift Detection** — 5 pattern alerts (training deficit, outreach gap, etc.)
+**Trust Ladder (`api/_lib/trustLadder.js`, `src/config/trustLadder.js`)**  
+Three tiers: T1 = full approval every gate, T2 = batch digest, T3 = autopilot.  
+T1→T2: 20 runs + 90% approval + 5 consecutive. T2→T3: 40 runs + 95% + 10 consecutive.  
+Regression: T3→T2 if ≥15% errors in last 10 runs, 24h cooldown.
 
-### Infrastructure
+**Universal Agent Bridge (`api/_lib/executors/UniversalAgentBridge.js`)**  
+Routes execution packages to capable workers. Creates REL nodes before execution (pending), realizes them with output + `generated_by` edge on completion.  
+Adapters: `ClaudeCodeAdapter.js` (CLI subprocess), `OpenClawAdapter.js` (WebSocket/JSON-RPC).
 
-- Offline mode with localStorage fallback
-- Desktop file sync (File System Access API)
-- Search with Cmd+K, filters, highlighting
-- Import/Export (BUIDL, JSON, folder)
-- Mobile responsive (breakpoints, drawers, touch targets)
-- Onboarding wizard (4 steps + tour)
+**Cost Guard (`api/_lib/costGuard.js`)**  
+Budget cap: £15/mo. Five functions: `getMonthlySpend`, `checkBudget`, `suggestProvider`, `recordCost`, `getProviderStats`. Provider fallback order: Haiku → Sonnet → Opus.
 
----
+**Trust Approval Panel (`src/components/TrustApprovalPanel.jsx`)**  
+Unified approval inbox with project filter. Shows pending gates, approve/reject/modify with notes.
 
-## 5. v2.0 Vision: Agent Orchestration
+**Trust API (`api/trust.js`)**  
+GET pending gates, POST record decision. Combined into one file to respect Vercel function limit.
 
-### The Problem v2.0 Solves
+**Relation Maintainer Agent (`public/agents/system-relation-maintainer.md`)**  
+Daily audit: orphan detection/flagging, circular dependency detection, graph health report.
 
-**v1.0:** AI Coach gives advice, human executes everything  
-**v2.0:** AI Orchestrator assigns work, tracks execution, adapts to user mode
+**Project Pipelines (3 production pipelines)**
 
-### Three Assistance Modes
+| Pipeline | Agents | Trust Gates | Output |
+|----------|--------|-------------|--------|
+| YouTube Factory | research, script, storyboard, keywords, retention, assessment | 3 (script, storyboard, pre-upload) | Upload-ready video package |
+| Competition Hunter | competition-research, 6 style writers, competition-submitter | 2 (review, submit) | Submitted competition entries |
+| B2B Outreach | outreach-trade, inbound-monitor, social-content | 2 (review, send) | Sent emails + CRM updates |
 
-| Mode          | For Who                                    | Coaching                                                | Delegation                   | UI Density                      |
-| ------------- | ------------------------------------------ | ------------------------------------------------------- | ---------------------------- | ------------------------------- |
-| **Coach**     | Users building habits, need accountability | Mandatory check-ins, drift alerts, "truth over comfort" | AI suggests, human decides   | High — alerts, warnings, nudges |
-| **Assistant** | Users in flow, just need efficiency        | Available on-demand, no prompts                         | AI auto-assigns with preview | Medium — proactive suggestions  |
-| **Silent**    | Power users who know what they want        | Off entirely                                            | Manual trigger only          | Low — raw data, minimal AI      |
+**Agent Count:** 7 original + 14 new = 21 agents total in `public/agents/`
 
-### Mode Examples
+**Remotion PoC (`remotion/poc/`)**  
+Scaffolding for `composition.tsx` and storyboard JSON. Results template at `FINDINGS.md`. PoC execution pending — determines whether Remotion or FFmpeg assembly is used for Phase 4 rendering.
 
-**Same Task: "Create landing page"**
-
-| Coach Mode                                              | Assistant Mode                                                                                                           | Silent Mode                   |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
-| "You haven't shipped in 3 days. Let's break this down." | "Creating 3 tasks: design mockup (→ Design Agent), copy draft (→ Content Agent), implementation (→ Dev Agent). Preview?" | [User manually creates tasks] |
-| Forces check-in first                                   | Shows preview before execution                                                                                           | No interference               |
-
-### Open Viking Integration
-
-| Pattern                 | Implementation                       | Benefit                             |
-| ----------------------- | ------------------------------------ | ----------------------------------- |
-| **URI Scheme**          | `brain://project/{id}/file/{path}`   | Precise resource addressing         |
-| **L0/L1/L2 Context**    | Auto-generated summaries             | Efficient AI retrieval, lower costs |
-| **Recursive Retrieval** | Directory exploration vs flat search | Better context understanding        |
-| **Retrieval Traces**    | Visualize what AI considered         | Trust, debugging                    |
-
-### v2.0 Feature Pipeline
-
-**Phase 5: Agent Orchestration Foundation**
-
-- URI scheme & resource addressing
-- Hierarchical context (L0/L1/L2)
-- Agent registry with capabilities
-- Task delegation system
-- Workflow execution engine
-- Agent task execution (function calling)
-
-**Phase 6: Adaptive Assistance Modes**
-
-- Mode system (Coach/Assistant/Silent)
-- Mode-aware UI and AI prompts
-- Smart mode suggestions
-
-**Phase 7: Intelligence & Evolution**
-
-- Recursive directory retrieval
-- Workflow learning from patterns
-- Auto task creation from DEVLOGs
-- Memory self-iteration
-
-**Phase 8: Ecosystem & Scale**
-
-- Community workflows
-- Advanced integrations (calendar, email, Slack)
-- Performance optimizations
-- Security hardening
+**CI Gate**  
+`.github/workflows/phase0-gate.yml` runs `entityGraph.test.js` (31 tests) on every PR to main. All PRs require the checklist in `.github/PULL_REQUEST_TEMPLATE.md` (provenance, depends_on, succeeded_by, Trust Ladder compliance).
 
 ---
 
-## 6. Known Issues
+## 5. Known Issues & Remaining Work
 
-### Critical (Must Fix for v1.0 Stability)
+### Fixed in v2.1 (pre-user-testing review)
+- `agentExecution.status()` non-existent → replaced with `tasksApi.myTasks()` re-fetch
+- `endSession` created zero-duration DB records → guarded with `dur > 0 && focusId`
+- `saveTraining` checkin sync was fire-and-forget → now awaited
+- `buildCtx` JSON.stringify had no error handling → wrapped in try/catch
 
-All Phase 0 bugs **FIXED** as of 2026-03-08.
+### Remaining Known Issues (not blocking)
+- `beforeunload` prompt always shows when session active (intentional)
+- Optimistic CRUD not rolled back on API failure (medium priority)
+- `useMetadata` rapid file-switch race condition (no AbortController)
+- AI rate limit: 10/min implemented, prompt caching not implemented
+- Remotion PoC not yet executed — renders unvalidated
 
-### Pre-User-Testing Code Review — ✅ FIXED (2026-03-17)
-
-Full code review performed across all hooks and API layer ahead of user testing. 4 bugs confirmed and patched (branch `claude/prepare-user-testing-YAegk`):
-
-1. **`agentExecution.status()` doesn't exist — ✅ FIXED**
-   - File: `src/hooks/useTaskOps.js:41`
-   - `agentExecution` object only has `execute`, `executeTask`, `executeWithMessage` — no `.status()` method
-   - Polling interval silently threw `TypeError` on every tick; agent task statuses never updated
-   - Fix: replaced per-task `.status()` call with a `tasksApi.myTasks()` re-fetch
-
-2. **`endSession` fired with zero duration and null `focusId` — ✅ FIXED**
-   - File: `src/hooks/useSessionOps.js:68`
-   - Session API called unconditionally, creating DB records with `project_id: null` and `duration_s: 0`
-   - Fix: guard — only call `sessionsApi.create()` when `dur > 0 && focusId`
-
-3. **`saveTraining` checkin sync was fire-and-forget — ✅ FIXED**
-   - File: `src/hooks/useSessionOps.js:138`
-   - After logging training, a second fetch updated `daily_checkins.training_done` but was not awaited; UI updated optimistically even if the server call failed
-   - Fix: made the inner fetch `await`-ed inside its own try/catch; UI state only updates on server confirm
-
-4. **`buildCtx` JSON.stringify had no error handling — ✅ FIXED**
-   - File: `src/hooks/useAI.js:63`
-   - Any non-serializable value or circular reference in project data would throw uncaught, breaking AI Coach entirely
-   - Fix: wrapped in try/catch; returns `'{}'` as safe fallback
-
-### Remaining Known Issues (Not Blocking User Testing)
-
-- **`beforeunload` always shows browser "leave page?" prompt** when session timer is active — intentional UX warning, acknowledged in code comment. `navigator.sendBeacon` not suitable due to Bearer token requirement.
-- **Optimistic CRUD updates not rolled back on API failure** — project/file deletes update UI before server confirms; if API fails the state is stale until next reload. Medium priority refactor.
-- **Rapid file-switch metadata race condition** — `useMetadata` fires multiple fetches without AbortController; last response wins and may show stale data. Low frequency for typical users.
-- **Many `.catch(() => {})` silent failures** — acceptable for non-critical secondary calls (active file persistence, hub link caching). Core flows have explicit error toasts.
-
-### Important
-
-1. **0.9 AI Rate Limiting — PARTIAL**
-   - ✅ Rate limit: 10 calls/min
-   - ❌ Prompt caching
-   - ✅ Token logging to `ai_usage` table
-
-2. **Phase 0.5 Critical Tests — ✅ COMPLETE (2026-03-15)**
-   - ✅ File save/load round-trip
-   - ✅ Comment persistence
-   - ✅ Session logging
-
-3. **Soft Delete Cleanup — NOT IMPLEMENTED**
-   - No "Recently Deleted" UI yet
-   - No 30-day auto-cleanup
+### v2.2 Specific
+- `OpenClawAdapter.js` is Phase 1 stub — logs intent, returns mock. Real WebSocket in Phase 2 when Playwright worker is ready
+- OAuth flows for Gmail/LinkedIn not implemented — required for inbound monitor and LinkedIn outreach
+- Checkpoint/resume schema for long-running agents not yet designed
+- Automated testing for pipelines not yet written (unit tests cover entityGraph only)
 
 ---
 
-## 7. Agent Layer Evolution
+## 6. Critical Constraints (read before adding anything)
 
-### v1.0: AI Coach (CURRENT)
+### Vercel Hobby Plan — 8/12 Serverless Functions Used
 
-```json
-{
-  "identity": "Direct accountability partner...",
-  "rules": ["Ship or it doesn't exist", "Outreach is non-negotiable", ...],
-  "state_routing": {"Recovery": "...", "Steady": "...", "Power": "..."}
-}
-```
+Every `.js` file in `api/` (except `api/_lib/`) counts as a function. **4 slots remain.**
 
-- 10 enforcement rules
-- State-based task routing (Recovery/Steady/Power)
-- Full context from DB (check-ins, training, outreach, projects)
+| Function | Purpose |
+|----------|---------|
+| `api/agent-execute.js` | Agent execution with function calling |
+| `api/agents.js` | Agent management |
+| `api/ai.js` | Multi-provider AI proxy |
+| `api/auth.js` | Authentication |
+| `api/data.js` | Core CRUD + all generic resources |
+| `api/integrations.js` | GitHub integration |
+| `api/projects.js` | Project CRUD + files |
+| `api/trust.js` | Trust gates (GET pending + POST decision) |
 
-### v2.0: Orchestrator
+**Rule:** New utility/library modules go in `api/_lib/`. Multiple related endpoints must be merged into one file with method routing.
 
-```json
-{
-  "identity": "Mode-dependent...",
-  "coach": { "rules": [...], "proactive": true, "tone": "challenging" },
-  "assistant": { "rules": [...], "proactive": true, "tone": "supportive" },
-  "silent": { "rules": [], "proactive": false, "tone": "minimal" },
-  "orchestration": {
-    "can_delegate": true,
-    "can_execute_workflows": true,
-    "can_create_tasks": true
-  }
-}
-```
+### MySQL / TiDB JSON Column Defaults
 
-- Mode-aware personality
-- Task delegation to agents/humans/integrations
-- Workflow execution with step tracking
-- Function calling for file operations
+Never use `DEFAULT '{}'` or any `DEFAULT` on `JSON`, `TEXT`, or `BLOB` columns. TiDB strict mode rejects them. Handle defaults in application code.
+
+### Pre-commit Hook
+
+`.husky/pre-commit` runs `npm run format:check` against **all** `src/**/*.{js,jsx}` files, not just staged ones. Run `npm run format` before every commit.
+
+### Budget
+
+Cost Guard enforces £15/month. Provider fallback: Haiku first, Sonnet for complex tasks, Opus never (too expensive at scale).
+
+---
+
+## 7. Agent Layer
+
+### Current Agent Roster (21 agents)
+
+**Original 7 (v2.0):** system-dev, system-content, system-strategy, system-design, system-research, system-outreach, system-finance
+
+**v2.2 Additions (14):**
+- Pipelines: system-competition-research, system-competition-submitter, system-inbound-monitor, system-outreach-trade, system-social-content
+- Content styles: system-content-humorous, system-content-professional, system-content-fiction, system-content-sad, system-content-narrative, system-content-persuasive
+- YouTube: system-youtube-research, system-youtube-script, system-youtube-storyboard, system-youtube-keywords, system-youtube-retention, system-assessment-v1
+- Maintenance: system-relation-maintainer
+
+### Agent Architecture
+- Definitions: `public/agents/system-*.md` (YAML frontmatter + system prompt body)
+- Ephemeral: agents spin up, execute, die — no persistent state
+- Immutable: change prompt → new file with new version ID
+- Stats: derived from `tasks` table (execution history)
 
 ---
 
 ## 8. Development Workflow
 
-### How we work across chats
+1. `brain-status.md` — single source of truth (this document)
+2. `agent-brief.md` — operating rules for agents working on the repo
+3. `WORKFLOWS-AND-AGENTS.md` — practical guide for using agents/workflows
+4. `PROJECT-PIPELINES-GUIDE.md` — YouTube, Competition, B2B pipeline docs
+5. Per-feature chats — one chat per feature, disposable
 
-1. **BRAIN_STATUS.md** — Single source of truth (this document)
-2. **BRAIN_ROADMAP.md** — Step-by-step task list
-3. **AGENT_BRIEF.md** — Operating rules for agents
-4. **Per-feature chats** — One chat per feature, focused, disposable
-5. **Synthesis chats** — Strategic review across features
-
-### Session Handoff Protocol
-
-At the end of each session, update this document with:
-
-- What was completed
-- Bugs found/fixed
-- Next 3 priorities
-- New parking lot items
+**Session handoff:** Update this document at end of each session. Append edit annotation at bottom.
 
 ---
 
-## 9. Current Priority Stack
+## 9. Documentation Map
 
-### ✅ COMPLETED (v1.0)
-
-All Phases 0, 1, 2, 3, 4 complete as of 2026-03-12.
-
-### 🔄 IN PROGRESS / HARDENING
-
-1. **0.9 AI caching** — Prompt hash caching (5-min window)
-
-### ✅ COMPLETED (v2.0 Phase 5)
-
-- **Phase 5.1 — URI Scheme** (2026-03-14)
-  - `src/uri.js` utility with 12 functions
-  - AI context builder includes URIs for projects/goals
-  - Clickable URI links in AI responses
-  - Cmd/Ctrl+Click navigation to projects/files
-
-- **Phase 5.2 — Hierarchical Context** (2026-03-15)
-  - `file_summaries` table with L0/L1 auto-generation (migration v24)
-  - `resource=file-summaries` CRUD endpoints
-  - Background summarization on file save (fire-and-forget)
-  - FileSummaryViewer component in Meta tab
-  - `src/summaries.js` utility library
-
-- **Phase 5.3 — Agent Registry** (2026-03-15)
-  - 5 system agents as .md files in `/agents/`
-  - AgentRegistry service (`src/agents.js`) with loadAgents, findByCapability, selectAgent, cloneAgent
-  - AgentManager component with browse, clone, edit capabilities
-  - Capability-based task assignment UI
-
-- **Phase 5.4 — Task Delegation System** (2026-03-14)
-  - `tasks` table with 16 columns (assignee, status, priority, context_uri, etc.)
-  - Full CRUD API endpoints with actions (start, complete, block, assign)
-  - Client API wrapper with 8 methods
-  - "My Tasks" card in Command Centre
-  - Task creation modal with project/priority selection
-  - Complete/delete task functionality
-
-- **Phase 5.5 — Workflow Execution Engine** (2026-03-15)
-  - `workflow_templates` + `workflow_instances` tables (migration v25)
-  - 5 system workflows (Product Launch, Content Sprint, Idea→Brief, Weekly Review, Security Audit)
-  - `src/workflows.js` execution engine (startWorkflow, executeStep, onTaskComplete)
-  - WorkflowRunner component with progress bars, pause/resume/abort
-  - Instance detail view with steps and execution log
-
-### ✅ COMPLETED (v2.0 Phase 5)
-
-- **Phase 5.6 — Agent Task Execution** (2026-03-15)
-  - `api/agent-execute.js` — Agent execution with function calling
-  - 6 functions: read_file, write_file, create_task, search_projects, mark_complete, request_review
-  - Multi-provider: Anthropic, OpenAI, Mistral (with tool support)
-  - `src/agentFunctions.js` — Client-side function definitions
-  - Preview mode: agents propose without executing
-  - Auto mode: agents execute immediately (toggle in Settings)
-  - Ignore patterns: per-agent security controls
-
-### ✅ COMPLETED (v2.0 Phase 6)
-
-- **Phase 6.1 — Mode System** (2026-03-15)
-  - `src/modeHelper.js` — Mode matrix, getMode, getBehavior, shouldShow
-  - Settings: assistance_mode (coach/assistant/silent)
-  - UI: Mode selector in Settings modal
-  - AI: Mode-aware prompts (api/ai.js)
-  - Components: AICoach, CommandCentre gated by mode
-  - Feature gating: daily_checkin, drift_alerts, outreach_enforcement, notifications
-
-- **Phase 6.2 — Smart Mode Suggestions** (2026-03-15)
-  - `resource=mode-suggestions` API endpoint — Analyzes behavior patterns
-  - `resource=dismiss-mode-suggestion` — Dismiss and persist
-  - Triggers: 25+ day streak → Assistant, missed check-ins → Coach, 50%+ delegation → Silent
-  - UI: Purple banner in Command Centre with one-click mode switch
-
-- **Phase 7.3 — Auto Task Creation** (2026-03-15)
-  - `resource=auto-tasks` API — Scans DEVLOG/TODO/CHANGELOG for TODO|FIXME|XXX|BLOCKED
-  - `resource=create-from-proposed` — Convert proposed to real task
-  - Patterns: TODO, FIXME, XXX, BLOCKED, - [ ] checkboxes
-  - Priority: BLOCKED=critical, FIXME=high, TODO/checkbox=medium
-  - UI: Green "Proposed Tasks" banner in Command Centre with Create Task button
-
-- **Phase 7.1 — Recursive Directory Retrieval** (2026-03-15)
-  - `src/retrieval.js` — Full recursive retrieval implementation
-  - Intent analysis: extracts keywords, intent type, domain from queries
-  - L0 vector search: ranks directories by relevance using abstracts
-  - L1 exploration: retrieves overviews within candidate directories
-  - Recursive descent: explores subdirectories up to max depth (3)
-  - Retrieval trace: visualizes what was explored/skipped in AI responses
-  - Integrated into `agentFunctions.js` as `explore_project` function
-
-- **Phase 7.2 — Workflow Learning** (2026-03-15)
-  - `src/workflowLearning.js` — Client-side module for pattern analysis
-  - `resource=workflow-patterns` API — Server-side analysis (needs 3+ completed workflows)
-  - Pattern detection: step duration, agent success rates, bottlenecks
-  - Suggestions: estimate adjustments, agent reliability, bottleneck fixes
-  - `resource=apply-workflow-suggestion` API — Acknowledge suggestions
-  - `workflowPatterns` client API wrapper
-
-- **Phase 7.4 — Memory Self-Iteration** (2026-03-15)
-  - Migration v26: `memories` table with 6 categories
-  - `src/memory.js` — Client module for memory management
-  - `resource=memories` API — CRUD for memories (list, create)
-  - `resource=extract-memories` API — Auto-extract from workflows/tasks/checkins
-  - `resource=memory-insights` API — Statistics and personalized insights
-  - `memories` client API wrapper
-  - Memory categories: profile, preferences, entities, events, cases, patterns
-  - Tracks: confidence, access count, last accessed timestamps
-
-- **Phase 8.1 — Community Workflows** (2026-03-15)
-  - Migration v27: `community_workflows` table
-  - `src/communityWorkflows.js` — Client module for community workflows
-  - `resource=community-workflows` API — List and publish workflows
-  - `resource=community-workflow-action` API — Star, unstar, fork, rate
-  - `resource=my-community-workflows` API — User's published workflows
-  - `communityWorkflows` client API wrapper
-  - Features: publish, star/fork/rate, search, categories, sorting
-
-- **Phase 8.2 — Advanced Integrations** (2026-03-15)
-  - Migration v28: `user_integrations` and `integration_sync_log` tables
-  - `src/integrations.js` — Client module for external integrations
-  - `resource=integrations` API — List, add, remove integrations
-  - `resource=github-sync` API — Sync repos, create issues, link projects
-  - `resource=calendar-sync` API — Create events, block time for tasks
-  - `resource=email-sync` API — Send task updates via email
-  - `resource=integration-sync-log` API — Sync history
-  - Providers: GitHub, Google (Calendar), Email, Slack, Discord
-
-- **Phase 8.3 — Performance & Scale** (2026-03-15)
-  - Pagination helpers in api/data.js and api/projects.js
-  - `addPagination()` and `formatPaginatedResponse()` utilities
-  - Page/limit query params supported
-  - Virtual scrolling ready (client-side)
-
-- **Phase 8.4 — Security Hardening** (2026-03-15)
-  - Rate limiting: 30 requests/minute per user
-  - In-memory rate limit map with 60s window
-  - Input sanitization: SQL injection pattern removal
-  - Applied to: api/data.js, api/projects.js, api/ai.js
-
-### 📋 v2.0 FULLY SHIPPED ✅
-
-All phases complete! See `brain-roadmap.md` for the detailed implementation status.
+| File | Keep? | Purpose |
+|------|-------|---------|
+| `brain-status.md` | ✅ | Master status (this file) |
+| `agent-brief.md` | ✅ | Agent operating rules |
+| `WORKFLOWS-AND-AGENTS.md` | ✅ | Practical orchestration guide |
+| `PROJECT-PIPELINES-GUIDE.md` | ✅ | Pipeline user guide |
+| `TESTING-PLAN.md` | ✅ | Manual test checklist |
+| `schema-reference.md` | ✅ | DB schema design reference |
+| `README.md` | ✅ | Repo overview (trimmed) |
+| `CHANGELOG.md` | ✅ | Condensed version history |
+| `docs/archive/` | 📦 | Completed roadmaps, refactor tasks, old test summaries |
 
 ---
 
-## Documentation
+## 10. Architecture Principles
 
-| File                  | Purpose                                     |
-| --------------------- | ------------------------------------------- |
-| `README.md`           | Quick reference — setup, features, commands |
-| `brain-roadmap.md`    | Detailed step-by-step roadmap               |
-| `ARCHITECTURE-v2.md`  | Architecture overview                       |
-| `schema-reference.md` | Database schema reference                   |
-| `agent-brief.md`      | Operating rules for AI agents               |
-| `dev-log.md`          | Session-by-session development log          |
+**Proven (v1.0+)**
+- Modular orchestrator: TheBrain.jsx is state + wiring, business logic in hooks, UI in panels
+- Optimistic updates: UI first, DB background, revert on error
+- Soft deletes: never hard-delete user content
+- File-based agents: immutable, version-controlled, no DB migration for updates
 
----
+**Added (v2.0)**
+- Mode is config, not code: same features, different behaviour
+- Explainable AI: retrieval traces, assignment reasons
+- Human override always: AI suggests, human decides
 
-## Architecture Principles
-
-### v1.0 Principles (Proven)
-
-- **Modular orchestrator** — TheBrain.jsx is the orchestrator (3,962 lines), business logic in 11 hooks, UI in panel components
-- **Optimistic updates** — UI updates immediately, DB syncs background
-- **Portable data** — MySQL-compatible, standard schema
-- **Agent-first** — AI isn't bolt-on, it's primary interaction
-- **Flexible structure** — Accommodates any "life thing"
-- **Soft deletes** — Never hard-delete immediately
-
-### v2.0 Principles (Adding)
-
-- **Mode is behavioral config** — Same code, different behavior
-- **Orchestration works consistently** — Independent of mode
-- **Explainable AI** — Retrieval traces, assignment reasons
-- **Human override always** — AI suggests, human decides
-- **Start simple, measure, iterate** — No premature optimization
-
-### Frontend Architecture (Post-Refactoring 2026-03-17)
-
-The frontend was refactored from 14,237 lines in a single file to a modular architecture:
-
-- **TheBrain.jsx** (3,962 lines) — State declarations, hook wiring, top bar + navigation JSX
-- **11 hooks** in `src/hooks/` — All business logic (project CRUD, staging, sessions, AI, tags, etc.)
-- **2 panel components** in `src/components/panels/` — HubEditorPanel (hub tabs), BrainTabsPanel (brain tabs)
-- **20+ extracted components** in `src/components/` — Modals, viewers, features
-- **4 utility files** in `src/utils/` — Constants, project factory, file handlers, renderers
-
-See `README.md` and `REFACTOR_TASKS.md` for the full module inventory and architecture diagram.
+**Added (v2.2)**
+- Provenance before execution: every entity registered in REL graph with `createNode()` before work begins
+- Trust is earned, not granted: all pipelines start T1, earn autonomy through track record
+- £15/month budget ceiling: Cost Guard enforces it, provider fallback is automatic
+- Vercel function slots are scarce: shared files and `api/_lib/` for new code
 
 ---
 
 ## 11. Success Metrics
 
-### v1.0 Success (ACHIEVED)
+**v1.0 (achieved):** Daily active use, all features survive reload, mobile usable, multi-provider AI stable
 
-- ✅ Daily active users (self)
-- ✅ All features survive reload
-- ✅ Mobile usable
-- ✅ Multi-provider AI works
+**v2.0 (targets):** Tasks/week >10, agent task completion >60%, workflow instances >5/project, mode switching >30% users
 
-### v2.0 Targets
-
-- Tasks created per week > 10 per active user
-- Agent task completion rate > 60%
-- Workflow instances completed > 5 per project
-- Mode switching used by > 30% of users
-- Auto-created tasks accepted > 40% of time
+**v2.2 (new targets):** Pipelines run end-to-end with <3 trust gate rejections per 10 runs; entity graph orphan rate <5%; cost <£10/month per active pipeline
 
 ---
 
-_THE BRAIN v2.0 — Orchestrator Edition (COMPLETE)_
+_THE BRAIN / SPINE v2.2 — Brain OS Edition_
 
-**v2.0 FULLY SHIPPED** ✅
+**v2.2 SHIPPED** ✅
 
-**\*\***\***\*\***APPEND AND ANNOTATE ALL EDITS**\*\***\*\*\***\*\***
-
----
-
-**Edit 2026-03-14 (Roadmap v2.0 Update):**
-
-- Document renamed to v2.0 status
-- Added "Agent Orchestration Platform" vision
-- Documented three assistance modes (Coach/Assistant/Silent)
-- Added Open Viking integration patterns
-- Mapped v2.0 feature pipeline (Phases 5-8)
-- Added v2.0 database tables to planned schema
-- Updated Agent Layer Evolution section
-- Added v2.0 success metrics
-- Next: Phase 5.1 (URI Scheme), 5.4 (Task Schema), 6.1 (Mode System)
+**APPEND AND ANNOTATE ALL EDITS**
 
 ---
 
-**Edit 2026-03-15 (Stabilization Refresh):**
-
-- Fixed TheBrain.jsx line count: ~1,525 → ~5,829 lines
-- Updated table count: 21 → 32 tables
-- Added missing tables to schema section: ai_usage, user_ai_settings, workflow_templates, workflow_instances
-- Marked Phases 5.2, 5.3, 5.5 as complete (2026-03-15) with implementation details
-- Updated priority stack: next is 5.6 (Agent Task Execution) and 6.1 (Mode System)
-- Phase 0.5 critical tests: fixed 3 bugs in test-critical.js, marked complete
-- Clarified agents are file-based (not a DB table)
-
----
-
-**Edit 2026-03-15 (v2.0 Phase 5-6 Complete):**
-
-- Phase 5.6: Agent Task Execution complete (Session 048) — Function calling, 6 functions, preview/auto modes
-- Phase 6.1: Mode System complete — assistance_mode setting, UI selector, feature gating
-- Phase 6.2: Smart Mode Suggestions complete — behavior-based prompts, purple banner
-- Phase 7.3: Auto Task Creation complete — DEVLOG/TODO scanning, proposed tasks
-- Phase 7.1: Recursive Directory Retrieval complete — intent analysis, L0/L1 exploration, trace
-- Phase 7.2: Workflow Learning complete — pattern detection, step duration analysis, agent success rates
-- Updated status: "Phase 7.2 Complete, Next: Phase 7.4 Memory Self-Iteration"
-- Updated priority stack: next is 7.4 Memory Self-Iteration
-
----
-
-**Edit 2026-03-15 (v2.0 Phase 7.4 Complete):**
-
-- Phase 7.4: Memory Self-Iteration complete — memories table, auto-extraction, insights
-- Migration v26: `memories` table with 6 categories
-- API: memories CRUD, extract-memories, memory-insights
-- Updated status: "Phase 7.4 Complete, Next: Phase 8 Ecosystem & Scale"
-
----
-
-**Edit 2026-03-15 (v2.0 Phase 8.1 Complete):**
-
-- Phase 8.1: Community Workflows complete — publish, star, fork, rate workflows
-- Migration v27: `community_workflows` table
-- API: community-workflows CRUD, star/unstar/fork/rate actions
-- Updated status: "Phase 8.1 Complete, Next: Phase 8.2 Advanced Integrations"
-
----
-
-**Edit 2026-03-15 (v2.0 FULLY SHIPPED):**
-
-- Phase 8.2: Advanced Integrations complete — GitHub, Calendar, Email
-- Migration v28: `user_integrations` and `integration_sync_log` tables
-- API: integrations CRUD, github-sync, calendar-sync, email-sync
-- Updated status: "v2.0 FULLY SHIPPED ✅"
-
----
-
-**Edit 2026-03-17 (Pre-User-Testing Code Review):**
-
-- Full code review across all hooks (`useTaskOps`, `useSessionOps`, `useAI`, `useProjectCrud`) and API layer
-- 4 bugs identified and fixed (branch `claude/prepare-user-testing-YAegk`):
-  1. `agentExecution.status()` non-existent → agent task polling now uses `tasksApi.myTasks()` re-fetch
-  2. `endSession` guard added — no longer creates zero-duration or null-project DB records
-  3. `saveTraining` checkin sync awaited — training_done UI state tied to server confirmation
-  4. `buildCtx` JSON.stringify wrapped in try/catch — AI Coach no longer crashes on bad project data
-- Section 6 updated with full issue inventory (fixed + remaining)
-- Status: Ready for user testing
+**Edit 2026-03-28 (v2.2 docs consolidation):**
+- Renamed product to **Spine** throughout; repo and URL unchanged
+- Updated table count: 32 → 39 (7 new REL foundation tables)
+- Added v2.2 features: REL Entity Graph, Trust Ladder, UAB, Cost Guard, Trust Approval Panel, 3 project pipelines, 14 new agents, CI gate, PR template
+- Added §6 Critical Constraints (Vercel 8/12 limit, JSON column defaults, pre-commit hook, budget)
+- Updated API function count: 8/12 used
+- Updated documentation map (archive pattern)
+- Removed verbose repetition from sections 5-8 (content now in dedicated docs)
+- Dev log gap noted: Sessions 033-056 logged, Session 057 (v2.2) missing from dev-log.md — see CHANGELOG.md

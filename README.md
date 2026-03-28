@@ -1,262 +1,168 @@
-# The Brain — Personal Operating System v2.0
+# The Brain / Spine — Personal AI Orchestration OS
 
-**Agent Orchestration Platform with Adaptive Coaching**
-
-**Status:** v2.0 COMPLETE ✅
-**Live URL:** the-brain-2.vercel.app
-**Last Updated:** 2026-03-18
+**Product name:** Spine · **Codebase:** `the-brain-2` · **Live:** the-brain-2.vercel.app  
+**Status:** v2.2 (Brain OS) ✅ — REL graph, Trust Ladder, UAB, 3 production pipelines
 
 ---
 
-## What The Brain Is
+## What It Is
 
-The Brain is a **personal operating system** that helps users organize their lives through:
+Spine is a personal operating system for a solo AI-powered builder. It manages projects, delegates work to AI agents, executes multi-step pipelines, and adapts its coaching intensity to how you work.
 
-- **Project Management** — Phases, health scores, momentum tracking, templates
-- **Life Areas** — Health, business, relationships, creative, personal with health scoring
-- **Goal Tracking** — Configurable financial/personal goals with contributions
-- **AI Coaching** — Multi-provider AI (Anthropic, Moonshot, DeepSeek, Mistral, OpenAI) with state-based routing
-- **Daily Tracking** — Check-ins, training logs, outreach enforcement, weekly reviews
-- **Agent Orchestration** — Task delegation, workflow execution, file-based agents
-
-### Three Assistance Modes (v2.0)
-
-| Mode          | For             | Behavior                                                   |
-| ------------- | --------------- | ---------------------------------------------------------- |
-| **Coach**     | Building habits | Mandatory check-ins, drift alerts, proactive task creation |
-| **Assistant** | In flow         | Available on-demand, auto-assigns with preview             |
-| **Silent**    | Power users     | Manual only, minimal AI, preview mode for agents           |
+Three assistance modes: **Coach** (mandatory check-ins, interruptive drift alerts) / **Assistant** (on-demand, preview before execution) / **Silent** (manual only, minimal AI).
 
 ---
 
 ## Tech Stack
 
-| Layer    | Technology                                                         |
-| -------- | ------------------------------------------------------------------ |
-| Frontend | React 18 + Vite, modular architecture (orchestrator + 30+ modules) |
-| Styling  | Inline dark monospace UI                                           |
-| API      | Vercel serverless functions                                        |
-| Database | TiDB Cloud Serverless (32 tables)                                  |
-| Auth     | JWT + bcrypt                                                       |
-| AI       | Multi-provider proxy                                               |
-| Testing  | Jest + React Testing Library (175+ tests)                          |
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18 + Vite 6, modular (orchestrator + 11 hooks + 2 panels + 20+ components) |
+| API | Vercel serverless — **8/12 functions used** |
+| Database | TiDB Cloud Serverless — **39 tables** |
+| Auth | JWT + bcrypt |
+| AI | Multi-provider: Anthropic, Moonshot, DeepSeek, Mistral, OpenAI |
+| Testing | Jest (175+ unit) + 31 entity graph tests |
+| CI | GitHub Actions — phase0 gate on every PR |
 
 ---
 
-## Frontend Architecture
-
-The frontend was refactored from a single 14,237-line file into a modular architecture:
+## Frontend Structure
 
 ```
 src/
-├── TheBrain.jsx              # Orchestrator (3,962 lines) — state, hooks wiring, top-bar + nav JSX
+├── TheBrain.jsx              # Orchestrator (~3,962 lines) — state, hook wiring, nav JSX
 │
-├── hooks/                    # Domain logic hooks (11 hooks)
-│   ├── useProjectCrud.js     # Project CRUD, file ops, onboarding, bootstrap (677 lines)
-│   ├── useStagingOps.js      # Staging pipeline (82 lines)
-│   ├── useSessionOps.js      # Ideas, sessions, checkins, training, outreach (191 lines)
-│   ├── useNotifications.js   # Notification CRUD (77 lines)
-│   ├── useTaskOps.js         # Task management + agent polling (109 lines)
-│   ├── useAI.js              # Search, AI coach, context builder (148 lines)
-│   ├── useTagOps.jsx         # Tag CRUD + QuickTagRow component (166 lines)
-│   ├── useMetadata.js        # File metadata + AI suggestions (113 lines)
-│   ├── useDataSync.js        # Seed defaults, cache sync, online status (218 lines)
-│   ├── useUndoRedo.js        # Undo/redo history
-│   ├── useBreakpoint.js      # Responsive breakpoints
-│   └── index.js              # Barrel file
+├── hooks/                    # All business logic (11 hooks)
+│   ├── useProjectCrud.js     useSessionOps.js    useAI.js
+│   ├── useStagingOps.js      useNotifications.js  useTagOps.jsx
+│   ├── useTaskOps.js         useMetadata.js       useDataSync.js
+│   └── useUndoRedo.js        useBreakpoint.js
 │
 ├── components/
 │   ├── panels/
-│   │   ├── HubEditorPanel.jsx    # All hub tab content (1,480 lines)
-│   │   └── BrainTabsPanel.jsx    # All brain tab content (2,150 lines)
-│   ├── Modals/
-│   │   ├── KeyboardShortcutsModal.jsx
-│   │   ├── AIProviderSettings.jsx
-│   │   ├── MetadataEditor.jsx
-│   │   └── SearchModal.jsx
-│   ├── viewers/
-│   │   ├── ImageViewer.jsx
-│   │   ├── AudioPlayer.jsx
-│   │   ├── VideoPlayer.jsx
-│   │   └── BinaryViewer.jsx
-│   ├── UI/
-│   │   └── SmallComponents.jsx   # AreaPill, TagPill, Dots, HealthBar, Modal, Toast
-│   ├── AgentManager.jsx          # Agent registry UI (916 lines)
-│   ├── WorkflowRunner.jsx        # Workflow execution UI (687 lines)
-│   ├── OnboardingWizard.jsx      # 4-step onboarding (632 lines)
-│   ├── GitHubIntegration.jsx     # GitHub PAT integration (561 lines)
-│   ├── BootstrapWizard.jsx       # Project bootstrap (480 lines)
-│   ├── SkillsWorkflows.jsx       # SKILLS, WORKFLOWS, BOOTSTRAP_STEPS constants
-│   └── ... (20+ more components)
+│   │   ├── HubEditorPanel.jsx    # All hub tab content
+│   │   └── BrainTabsPanel.jsx    # All brain tab content
+│   ├── TrustApprovalPanel.jsx    # v2.2: approval inbox
+│   └── ...20+ modals, viewers, features
 │
-├── utils/
-│   ├── constants.js          # C (colors), S (styles), BREAKPOINTS, STANDARD_FOLDERS, etc.
-│   ├── projectFactory.js     # makeManifest, calcHealth, makeDefaultFiles, makeProject
-│   ├── fileHandlers.js       # getFileType, formatFileSize, buildZipExport
-│   ├── renderers.js          # renderMd, parseTasks
-│   └── index.js              # Barrel file
+├── utils/                    # constants.js  projectFactory.js  fileHandlers.js  renderers.js
 │
-├── api.js                    # Client API wrapper (all backend endpoints)
-├── agents.js                 # Agent registry service (loadAgents, selectAgent, etc.)
+├── entityGraph.js            # v2.2: REL entity graph (8 core functions)
+├── agents.js                 # Agent registry service
 ├── workflows.js              # Workflow execution engine
-├── modeHelper.js             # Mode-aware behavior (getMode, getBehavior, shouldShow)
-├── uri.js                    # brain:// URI parser/generator
+├── modeHelper.js             # Coach/Assistant/Silent behavior matrix
+├── uri.js                    # brain:// URI utilities (12 functions)
 ├── summaries.js              # L0/L1 summary utilities
 ├── retrieval.js              # Recursive directory retrieval
-├── memory.js                 # Memory management module
-├── cache.js                  # localStorage cache for offline mode
-├── sync.js                   # Online/offline sync engine
-├── desktop-sync.js           # File System Access API sync
-├── communityWorkflows.js     # Community workflow client
-├── integrations.js           # External integration client
-├── workflowLearning.js       # Workflow pattern analysis
-├── App.jsx                   # Auth gate wrapper
-├── AuthScreen.jsx            # Login/register UI
-└── main.jsx                  # Vite entry point
-```
+└── memory.js                 # Memory management
 
-### Hook Pattern
+api/
+├── agent-execute.js  agents.js  ai.js  auth.js
+├── data.js           integrations.js  projects.js  trust.js   # ← 8/12 functions
+└── _lib/
+    ├── trustLadder.js   costGuard.js   cors.js   crypto.js
+    └── executors/
+        ├── UniversalAgentBridge.js
+        ├── ClaudeCodeAdapter.js
+        └── OpenClawAdapter.js
 
-All hooks accept a single `deps` object and return operations:
-
-```javascript
-const { openHub, saveFile, createProject, ... } = useProjectCrud({
-  projects, setProjects, hubId, setHubId, showToast, ...
-});
-```
-
-### Panel Pattern
-
-Panel components receive a single `ctx` prop containing all needed state and callbacks:
-
-```javascript
-<HubEditorPanel ctx={{ hub, hubId, hubTab, saveFile, createFile, ... }} />
-<BrainTabsPanel ctx={{ projects, staging, ideas, createProject, ... }} />
+public/agents/               # 21 agent .md files + 4 pipeline .json files
+src/migrations/              # 0001_add_updated_at.sql  0002_rel_foundation.sql
 ```
 
 ---
 
-## Quick Start for Developers / AI Agents
+## Quick Start (Developers / AI Agents)
 
-### Finding Code
+### Finding code
 
-| To find...                                           | Look in...                                  |
-| ---------------------------------------------------- | ------------------------------------------- |
-| State declarations                                   | `src/TheBrain.jsx` lines 1-320              |
-| Hook wiring                                          | `src/TheBrain.jsx` lines 320-1100           |
-| Top bar / nav JSX                                    | `src/TheBrain.jsx` lines 1100-3962          |
-| Project CRUD logic                                   | `src/hooks/useProjectCrud.js`               |
-| Staging operations                                   | `src/hooks/useStagingOps.js`                |
-| Session/checkin/training                             | `src/hooks/useSessionOps.js`                |
-| Notification logic                                   | `src/hooks/useNotifications.js`             |
-| Task management                                      | `src/hooks/useTaskOps.js`                   |
-| AI/search logic                                      | `src/hooks/useAI.js`                        |
-| Tag operations                                       | `src/hooks/useTagOps.jsx`                   |
-| File metadata                                        | `src/hooks/useMetadata.js`                  |
-| Data seeding + sync                                  | `src/hooks/useDataSync.js`                  |
-| Hub tab content (editor, overview, folders, etc.)    | `src/components/panels/HubEditorPanel.jsx`  |
-| Brain tab content (command, projects, staging, etc.) | `src/components/panels/BrainTabsPanel.jsx`  |
-| Colors, styles, constants                            | `src/utils/constants.js`                    |
-| API endpoints                                        | `src/api.js` (client) + `api/*.js` (server) |
-| Agent definitions                                    | `public/agents/system-*.md`                 |
-| DB schema                                            | `scripts/migrate.js`                        |
+| To find... | Look in... |
+|-----------|-----------|
+| State declarations | `src/TheBrain.jsx` lines 1-320 |
+| Hook wiring | `src/TheBrain.jsx` lines 320-1100 |
+| Top bar / nav JSX | `src/TheBrain.jsx` lines 1100+ |
+| Project CRUD, file ops | `src/hooks/useProjectCrud.js` |
+| Task management + agent polling | `src/hooks/useTaskOps.js` |
+| AI / search / context builder | `src/hooks/useAI.js` |
+| Hub tab content | `src/components/panels/HubEditorPanel.jsx` |
+| Brain tab content | `src/components/panels/BrainTabsPanel.jsx` |
+| Colors, styles, constants | `src/utils/constants.js` |
+| REL entity graph | `src/entityGraph.js` |
+| Trust Ladder logic | `api/_lib/trustLadder.js` |
+| Universal Agent Bridge | `api/_lib/executors/UniversalAgentBridge.js` |
+| Cost Guard | `api/_lib/costGuard.js` |
+| Agent definitions | `public/agents/system-*.md` |
+| Pipeline definitions | `public/agents/*.json` |
+| DB schema / migrations | `scripts/migrate.js` |
 
-### Making Changes
+### Key patterns
 
-1. **Bug in a specific feature?** Find the relevant hook or panel component using the table above.
-2. **Adding a new hook?** Create `src/hooks/useNewThing.js`, follow the deps pattern, wire it in `TheBrain.jsx`, export from `src/hooks/index.js`.
-3. **Adding UI to a tab?** Edit `HubEditorPanel.jsx` (hub tabs) or `BrainTabsPanel.jsx` (brain tabs).
-4. **New API endpoint?** Add to `api/data.js` (generic) or create `api/newresource.js` (dedicated).
-5. **DB schema change?** Add migration to `scripts/migrate.js`, run `npm run db:migrate`.
+- **Hooks:** accept a single `deps` object, return operations — `const { doThing } = useHook({ state, setState })`
+- **Panels:** receive a single `ctx` prop — `<HubEditorPanel ctx={{ hub, saveFile, ... }} />`
+- **New API code:** goes in `api/_lib/` or merged into an existing function file (4 slots remain)
+- **New agents:** create `public/agents/system-{name}.md` with YAML frontmatter, no DB changes needed
+- **New pipelines:** create `public/agents/{name}.json`, seeds automatically on login
 
-### Build & Verify
+### Build & verify
 
 ```bash
-npm run dev              # Start dev server (localhost:5173)
-npm run build            # Production build (npx vite build)
-npm run lint             # ESLint
-npm run test             # Unit tests (Jest)
-npm run test:coverage    # Tests with coverage report
-npm run test:watch       # Tests in watch mode
-npm run test:critical    # Critical path tests (DB required)
-node scripts/run-tests.js # Full test suite
+npm run dev              # localhost:5173
+npm run build            # production build (runs migrate.js first)
+npm run format           # run before every commit (pre-commit checks all src/)
+npm test                 # unit tests (Jest)
+npm run test:critical    # critical path tests (DB required)
+node scripts/run-tests.js # full suite
 ```
-
-**Pre-commit hook:** Prettier + tests run automatically via Husky. Run `npx prettier --write src/` to fix formatting.
 
 ---
 
-## Features
+## v2.2 Brain OS — Key Additions
 
-### Core Features
-
-- Project management with phases, health scores, momentum
-- Hierarchical file system with markdown editing
-- Life Areas ("Parts") with health tracking
-- Goal tracking with contributions
-- Tagging & cross-entity linking
-- Session timer with work logging
-
-### Daily Operations
-
-- Daily check-ins (sleep, energy, gut, training)
-- Training log with weekly targets
-- Outreach tracking with mandatory minimum
-- Weekly reviews with AI analysis
-- Drift detection with 5 pattern alerts
-
-### v2.0 Orchestration
-
-- URI-based resource addressing (`brain://project/{id}`)
-- L0/L1/L2 hierarchical file summaries
-- File-based agent registry (7 system agents)
-- Universal task queue with delegation
-- Workflow execution engine
-- Agent task execution with function calling
-- Adaptive assistance modes (Coach/Assistant/Silent)
-- Memory self-iteration
-- Community workflows
-- External integrations (GitHub, Calendar, Email)
+**REL Entity Graph** — every entity registers before execution, realizes after; full provenance from root to output  
+**Trust Ladder** — T1 (every gate reviewed) → T2 (batch) → T3 (autopilot) earned through track record  
+**Universal Agent Bridge** — routes execution packages to ClaudeCode / OpenClaw / MCP workers  
+**Cost Guard** — £15/month cap, automatic provider fallback  
+**3 Production Pipelines** — YouTube Factory (12 steps, 3 trust gates), Competition Hunter (6 steps, 2 gates), B2B Outreach (6 steps, 2 gates)  
+**21 agents** (was 7), **39 DB tables** (was 32), **CI phase0 gate** on every PR
 
 ---
 
 ## Documentation
 
-| File                             | Purpose                                               |
-| -------------------------------- | ----------------------------------------------------- |
-| `README.md`                      | This file — quick reference + architecture guide      |
-| `WORKFLOWS-AND-AGENTS.md`        | **Start here** — practical guide to using Workflows + Agents/Skills |
-| `REFACTOR_TASKS.md`              | Refactoring progress and module inventory             |
-| `brain-status.md`                | Master status — what's built, what's next             |
-| `brain-roadmap.md`               | Detailed step-by-step roadmap                         |
-| `ARCHITECTURE-v2.md`             | Architecture overview (orchestration, modes, etc.)    |
-| `schema-reference.md`            | Database schema reference                             |
-| `agent-brief.md`                 | Operating rules for AI agents working on this project |
-| `agent-architecture-decision.md` | Agent design decisions (files vs DB)                  |
-| `agent-workflow-architecture.md` | Agent + workflow deep architecture                    |
-| `TESTING-PLAN.md`                | Comprehensive testing checklist (200+ tests)          |
-| `dev-log.md`                     | Session-by-session development log                    |
+| File | Purpose |
+|------|---------|
+| `brain-status.md` | **Master status** — what's built, constraints, schema, known issues |
+| `agent-brief.md` | **Agent operating rules** — read at every session start |
+| `WORKFLOWS-AND-AGENTS.md` | Practical guide to using agents and workflows |
+| `PROJECT-PIPELINES-GUIDE.md` | YouTube, Competition Hunter, B2B Outreach pipeline docs |
+| `TESTING-PLAN.md` | Manual test checklist (200+ checks) |
+| `CHANGELOG.md` | Condensed version history |
+| `schema-reference.md` | DB schema design reference |
+| `docs/archive/` | Completed roadmaps, old test summaries, refactor logs |
 
 ---
 
 ## API Resources
 
-Core resources via `/api/data?resource=`:
+All generic resources via `/api/data?resource=`:
 
-- `projects`, `files`, `folders`
-- `life-areas`, `goals`, `contributions`
-- `tasks`, `workflows`, `workflow-instances`
-- `daily-checkins`, `training-logs`, `outreach`
-- `memories`, `community-workflows`, `integrations`
-- `file-summaries`, `mode-suggestions`, `auto-tasks`
-- `agent-stats`, `workflow-patterns`
+`projects` · `files` · `folders` · `life-areas` · `goals` · `contributions`  
+`tasks` · `workflows` · `workflow-instances` · `daily-checkins` · `training-logs` · `outreach`  
+`memories` · `community-workflows` · `integrations` · `file-summaries`  
+`mode-suggestions` · `auto-tasks` · `agent-stats` · `workflow-patterns`
 
----
-
-## Deployment
-
-Deploy to Vercel with the included `vercel.json` configuration.
+Trust gate endpoints: `GET /api/trust` (pending gates) · `POST /api/trust` (record decision)
 
 ---
 
-_THE BRAIN v2.0 — From Coach to Orchestrator_
+## Critical Constraints
+
+- **Vercel:** 8/12 serverless functions used. New code → `api/_lib/` or merge into existing files
+- **MySQL:** Never use `DEFAULT` on `JSON`/`TEXT`/`BLOB` columns in migrations
+- **Pre-commit:** Prettier runs on ALL `src/` — run `npm run format` before committing
+- **Budget:** £15/month cap enforced by Cost Guard. Use Haiku for high-frequency tasks
+
+---
+
+_Spine · built by Martin Wager · London_
