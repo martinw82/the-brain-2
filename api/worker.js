@@ -163,7 +163,7 @@ async function handleRegister(req, res) {
     }
 
     // Generate token
-    const token = generateWorkerToken(worker_id, user.id);
+    const token = generateWorkerToken(worker_id, user.userId);
 
     return res.status(200).json({
       success: true,
@@ -520,7 +520,8 @@ async function handleStatus(req, res) {
   }
 
   const user = getAuth(req);
-  if (!user) {
+  if (!user || !user.userId) {
+    console.error('[Worker API] Auth failed:', user);
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -534,7 +535,7 @@ async function handleStatus(req, res) {
        LEFT JOIN job_queue jq ON wc.current_job = jq.id
        WHERE wc.user_id = ?
        ORDER BY wc.last_seen DESC`,
-      [user.id]
+      [user.userId]
     );
 
     // Get pending jobs count

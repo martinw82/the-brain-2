@@ -14,6 +14,7 @@ import handleFiles from './_lib/handlers/files.js';
 import handleSettings from './_lib/handlers/settings.js';
 import handleSync from './_lib/handlers/sync.js';
 import handleAdmin from './_lib/handlers/admin.js';
+import handleWorkflows from './_lib/handlers/workflows.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('FATAL: JWT_SECRET environment variable is not set');
@@ -168,6 +169,10 @@ const HANDLERS = {
   'import-all': handleAdmin,
   'agent-stats': handleAdmin,
   'wipe-user': handleAdmin,
+  
+  // workflows
+  workflows: handleWorkflows,
+  'workflow-instances': handleWorkflows,
 };
 
 // ═══════════════════════════════════════════════════════════════
