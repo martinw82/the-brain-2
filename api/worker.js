@@ -50,6 +50,61 @@ function generateWorkerToken(workerId, userId) {
 }
 
 // ═════════════════════════════════════════════════════════════════
+// AUTO-MIGRATION: Ensure worker tables exist
+// ═════════════════════════════════════════════════════════════════
+
+const CREATE_TABLES_SQL = `
+CREATE TABLE IF NOT EXISTS worker_connections (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  worker_id VARCHAR(64) NOT NULL UNIQUE,
+  user_id VARCHAR(36) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  capabilities JSON,
+  status ENUM('online', 'offline', 'busy') DEFAULT 'offline',
+  version VARCHAR(50),
+  platform VARCHAR(50),
+  current_job_id VARCHAR(64),
+  last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_user_id (user_id),
+  INDEX idx_status (status),
+  INDEX idx_last_seen (last_seen)
+);
+
+CREATE TABLE IF NOT EXISTS job_queue (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  job_id VARCHAR(64) NOT NULL UNIQUE,
+  user_id VARCHAR(36) NOT NULL,
+  job_type VARCHAR(100) NOT NULL,
+  payload JSON,
+  status ENUM('pending', 'assigned', 'running', 'completed', 'failed', 'cancelled') DEFAULT 'pending',
+  priority INT DEFAULT 0,
+  worker_id VARCHAR(64),
+  result JSON,
+  error_message TEXT,
+  progress_percent INT DEFAULT 0,
+  progress_message VARCHAR(500),
+  started_at TIMESTAMP NULL,
+  completed_at TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_user_id (user_id),
+  INDEX idx_status (status),
+  INDEX idx_job_type (job_type),
+  INDEX idx_worker_id (worker_id),
+  INDEX idx_created_at (created_at)
+);
+`;
+
+async function ensureTablesExist(db) {
+  try {
+    await db.query(CREATE_TABLES_SQL);
+  } catch (err) {
+    console.error('Failed to create worker tables:', err.message);
+    // Don't throw - let the actual query fail if tables really don't exist
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════
 // ROUTER
 // ═════════════════════════════════════════════════════════════════
 
@@ -59,8 +114,15 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { action } = req.query;
+  let db;
 
   try {
+    // Auto-create tables if they don't exist
+    db = await getDb();
+    await ensureTablesExist(db);
+    await db.end();
+    db = null;
+
     // Route based on action parameter
     switch (action) {
       case 'register':
@@ -80,6 +142,7 @@ export default async function handler(req, res) {
     }
   } catch (e) {
     console.error('[Worker API] Error:', e);
+    if (db) await db.end();
     return res.status(500).json({ error: e.message });
   }
 }
