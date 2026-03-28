@@ -24,7 +24,6 @@ const Editor = ({
   handleHubSave,
   saving,
   projectsApi,
-  fileMetadata,
   getFileType,
   setModal,
   deleteFile,

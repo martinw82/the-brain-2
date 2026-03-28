@@ -96,13 +96,38 @@ async function loadAgentFile(path) {
  * @returns {Promise<object[]>} - Array of agent objects
  */
 async function loadSystemAgents() {
-  // System agents are known files
+  // System agents organized by category
   const systemAgentFiles = [
-    '/agents/system-dev.md',
-    '/agents/system-content.md',
-    '/agents/system-strategy.md',
-    '/agents/system-design.md',
-    '/agents/system-research.md',
+    // Core agents
+    '/agents/system/dev.md',
+    '/agents/system/content.md',
+    '/agents/system/strategy.md',
+    '/agents/system/design.md',
+    '/agents/system/research.md',
+    '/agents/system/outreach.md',
+    '/agents/system/finance.md',
+    '/agents/system/assessment-v1.md',
+    // Style writers
+    '/agents/styles/content-fiction.md',
+    '/agents/styles/content-humorous.md',
+    '/agents/styles/content-narrative.md',
+    '/agents/styles/content-persuasive.md',
+    '/agents/styles/content-professional.md',
+    '/agents/styles/content-sad.md',
+    // Pipeline agents
+    '/agents/pipelines/competition-research.md',
+    '/agents/pipelines/competition-submitter.md',
+    // YouTube agents
+    '/agents/youtube/youtube-keywords.md',
+    '/agents/youtube/youtube-research.md',
+    '/agents/youtube/youtube-retention.md',
+    '/agents/youtube/youtube-script.md',
+    '/agents/youtube/youtube-storyboard.md',
+    // B2B agents
+    '/agents/b2b/inbound-monitor.md',
+    '/agents/b2b/outreach-trade.md',
+    '/agents/b2b/social-content.md',
+    '/agents/b2b/relation-maintainer.md',
   ];
 
   const agents = await Promise.all(systemAgentFiles.map(loadAgentFile));

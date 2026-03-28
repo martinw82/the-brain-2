@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS project_files (
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   UNIQUE KEY unique_file (project_id, path),
   INDEX idx_project_files (project_id),
+  INDEX idx_project_files_active (project_id, deleted_at),
   FULLTEXT INDEX ft_file_content (content)    -- enables full-text search
 );
 
@@ -327,7 +328,7 @@ CREATE TABLE IF NOT EXISTS outreach_log (
   date            VARCHAR(10)   NOT NULL,          -- YYYY-MM-DD
   type            VARCHAR(32)   NOT NULL DEFAULT 'message',  -- message/post/call/email/other
   target          VARCHAR(255)  DEFAULT NULL,      -- person/platform/channel
-  project_id      VARCHAR(36)   DEFAULT NULL,
+  project_id      VARCHAR(64)   DEFAULT NULL,
   notes           TEXT,
   created_at      DATETIME      DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -422,6 +423,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
   FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+  FOREIGN KEY (workflow_instance_id) REFERENCES workflow_instances(id) ON DELETE SET NULL,
   INDEX idx_tasks_user_status (user_id, status),
   INDEX idx_tasks_assignee (assignee_type, assignee_id, status),
   INDEX idx_tasks_project (project_id),
@@ -530,4 +532,47 @@ CREATE TABLE IF NOT EXISTS trust_events (
   decided_by    VARCHAR(255)  DEFAULT NULL,
   decided_at    DATETIME      DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_trust_workflow (workflow_id)
+);
+
+-- ============================================================
+-- WORKFLOW SYSTEM TABLES
+-- ============================================================
+
+-- ── WORKFLOW TEMPLATES ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS workflow_templates (
+  id VARCHAR(64) PRIMARY KEY,
+  user_id VARCHAR(36) DEFAULT NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  category VARCHAR(64) DEFAULT 'custom',
+  steps JSON NOT NULL,
+  version INT DEFAULT 1,
+  is_system BOOLEAN DEFAULT FALSE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_workflow_templates_category (category),
+  INDEX idx_workflow_templates_user (user_id)
+);
+
+-- ── WORKFLOW INSTANCES ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS workflow_instances (
+  id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+  workflow_template_id VARCHAR(64) NOT NULL,
+  project_id VARCHAR(64) DEFAULT NULL,
+  user_id VARCHAR(36) NOT NULL,
+  status ENUM('pending', 'running', 'paused', 'completed', 'failed', 'aborted') DEFAULT 'pending',
+  current_step_index INT DEFAULT 0,
+  step_results JSON,
+  execution_log TEXT,
+  started_by ENUM('user', 'ai', 'trigger') DEFAULT 'user',
+  started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME DEFAULT NULL,
+  estimated_completion DATETIME DEFAULT NULL,
+  FOREIGN KEY (workflow_template_id) REFERENCES workflow_templates(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_workflow_instances_status (status),
+  INDEX idx_workflow_instances_project (project_id),
+  INDEX idx_workflow_instances_user (user_id)
 );
