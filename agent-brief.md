@@ -73,7 +73,7 @@ Every entity (file, task, asset, workflow output) must be registered with `creat
 If the full lineage from root to output cannot be traced, the entity is not complete.
 
 ### 12. Vercel function slots are scarce. (v2.2)
-The Hobby plan allows 12 serverless functions. **8 are used.** New utility/library code must go in `api/_lib/`. New endpoints must be merged into existing files with method routing (GET/POST/PUT/DELETE switch). Never add a new top-level `.js` file to `api/` without removing one.
+The Hobby plan allows 12 serverless functions. **7 are used** (5 slots remain). New utility/library code must go in `api/_lib/`. New endpoints must be merged into `data.js` as handlers in `api/_lib/handlers/`. Never add a new top-level `.js` file to `api/` without removing one.
 
 ### 13. No DEFAULT on JSON columns. (v2.2)
 TiDB strict mode rejects `DEFAULT '{}'` or any `DEFAULT` on `JSON`, `TEXT`, or `BLOB` columns. Handle defaults in application code.
@@ -93,7 +93,7 @@ Cost Guard caps at £15/month. Use `suggestProvider()` before AI calls in pipeli
 - **Orchestrator:** `src/TheBrain.jsx` (~3,962 lines) — state + hook wiring + navigation JSX
 - **Business logic:** 11 hooks in `src/hooks/` (each accepts deps object, returns operations)
 - **Panel UI:** `src/components/panels/HubEditorPanel.jsx` and `BrainTabsPanel.jsx` (receive ctx prop)
-- **API layer:** `src/api.js` (client) + 8 serverless functions in `api/`
+- **API layer:** `src/api.js` (client) + 7 serverless functions in `api/`
 - **DB schema:** `schema.sql`, `schema-reference.md`, `brain-status.md §3`
 - **Multi-provider AI:** Anthropic, Moonshot, DeepSeek, Mistral, OpenAI via `api/ai.js`
 - **Pre-commit:** Prettier on all `src/`. Run `npm run format` before committing.

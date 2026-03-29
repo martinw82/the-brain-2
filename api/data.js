@@ -15,6 +15,10 @@ import handleSettings from './_lib/handlers/settings.js';
 import handleSync from './_lib/handlers/sync.js';
 import handleAdmin from './_lib/handlers/admin.js';
 import handleWorkflows from './_lib/handlers/workflows.js';
+import handleTrust from './_lib/handlers/trust.js';
+import handleAuth from './_lib/handlers/auth.js';
+import handleUpload from './_lib/handlers/upload.js';
+import handleIntegrations from './_lib/handlers/integrations.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('FATAL: JWT_SECRET environment variable is not set');
@@ -121,6 +125,10 @@ function sanitizeObject(obj) {
   return sanitized;
 }
 
+// ── AUTH-EXEMPT RESOURCES ────────────────────────────────────
+// These resources skip JWT check (e.g. login, register)
+const AUTH_EXEMPT = new Set(['auth']);
+
 // ── HANDLER REGISTRY ─────────────────────────────────────────
 const HANDLERS = {
   // staging & ideas
@@ -173,6 +181,18 @@ const HANDLERS = {
   // workflows
   workflows: handleWorkflows,
   'workflow-instances': handleWorkflows,
+
+  // trust (merged from api/trust.js)
+  trust: handleTrust,
+
+  // auth (merged from api/auth.js)
+  auth: handleAuth,
+
+  // upload (merged from api/upload.js)
+  upload: handleUpload,
+
+  // integrations (merged from api/integrations.js)
+  integrations: handleIntegrations,
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -183,11 +203,20 @@ export default async function handler(req, res) {
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(204).end();
 
-  const auth = getAuth(req);
-  if (!auth) return err(res, 'Unauthorised', 401);
+  const { resource } = req.query;
+  if (!resource) return err(res, 'resource parameter required');
 
-  // Rate limiting
-  if (!checkRateLimit(auth.userId)) {
+  const handlerFn = HANDLERS[resource];
+  if (!handlerFn) return err(res, 'Unknown resource', 400);
+
+  // Auth-exempt resources (e.g. login/register) skip JWT check
+  const isExempt = AUTH_EXEMPT.has(resource);
+  const auth = getAuth(req);
+  if (!auth && !isExempt) return err(res, 'Unauthorised', 401);
+
+  // Rate limiting (use userId if available, else IP-based key)
+  const rateLimitKey = auth?.userId || 'anonymous';
+  if (!checkRateLimit(rateLimitKey)) {
     return err(res, 'Rate limit exceeded. Please try again later.', 429);
   }
 
@@ -196,16 +225,10 @@ export default async function handler(req, res) {
     req.body = sanitizeObject(req.body);
   }
 
-  const { resource } = req.query;
-  if (!resource) return err(res, 'resource parameter required');
-
-  const handlerFn = HANDLERS[resource];
-  if (!handlerFn) return err(res, 'Unknown resource', 400);
-
   let db;
   try {
     db = await getDb();
-    const context = { db, userId: auth.userId, ok, err, safeJson, addPagination, formatPaginatedResponse };
+    const context = { db, userId: auth?.userId || null, ok, err, safeJson, addPagination, formatPaginatedResponse };
     const result = await handlerFn(req, res, context);
     // If handler returns null, it didn't handle the request (shouldn't happen with proper routing)
     if (result === null) {

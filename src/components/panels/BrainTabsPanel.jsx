@@ -1565,7 +1565,13 @@ export default function BrainTabsPanel({ ctx }) {
 
       {mainTab === 'skills' && (
         <div style={{ height: 'calc(100vh - 200px)' }}>
-          <Suspense fallback={<div style={{ padding: 20, color: '#64748b' }}>Loading agents...</div>}>
+          <Suspense
+            fallback={
+              <div style={{ padding: 20, color: '#64748b' }}>
+                Loading agents...
+              </div>
+            }
+          >
             <AgentManager
               projectId={hubId}
               projectFiles={hub?.files}
@@ -1583,7 +1589,13 @@ export default function BrainTabsPanel({ ctx }) {
 
       {mainTab === 'workflows' && (
         <div style={{ height: 'calc(100vh - 200px)' }}>
-          <Suspense fallback={<div style={{ padding: 20, color: '#64748b' }}>Loading workflows...</div>}>
+          <Suspense
+            fallback={
+              <div style={{ padding: 20, color: '#64748b' }}>
+                Loading workflows...
+              </div>
+            }
+          >
             <WorkflowRunner
               projectId={focusId}
               project={projects.find((p) => p.id === focusId)}
@@ -1594,7 +1606,13 @@ export default function BrainTabsPanel({ ctx }) {
       )}
 
       {mainTab === 'integrations' && (
-        <Suspense fallback={<div style={{ padding: 20, color: '#64748b' }}>Loading integrations...</div>}>
+        <Suspense
+          fallback={
+            <div style={{ padding: 20, color: '#64748b' }}>
+              Loading integrations...
+            </div>
+          }
+        >
           <GitHubIntegration projects={projects} isMobile={isMobile} />
         </Suspense>
       )}

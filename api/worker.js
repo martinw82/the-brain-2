@@ -55,15 +55,19 @@ function generateWorkerToken(workerId, userId) {
 
 const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS worker_connections (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id VARCHAR(64) PRIMARY KEY,
   worker_id VARCHAR(64) NOT NULL UNIQUE,
   user_id VARCHAR(36) NOT NULL,
-  name VARCHAR(255) NOT NULL,
+  name VARCHAR(255),
   capabilities JSON,
   status ENUM('online', 'offline', 'busy') DEFAULT 'offline',
   version VARCHAR(50),
   platform VARCHAR(50),
+  connection_type VARCHAR(20) DEFAULT 'sse',
+  supported_protocols JSON,
+  metadata JSON,
   current_job_id VARCHAR(64),
+  connected_at TIMESTAMP NULL,
   last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_user_id (user_id),
@@ -72,13 +76,17 @@ CREATE TABLE IF NOT EXISTS worker_connections (
 );
 
 CREATE TABLE IF NOT EXISTS job_queue (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id VARCHAR(64) PRIMARY KEY,
   job_id VARCHAR(64) NOT NULL UNIQUE,
   user_id VARCHAR(36) NOT NULL,
   job_type VARCHAR(100) NOT NULL,
+  workflow_id VARCHAR(64),
+  task_id VARCHAR(64),
+  project_id VARCHAR(36),
   payload JSON,
   status ENUM('pending', 'assigned', 'running', 'completed', 'failed', 'cancelled') DEFAULT 'pending',
   priority INT DEFAULT 0,
+  assigned_to VARCHAR(64),
   worker_id VARCHAR(64),
   result JSON,
   error_message TEXT,
@@ -87,11 +95,23 @@ CREATE TABLE IF NOT EXISTS job_queue (
   started_at TIMESTAMP NULL,
   completed_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_user_id (user_id),
   INDEX idx_status (status),
   INDEX idx_job_type (job_type),
   INDEX idx_worker_id (worker_id),
+  INDEX idx_assigned_to (assigned_to),
   INDEX idx_created_at (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS job_logs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  job_id VARCHAR(64) NOT NULL,
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  level VARCHAR(20) DEFAULT 'info',
+  message TEXT,
+  metadata JSON,
+  INDEX idx_job_id (job_id)
 );
 `;
 
@@ -188,9 +208,10 @@ async function handleRegister(req, res) {
     if (existing.length > 0) {
       // Update existing
       await db.execute(
-        `UPDATE worker_connections 
-         SET status = 'online', 
+        `UPDATE worker_connections
+         SET status = 'online',
              capabilities = ?,
+             platform = ?,
              supported_protocols = ?,
              metadata = ?,
              last_seen = ?,
@@ -198,8 +219,9 @@ async function handleRegister(req, res) {
          WHERE id = ?`,
         [
           JSON.stringify(capabilities),
+          platform,
           JSON.stringify(supported_protocols),
-          JSON.stringify({ platform, hostname, ...metadata }),
+          JSON.stringify({ hostname, ...metadata }),
           now,
           now,
           connectionId
@@ -208,17 +230,18 @@ async function handleRegister(req, res) {
     } else {
       // Create new
       await db.execute(
-        `INSERT INTO worker_connections 
-         (id, worker_id, user_id, connection_type, status, capabilities, 
-          supported_protocols, metadata, connected_at, last_seen)
-         VALUES (?, ?, ?, 'sse', 'online', ?, ?, ?, ?, ?)`,
+        `INSERT INTO worker_connections
+         (id, worker_id, user_id, connection_type, status, capabilities,
+          platform, supported_protocols, metadata, connected_at, last_seen)
+         VALUES (?, ?, ?, 'sse', 'online', ?, ?, ?, ?, ?, ?)`,
         [
           connectionId,
           worker_id,
-          user.userId, 
+          user.userId,
           JSON.stringify(capabilities),
+          platform,
           JSON.stringify(supported_protocols),
-          JSON.stringify({ platform, hostname, ...metadata }),
+          JSON.stringify({ hostname, ...metadata }),
           now,
           now
         ]
@@ -339,7 +362,7 @@ async function handleSSE(req, res) {
 
         // Update worker current_job
         await db.execute(
-          'UPDATE worker_connections SET current_job = ?, status = ? WHERE worker_id = ?',
+          'UPDATE worker_connections SET current_job_id = ?, status = ? WHERE worker_id = ?',
           [job.id, 'busy', worker_id]
         );
 
@@ -365,7 +388,7 @@ async function handleSSE(req, res) {
     
     try {
       await db.execute(
-        'UPDATE worker_connections SET status = ?, current_job = NULL WHERE worker_id = ?',
+        'UPDATE worker_connections SET status = ?, current_job_id = NULL WHERE worker_id = ?',
         ['offline', worker_id]
       );
       await db.end();
@@ -426,7 +449,7 @@ async function handlePoll(req, res) {
 
     // Update worker status
     await db.execute(
-      'UPDATE worker_connections SET current_job = ?, status = ? WHERE worker_id = ?',
+      'UPDATE worker_connections SET current_job_id = ?, status = ? WHERE worker_id = ?',
       [job.id, 'busy', worker_id]
     );
 
@@ -483,7 +506,7 @@ async function handleResult(req, res) {
       `UPDATE job_queue 
        SET status = ?,
            result = ?,
-           error = ?,
+           error_message = ?,
            completed_at = NOW()
        WHERE id = ?`,
       [
@@ -510,7 +533,7 @@ async function handleResult(req, res) {
 
     // Update worker status back to online
     await db.execute(
-      'UPDATE worker_connections SET current_job = NULL, status = ? WHERE worker_id = ?',
+      'UPDATE worker_connections SET current_job_id = NULL, status = ? WHERE worker_id = ?',
       ['online', worker_id]
     );
 
@@ -554,7 +577,7 @@ async function handleHeartbeat(req, res) {
     }
     
     if (current_job !== undefined) {
-      updates.push('current_job = ?');
+      updates.push('current_job_id = ?');
       params.push(current_job);
     }
     
@@ -595,7 +618,7 @@ async function handleStatus(req, res) {
     const [workers] = await db.execute(
       `SELECT wc.*, jq.job_type as current_job_type, jq.status as job_status
        FROM worker_connections wc
-       LEFT JOIN job_queue jq ON wc.current_job = jq.id
+       LEFT JOIN job_queue jq ON wc.current_job_id = jq.id
        WHERE wc.user_id = ?
        ORDER BY wc.last_seen DESC`,
       [user.userId]
@@ -614,8 +637,8 @@ async function handleStatus(req, res) {
         status: w.status,
         capabilities: JSON.parse(w.capabilities || '{}'),
         last_seen: w.last_seen,
-        current_job: w.current_job ? {
-          job_id: w.current_job,
+        current_job: w.current_job_id ? {
+          job_id: w.current_job_id,
           job_type: w.current_job_type,
           status: w.job_status
         } : null

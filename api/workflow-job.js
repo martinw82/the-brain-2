@@ -41,15 +41,16 @@ async function queueJob(db, {
   payload,
   priority = 5
 }) {
-  const [result] = await db.execute(
-    `INSERT INTO job_queue 
-     (id, workflow_id, task_id, project_id, user_id, job_type, status, priority, payload, created_at)
-     VALUES (UUID(), ?, ?, ?, ?, ?, 'pending', ?, ?, NOW())`,
-    [workflow_id, task_id, project_id, user_id, job_type, priority, JSON.stringify(payload)]
+  const jobId = crypto.randomUUID();
+  await db.execute(
+    `INSERT INTO job_queue
+     (id, job_id, workflow_id, task_id, project_id, user_id, job_type, status, priority, payload, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, NOW())`,
+    [jobId, jobId, workflow_id, task_id, project_id, user_id, job_type, priority, JSON.stringify(payload)]
   );
-  
+
   return {
-    job_id: result.insertId,
+    job_id: jobId,
     status: 'pending'
   };
 }
@@ -88,9 +89,9 @@ async function getJobStatus(db, job_id, user_id) {
     job_id: job.id,
     job_type: job.job_type,
     status: job.status,
-    assigned_to: job.assigned_to,
+    assigned_to: job.assigned_to || null,
     result: job.result ? JSON.parse(job.result) : null,
-    error: job.error,
+    error: job.error_message || null,
     created_at: job.created_at,
     started_at: job.started_at,
     completed_at: job.completed_at

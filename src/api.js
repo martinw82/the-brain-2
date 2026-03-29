@@ -1,5 +1,5 @@
 // src/api.js — Vercel edition with offline support
-// All API calls in one place. Uses /api/auth, /api/projects, /api/data
+// All API calls in one place. Uses /api/data (main router), /api/projects
 
 import { cache } from './cache.js';
 
@@ -172,14 +172,19 @@ export async function writeWithQueue(
 // ── AUTH ──────────────────────────────────────────────────────
 export const auth = {
   register: (email, password, name) =>
-    post(`${BASE}/api/auth?action=register`, { email, password, name }),
+    post(`${BASE}/api/data?resource=auth&action=register`, {
+      email,
+      password,
+      name,
+    }),
 
   login: (email, password) =>
-    post(`${BASE}/api/auth?action=login`, { email, password }),
+    post(`${BASE}/api/data?resource=auth&action=login`, { email, password }),
 
-  me: () => get(`${BASE}/api/auth?action=me`),
+  me: () => get(`${BASE}/api/data?resource=auth&action=me`),
 
-  updateProfile: (data) => put(`${BASE}/api/auth?action=me`, data),
+  updateProfile: (data) =>
+    put(`${BASE}/api/data?resource=auth&action=me`, data),
 
   logout: () => token.clear(),
 };
@@ -502,21 +507,21 @@ export const userAISettings = {
 export const integrations = {
   get: (projectId, provider) =>
     get(
-      `${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`
+      `${BASE}/api/data?resource=integrations&provider=${provider}&project_id=${projectId}`
     ),
   connect: (projectId, provider, data) =>
     post(
-      `${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`,
+      `${BASE}/api/data?resource=integrations&provider=${provider}&project_id=${projectId}`,
       data
     ),
   update: (projectId, provider, data) =>
     put(
-      `${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`,
+      `${BASE}/api/data?resource=integrations&provider=${provider}&project_id=${projectId}`,
       data
     ),
   disconnect: (projectId, provider) =>
     del(
-      `${BASE}/api/integrations?provider=${provider}&project_id=${projectId}`
+      `${BASE}/api/data?resource=integrations&provider=${provider}&project_id=${projectId}`
     ),
 };
 
@@ -949,11 +954,14 @@ export const workflowJob = {
   queue: (options) => post(`${BASE}/api/workflow-job?action=queue`, options),
 
   // Get job status
-  status: (jobId) => get(`${BASE}/api/workflow-job?action=status&job_id=${jobId}`),
+  status: (jobId) =>
+    get(`${BASE}/api/workflow-job?action=status&job_id=${jobId}`),
 
   // Check worker availability
-  checkWorker: (capability) => 
-    get(`${BASE}/api/workflow-job?action=check-worker&capability=${encodeURIComponent(capability)}`),
+  checkWorker: (capability) =>
+    get(
+      `${BASE}/api/workflow-job?action=check-worker&capability=${encodeURIComponent(capability)}`
+    ),
 };
 
 // ── WORKER MANAGEMENT ────────────────────────────────────────
@@ -965,6 +973,6 @@ export const worker = {
   status: () => get(`${BASE}/api/worker?action=status`),
 
   // Submit job result
-  submitResult: (jobId, result) => 
+  submitResult: (jobId, result) =>
     post(`${BASE}/api/worker?action=result`, { job_id: jobId, ...result }),
 };

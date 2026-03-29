@@ -568,8 +568,7 @@ export default function TheBrain({
       loadWeeklyTraining();
       if (getBehavior('outreach_enforcement', currentMode) !== 'off')
         loadTodayOutreach();
-      if (getBehavior('drift_alerts', currentMode) !== 'off')
-        loadDriftCheck();
+      if (getBehavior('drift_alerts', currentMode) !== 'off') loadDriftCheck();
       loadTasks();
       // Phase 5.5: Seed system workflows on first run
       seedSystemWorkflows().catch((e) => console.error('[sync]', e.message));

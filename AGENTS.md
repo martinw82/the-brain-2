@@ -153,11 +153,7 @@ Check mode: `const currentMode = getMode(userSettings);`
 ## 🧪 Testing Endpoints
 
 ### Quick Test API
-```bash
-# Test video rendering
-POST /api/quick-test?action=video-render
-Body: { "project_id": "..." }
-```
+**Removed** — `quick-test.js` was deleted during Vercel function consolidation (2026-03-29). Video render testing is done via the worker system directly.
 
 ### Worker Status
 ```bash

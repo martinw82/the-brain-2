@@ -1,6 +1,6 @@
 /**
  * UserContext — Centralized user state management
- * 
+ *
  * Provides: user, userSettings, setUserSettings, currentMode
  * Eliminates prop drilling for user-related state throughout the app.
  */
@@ -30,11 +30,7 @@ export function UserProvider({ children, user }) {
     [user, userSettings, currentMode]
   );
 
-  return (
-    <UserContext.Provider value={value}>
-      {children}
-    </UserContext.Provider>
-  );
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
 
 /**

@@ -43,7 +43,7 @@ export const sync = {
 
     // Perform actual ping to verify connectivity
     try {
-      const response = await fetch('/api/auth?action=me', {
+      const response = await fetch('/api/data?resource=auth&action=me', {
         method: 'HEAD',
         cache: 'no-store',
       });

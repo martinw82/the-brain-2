@@ -152,7 +152,7 @@ All generic resources via `/api/data?resource=`:
 `memories` · `community-workflows` · `integrations` · `file-summaries`  
 `mode-suggestions` · `auto-tasks` · `agent-stats` · `workflow-patterns`
 
-Trust gate endpoints: `GET /api/trust` (pending gates) · `POST /api/trust` (record decision)
+Trust gate endpoints: `GET /api/data?resource=trust` (pending gates) · `POST /api/data?resource=trust` (record decision)
 
 ---
 

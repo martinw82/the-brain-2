@@ -41,8 +41,8 @@ export default function TrustApprovalPanel({ token, projectFilter = null }) {
     try {
       setLoading(true);
       const url = projectFilter
-        ? `/api/trust?project_id=${encodeURIComponent(projectFilter)}`
-        : '/api/trust';
+        ? `/api/data?resource=trust&project_id=${encodeURIComponent(projectFilter)}`
+        : '/api/data?resource=trust';
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -66,7 +66,7 @@ export default function TrustApprovalPanel({ token, projectFilter = null }) {
   const handleDecision = async (item, decision) => {
     setDecidingId(item.instance_id);
     try {
-      const res = await fetch('/api/trust', {
+      const res = await fetch('/api/data?resource=trust', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

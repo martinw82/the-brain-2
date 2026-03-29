@@ -1,6 +1,6 @@
 /**
  * Worker Status Panel
- * 
+ *
  * Shows connected desktop workers and their status.
  * Displays in project sidebar or workflow view.
  */
@@ -17,7 +17,7 @@ export default function WorkerStatusPanel({ projectId }) {
 
   useEffect(() => {
     loadWorkerStatus();
-    
+
     // Poll every 10 seconds
     const interval = setInterval(loadWorkerStatus, 10000);
     return () => clearInterval(interval);
@@ -45,10 +45,14 @@ export default function WorkerStatusPanel({ projectId }) {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'online': return '🟢';
-      case 'busy': return '🔵';
-      case 'offline': return '🔴';
-      default: return '⚪';
+      case 'online':
+        return '🟢';
+      case 'busy':
+        return '🔵';
+      case 'offline':
+        return '🔴';
+      default:
+        return '⚪';
     }
   };
 
@@ -60,25 +64,31 @@ export default function WorkerStatusPanel({ projectId }) {
     );
   }
 
-  const onlineWorkers = workers.filter(w => w.status === 'online' || w.status === 'busy');
+  const onlineWorkers = workers.filter(
+    (w) => w.status === 'online' || w.status === 'busy'
+  );
 
   return (
     <div style={S.card(false)}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: 12
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 12,
+        }}
+      >
         <span style={S.label()}>💻 Desktop Workers</span>
         {pendingJobs > 0 && (
-          <span style={{ 
-            fontSize: 10, 
-            color: C.amber,
-            background: 'rgba(245,158,11,0.1)',
-            padding: '2px 8px',
-            borderRadius: 4
-          }}>
+          <span
+            style={{
+              fontSize: 10,
+              color: C.amber,
+              background: 'rgba(245,158,11,0.1)',
+              padding: '2px 8px',
+              borderRadius: 4,
+            }}
+          >
             {pendingJobs} pending
           </span>
         )}
@@ -89,19 +99,28 @@ export default function WorkerStatusPanel({ projectId }) {
           Error loading workers: {error}
         </div>
       ) : onlineWorkers.length === 0 ? (
-        <div style={{ 
-          padding: 16, 
-          textAlign: 'center',
-          background: 'rgba(0,0,0,0.2)',
-          borderRadius: 6,
-          border: `1px dashed ${C.border}`
-        }}>
+        <div
+          style={{
+            padding: 16,
+            textAlign: 'center',
+            background: 'rgba(0,0,0,0.2)',
+            borderRadius: 6,
+            border: `1px dashed ${C.border}`,
+          }}
+        >
           <div style={{ fontSize: 24, marginBottom: 8 }}>💤</div>
           <div style={{ fontSize: 11, color: C.dim, marginBottom: 8 }}>
             No workers connected
           </div>
           <div style={{ fontSize: 10, color: C.muted }}>
-            Run <code style={{ background: C.surface, padding: '2px 4px', borderRadius: 3 }}>
+            Run{' '}
+            <code
+              style={{
+                background: C.surface,
+                padding: '2px 4px',
+                borderRadius: 3,
+              }}
+            >
               spine-worker start
             </code>
           </div>
@@ -109,7 +128,7 @@ export default function WorkerStatusPanel({ projectId }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {onlineWorkers.map((w) => (
-            <div 
+            <div
               key={w.worker_id}
               style={{
                 padding: '10px 12px',
@@ -118,19 +137,21 @@ export default function WorkerStatusPanel({ projectId }) {
                 border: `1px solid ${C.border}`,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 10
+                gap: 10,
               }}
             >
               <span style={{ fontSize: 16 }}>{getStatusIcon(w.status)}</span>
-              
+
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ 
-                  fontSize: 11, 
-                  fontWeight: 600,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   {w.worker_id}
                 </div>
                 <div style={{ fontSize: 9, color: C.dim }}>
@@ -147,18 +168,12 @@ export default function WorkerStatusPanel({ projectId }) {
               {/* Capability badges */}
               <div style={{ display: 'flex', gap: 4 }}>
                 {w.capabilities?.['video.render']?.available && (
-                  <span 
-                    title="Video rendering"
-                    style={{ fontSize: 12 }}
-                  >
+                  <span title="Video rendering" style={{ fontSize: 12 }}>
                     🎬
                   </span>
                 )}
                 {w.capabilities?.shell && (
-                  <span 
-                    title="Shell execution"
-                    style={{ fontSize: 12 }}
-                  >
+                  <span title="Shell execution" style={{ fontSize: 12 }}>
                     🐚
                   </span>
                 )}
@@ -169,15 +184,17 @@ export default function WorkerStatusPanel({ projectId }) {
       )}
 
       {pendingJobs > 0 && onlineWorkers.length === 0 && (
-        <div style={{ 
-          marginTop: 12,
-          padding: 10,
-          background: 'rgba(245,158,11,0.1)',
-          border: `1px solid ${C.amber}30`,
-          borderRadius: 6,
-          fontSize: 10,
-          color: C.amber
-        }}>
+        <div
+          style={{
+            marginTop: 12,
+            padding: 10,
+            background: 'rgba(245,158,11,0.1)',
+            border: `1px solid ${C.amber}30`,
+            borderRadius: 6,
+            fontSize: 10,
+            color: C.amber,
+          }}
+        >
           <strong>⏳ Waiting for worker</strong>
           <div style={{ marginTop: 4, color: C.dim }}>
             {pendingJobs} job{pendingJobs > 1 ? 's' : ''} queued

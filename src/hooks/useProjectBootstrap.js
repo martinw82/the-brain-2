@@ -1,4 +1,9 @@
-import { projects as projectsApi, staging as stagingApi, goals as goalsApi, settings as settingsApi } from '../api.js';
+import {
+  projects as projectsApi,
+  staging as stagingApi,
+  goals as goalsApi,
+  settings as settingsApi,
+} from '../api.js';
 import { makeManifest, makeProject } from '../utils/projectFactory.js';
 
 /**

@@ -38,7 +38,7 @@ describe('API Client', () => {
       const result = await auth.login('test@example.com', 'password');
 
       expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/auth?action=login'),
+        expect.stringContaining('/api/data?resource=auth&action=login'),
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({

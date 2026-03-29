@@ -62,7 +62,7 @@ export class SpineAPI {
 
   // Get upload URL for rendered video
   async getUploadUrl(projectId, workflowId, filename, contentType, fileSize) {
-    return this.request('/api/upload', {
+    return this.request('/api/data?resource=upload', {
       method: 'POST',
       body: JSON.stringify({
         project_id: projectId,

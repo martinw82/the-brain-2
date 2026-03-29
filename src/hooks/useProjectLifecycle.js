@@ -1,5 +1,9 @@
 import { projects as projectsApi } from '../api.js';
-import { makeManifest, calcHealth, makeProject } from '../utils/projectFactory.js';
+import {
+  makeManifest,
+  calcHealth,
+  makeProject,
+} from '../utils/projectFactory.js';
 
 /**
  * Hook for project lifecycle operations: open, create, update, rename, delete, import

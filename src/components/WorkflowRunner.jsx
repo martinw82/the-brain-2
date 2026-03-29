@@ -587,7 +587,10 @@ function WorkflowInstanceDetail({ instance, agents, onClose }) {
             const isCurrent = idx === instance.current_step_index;
             const isComplete = result?.status === 'complete';
             const isPending = idx > instance.current_step_index;
-            const isWaitingForWorker = isCurrent && step.worker_required && instance.status === 'waiting_for_worker';
+            const isWaitingForWorker =
+              isCurrent &&
+              step.worker_required &&
+              instance.status === 'waiting_for_worker';
 
             return (
               <div
@@ -598,7 +601,11 @@ function WorkflowInstanceDetail({ instance, agents, onClose }) {
                   gap: 10,
                   padding: '8px 10px',
                   borderRadius: 5,
-                  background: isCurrent ? (isWaitingForWorker ? C.amber + '15' : C.blue + '15') : 'transparent',
+                  background: isCurrent
+                    ? isWaitingForWorker
+                      ? C.amber + '15'
+                      : C.blue + '15'
+                    : 'transparent',
                   border: `1px solid ${isCurrent ? (isWaitingForWorker ? C.amber : C.blue) : C.border}`,
                   opacity: isPending ? 0.5 : 1,
                 }}
@@ -611,7 +618,9 @@ function WorkflowInstanceDetail({ instance, agents, onClose }) {
                     background: isComplete
                       ? C.green
                       : isCurrent
-                        ? (isWaitingForWorker ? C.amber : C.blue)
+                        ? isWaitingForWorker
+                          ? C.amber
+                          : C.blue
                         : C.border,
                     display: 'flex',
                     alignItems: 'center',

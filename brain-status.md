@@ -4,7 +4,7 @@
 
 **Product Name:** Spine (codebase: `the-brain-2`, repo: `martinw82/the-brain-2`)  
 **Live URL:** the-brain-2.vercel.app  
-**Last Updated:** 2026-03-28  
+**Last Updated:** 2026-03-29  
 **Status:** v2.0 SHIPPED ✅ | v2.2 (Brain OS) SHIPPED ✅ | Frontend Refactored ✅ | Test Suite Complete ✅
 
 ---
@@ -39,7 +39,7 @@ Spine is a **personal AI orchestration OS** — a solo-operator's command centre
 |-------|-----------|-------|
 | Frontend | React 18 + Vite 6 | Modular: orchestrator + 11 hooks + 2 panels + 20+ components |
 | Styling | Inline dark monospace | JetBrains Mono / Fira Code |
-| API | Vercel serverless | **8/12 functions used** — see constraints §10 |
+| API | Vercel serverless | **7/12 functions used** — see constraints §6 |
 | Database | TiDB Cloud Serverless (MySQL) | Free tier, EU-central-1, **39 tables** |
 | Auth | JWT + bcrypt | Register/login/sessions |
 | AI | Multi-provider proxy | Anthropic, Moonshot, DeepSeek, Mistral, OpenAI |
@@ -122,8 +122,8 @@ Budget cap: £15/mo. Five functions: `getMonthlySpend`, `checkBudget`, `suggestP
 **Trust Approval Panel (`src/components/TrustApprovalPanel.jsx`)**  
 Unified approval inbox with project filter. Shows pending gates, approve/reject/modify with notes.
 
-**Trust API (`api/trust.js`)**  
-GET pending gates, POST record decision. Combined into one file to respect Vercel function limit.
+**Trust API (`api/_lib/handlers/trust.js`)**
+GET pending gates, POST record decision. Merged into `data.js` router as `?resource=trust`.
 
 **Relation Maintainer Agent (`public/agents/system-relation-maintainer.md`)**  
 Daily audit: orphan detection/flagging, circular dependency detection, graph health report.
@@ -171,20 +171,21 @@ Scaffolding for `composition.tsx` and storyboard JSON. Results template at `FIND
 
 ## 6. Critical Constraints (read before adding anything)
 
-### Vercel Hobby Plan — 8/12 Serverless Functions Used
+### Vercel Hobby Plan — 7/12 Serverless Functions Used
 
-Every `.js` file in `api/` (except `api/_lib/`) counts as a function. **4 slots remain.**
+Every `.js` file in `api/` (except `api/_lib/`) counts as a function. **5 slots remain.**
 
 | Function | Purpose |
 |----------|---------|
 | `api/agent-execute.js` | Agent execution with function calling |
-| `api/agents.js` | Agent management |
-| `api/ai.js` | Multi-provider AI proxy |
-| `api/auth.js` | Authentication |
-| `api/data.js` | Core CRUD + all generic resources |
-| `api/integrations.js` | GitHub integration |
-| `api/projects.js` | Project CRUD + files |
-| `api/trust.js` | Trust gates (GET pending + POST decision) |
+| `api/agents.js` | Agent task execution (mode-aware) |
+| `api/ai.js` | Multi-provider AI proxy (streaming) |
+| `api/data.js` | Router hub — CRUD, auth, trust, upload, integrations, workflows (14+ resource types) |
+| `api/projects.js` | Project CRUD + file/folder operations |
+| `api/worker.js` | Desktop worker management (SSE, polling, job results) |
+| `api/workflow-job.js` | Queue workflow steps for worker execution |
+
+**Consolidated (2026-03-29):** `auth.js`, `trust.js`, `upload.js`, `integrations.js` merged into `data.js` handlers. `quick-test.js` (dev-only) deleted.
 
 **Rule:** New utility/library modules go in `api/_lib/`. Multiple related endpoints must be merged into one file with method routing.
 
